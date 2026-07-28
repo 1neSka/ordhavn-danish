@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useRef, useState } from "react";
 import {
   Activity,
+  Anchor,
   ArrowRight,
   BarChart3,
   BookOpen,
@@ -20,6 +21,7 @@ import {
   Gamepad2,
   Gauge,
   Gem,
+  Hammer,
   Heart,
   Home,
   Keyboard,
@@ -47,13 +49,27 @@ import {
 } from "lucide-react";
 import { courseLevels, type Challenge, type Mission } from "../lib/courseData";
 import ScenarioHub from "./scenario-games";
+import { GenderBankView, HarborHome, type GenderBankOutcome } from "./harbor-game";
 import type { ScenarioRun } from "../lib/scenarioData";
+import { harborCharacters, scenarioBossGates } from "../lib/harborData";
+import {
+  applyDailyHarborFee,
+  createWeeklyStorm,
+  evaluateMaritimeRank,
+  HARBOR_BUILDINGS,
+  MARITIME_RANKS,
+  purchaseHarborBuilding,
+  type HarborBuildingId,
+  type MaritimeRankId,
+  type RankRetentionMeasurements,
+} from "../lib/gameEconomy";
 import {
   assignHoldout,
   createFixedHoldoutSchedule,
   createHoldoutScheduledEvents,
   createMasteryState,
   getDueHoldoutReviews,
+  getDueOperationalReviews,
   predictedRecall,
   recordHoldoutObservation,
   scheduleOperationalReview,
@@ -61,7 +77,7 @@ import {
   type OperationalMasteryRecord,
 } from "../lib/scheduler";
 
-type View = "home" | "path" | "practice" | "scenarios" | "stats" | "profile";
+type View = "home" | "path" | "practice" | "scenarios" | "stats" | "profile" | "gender-bank";
 
 type Attempt = {
   id: string;
@@ -101,8 +117,10 @@ type StudySession = {
 };
 
 type ProgressState = {
-  version: 1;
+  version: 2;
   xp: number;
+  kroner: number;
+  rav: number;
   streak: number;
   lastActiveDate: string | null;
   completedMissions: string[];
@@ -112,6 +130,21 @@ type ProgressState = {
   darkMode: boolean;
   mastery: MasteryState | null;
   scenarioRuns: ScenarioRun[];
+  scenarioAttemptedIds: string[];
+  purchasedBuildings: string[];
+  unlockedScenarioIds: string[];
+  relationships: Record<string, number>;
+  repliedCharacterIds: string[];
+  ravClaims: string[];
+  hintTokens: number;
+  lastHintRefillDate: string | null;
+  rerolledWeakItemIds: string[];
+  lastWeakRerollDate: string | null;
+  lastHarborFeeDate: string | null;
+  weeklyStorms: Array<{ weekId: string; completedAt: string; score: number; total: number }>;
+  genderBankRuns: Array<{ id: string; completedAt: string; stake: number; payout: number; rounds: number; meanBrier?: number | null }>;
+  maritimeRankId: MaritimeRankId;
+  claimedBossGates: string[];
 };
 
 type DirectoryHandleLike = {
@@ -126,8 +159,10 @@ const STORAGE_KEY = "ordhavn-progress-v1";
 const CURRENT_WEEKDAY_INDEX = (new Date().getDay() + 6) % 7;
 
 const initialProgress: ProgressState = {
-  version: 1,
+  version: 2,
   xp: 0,
+  kroner: 180,
+  rav: 0,
   streak: 0,
   lastActiveDate: null,
   completedMissions: [],
@@ -137,6 +172,21 @@ const initialProgress: ProgressState = {
   darkMode: true,
   mastery: null,
   scenarioRuns: [],
+  scenarioAttemptedIds: [],
+  purchasedBuildings: [],
+  unlockedScenarioIds: [],
+  relationships: { freja: 0, maja: 0, nora: 0 },
+  repliedCharacterIds: [],
+  ravClaims: [],
+  hintTokens: 2,
+  lastHintRefillDate: null,
+  rerolledWeakItemIds: [],
+  lastWeakRerollDate: null,
+  lastHarborFeeDate: null,
+  weeklyStorms: [],
+  genderBankRuns: [],
+  maritimeRankId: "skibsdreng",
+  claimedBossGates: [],
 };
 
 const iconMap: Record<string, React.ComponentType<{ size?: number; strokeWidth?: number }>> = {
@@ -148,9 +198,42 @@ const iconMap: Record<string, React.ComponentType<{ size?: number; strokeWidth?:
   book: BookOpen,
   target: Target,
   star: Star,
+  "👋": Sparkles,
+  "🙂": MessageCircle,
+  "🧩": Layers3,
+  "🎯": Target,
+  "🕒": Clock3,
+  "🌅": Sparkles,
+  "📅": Clock3,
+  "☕": MessageCircle,
+  "🛒": Compass,
+  "🏷️": Target,
+  "🏠": Home,
+  "👨‍👩‍👧": Heart,
+  "🎨": Sparkles,
+  "🌦️": Compass,
+  "🚲": MapIcon,
+  "🩺": ShieldCheck,
+  "⏪": RotateCcw,
+  "⚙️": Settings,
+  "🧳": Compass,
+  "🧰": Settings,
+  "💼": Layers3,
+  "💬": MessageCircle,
+  "🚀": Zap,
+  "🏁": Trophy,
 };
 
-const dayKey = (date = new Date()) => date.toISOString().slice(0, 10);
+const dayKey = (date = new Date()) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
+function calendarDaysBetween(from: string, to: string) {
+  return Math.max(0, Math.round((new Date(`${to}T12:00:00`).getTime() - new Date(`${from}T12:00:00`).getTime()) / 86_400_000));
+}
 
 function computeStreak(lastActiveDate: string | null, currentStreak: number) {
   if (!lastActiveDate) return 1;
@@ -226,6 +309,16 @@ function formatDayLabel(date: Date) {
   return new Intl.DateTimeFormat("da-DK", { weekday: "short" }).format(date).replace(".", "");
 }
 
+function retentionMeasurements(mastery: MasteryState | null): RankRetentionMeasurements {
+  const records = Object.values(mastery?.records ?? {}).filter((record) => record?.cohort === "holdout");
+  return Object.fromEntries(([7, 14] as const).map((day) => {
+    const observations = records.flatMap((record) => record?.cohort === "holdout"
+      ? record.checkpoints.filter((checkpoint) => checkpoint.day === day && checkpoint.observation).map((checkpoint) => checkpoint.observation!)
+      : []);
+    return [day, { retention: observations.length ? observations.reduce((sum, item) => sum + item.score, 0) / observations.length : 0, samples: observations.length }];
+  })) as RankRetentionMeasurements;
+}
+
 function AppLogo({ compact = false }: { compact?: boolean }) {
   return (
     <div className="brand-lockup" aria-label="Ordhavn">
@@ -292,15 +385,16 @@ function Topbar({ progress, onProfile, onToggleTheme }: { progress: ProgressStat
         <button className="theme-button" aria-label={progress.darkMode ? "Skift til lyst tema" : "Skift til mørkt tema"} onClick={onToggleTheme}>
           {progress.darkMode ? <Sun size={18} /> : <Moon size={18} />}
         </button>
-        <span className="top-pill flame"><Flame size={18} fill="currentColor" /> {progress.streak}</span>
-        <span className="top-pill gem"><Gem size={18} fill="currentColor" /> {progress.xp}</span>
+        <span className="top-pill xp"><Trophy size={17} /> {progress.xp} XP</span>
+        <span className="top-pill kroner">{progress.kroner} kr.</span>
+        <span className="top-pill rav"><Gem size={17} fill="currentColor" /> {progress.rav}</span>
         <button className="avatar small" aria-label="Åbn profil" onClick={onProfile}>R</button>
       </div>
     </header>
   );
 }
 
-function HomeView({
+export function HomeView({
   progress,
   onNavigate,
   onStart,
@@ -406,7 +500,7 @@ function HomeView({
           <div className="word-body">
             <small>substantiv · fælleskøn</small>
             <h3>nysgerrighed</h3>
-            <p>curiosity · любопытство</p>
+            <p>curiosity</p>
             <blockquote>“Nysgerrighed åbner nye døre.”</blockquote>
           </div>
         </section>
@@ -437,9 +531,11 @@ function HomeView({
 function PathView({
   progress,
   onStart,
+  onOpenScenarios,
 }: {
   progress: ProgressState;
   onStart: (mission: Mission, levelId: string) => void;
+  onOpenScenarios: () => void;
 }) {
   const missionCount = courseLevels.reduce((sum, level) => sum + level.missions.length, 0);
   const minuteCount = courseLevels.reduce((sum, level) => sum + level.missions.reduce((levelSum, mission) => levelSum + mission.estimatedMinutes, 0), 0);
@@ -451,9 +547,13 @@ function PathView({
       </section>
       <div className="level-list">
         {courseLevels.map((level, levelIndex) => {
-          const previousComplete = levelIndex === 0 || courseLevels[levelIndex - 1].missions.every((m) => progress.completedMissions.includes(m.id));
+          const previousBossGate = scenarioBossGates.find((gate) => gate.afterPathLevel === levelIndex);
+          const previousBossCleared = !previousBossGate || previousBossGate.scenarioIds.filter((id) => progress.scenarioRuns.some((run) => run.caseId === id && run.success)).length >= previousBossGate.requiredCompletions;
+          const previousComplete = levelIndex === 0 || (courseLevels[levelIndex - 1].missions.every((m) => progress.completedMissions.includes(m.id)) && previousBossCleared);
           const levelComplete = level.missions.filter((m) => progress.completedMissions.includes(m.id)).length;
           const LevelIcon = iconMap[level.missions[0]?.icon] ?? Compass;
+          const bossGate = scenarioBossGates.find((gate) => gate.afterPathLevel === levelIndex + 1);
+          const bossProgress = bossGate ? bossGate.scenarioIds.filter((id) => progress.scenarioRuns.some((run) => run.caseId === id && run.success)).length : 0;
           return (
             <section className={`level-section ${!previousComplete ? "locked" : ""}`} key={level.id} style={{ "--level-color": level.color } as React.CSSProperties}>
               <div className="level-marker">
@@ -484,6 +584,11 @@ function PathView({
                     );
                   })}
                 </div>
+                {bossGate && <button disabled={levelComplete < level.missions.length} className={`path-boss-card ${bossProgress >= bossGate.requiredCompletions ? "cleared" : ""} ${levelComplete < level.missions.length ? "locked" : ""}`} onClick={onOpenScenarios}>
+                  <span className="boss-seal">{bossProgress >= bossGate.requiredCompletions ? <Check size={20} /> : <Anchor size={20} />}</span>
+                  <div><p className="eyebrow">HAVNEPRØVE · BOSS</p><h3>{bossGate.title}</h3><span>{bossGate.description}</span></div>
+                  <strong>{bossProgress}/{bossGate.requiredCompletions}</strong><ChevronRight size={19} />
+                </button>}
               </div>
             </section>
           );
@@ -496,27 +601,43 @@ function PathView({
 function PracticeView({
   progress,
   onStart,
+  onRerollWeakItem,
 }: {
   progress: ProgressState;
   onStart: (mission: Mission, levelId: string) => void;
+  onRerollWeakItem: (questionId: string) => void;
 }) {
+  type PracticeFocus = "vocabulary" | "order" | "spelling" | "dialogue";
+  const [yardFocuses, setYardFocuses] = useState<PracticeFocus[]>(["vocabulary", "order"]);
+  const [yardSize, setYardSize] = useState(10);
   const allQuestions = courseLevels.flatMap((level) => level.missions.flatMap((mission) => mission.questions));
   const weakIds = [...progress.attempts]
     .filter((attempt) => !attempt.correct)
     .reverse()
-    .map((attempt) => attempt.questionId);
+    .map((attempt) => attempt.questionId)
+    .filter((id) => !progress.rerolledWeakItemIds.includes(id));
   const weakQuestions = weakIds
     .map((id) => allQuestions.find((question) => question.id === id))
     .filter((question): question is Challenge => Boolean(question));
 
-  const makePractice = (kind: "speed" | "errors" | "mix") => {
+  const matchesFocus = (question: Challenge, focus: PracticeFocus) => {
+    if (focus === "order") return ["order", "ikke-position"].includes(question.type) || question.tags.includes("ordstilling") || question.tags.includes("V2");
+    if (focus === "spelling") return question.type === "input" || question.tags.includes("stavning");
+    if (focus === "dialogue") return question.skill.includes("samtale") || question.skill.includes("høfl") || question.tags.some((tag) => ["dialog", "samtale", "høflighed", "pragmatik"].includes(tag));
+    return question.skill.includes("ord") || question.tags.some((tag) => ["basisord", "ordforråd", "mad", "ting", "familie"].includes(tag));
+  };
+
+  const makePractice = (kind: "speed" | "errors" | "mix", focus?: PracticeFocus | PracticeFocus[], customSize?: number) => {
     let questions: Challenge[];
+    const focuses = focus ? (Array.isArray(focus) ? focus : [focus]) : [];
+    const focused = focuses.length ? allQuestions.filter((question) => focuses.some((item) => matchesFocus(question, item))) : allQuestions;
+    const pool = focused.length >= 8 ? focused : allQuestions;
+    const questionCount = customSize ?? (kind === "speed" ? 12 : 10);
     if (kind === "errors" && weakQuestions.length) questions = weakQuestions.slice(0, 10);
-    else if (kind === "speed") questions = [...allQuestions].sort(() => Math.random() - 0.5).slice(0, 12);
-    else questions = [...allQuestions].sort(() => Math.random() - 0.5).slice(0, 10);
+    else questions = [...pool].sort(() => Math.random() - 0.5).slice(0, questionCount);
     onStart({
       id: `practice-${kind}-${Date.now()}`,
-      title: kind === "speed" ? "Lynrunde" : kind === "errors" ? "Fejl-laboratoriet" : "Blandet træning",
+      title: kind === "speed" ? "Lynrunde" : kind === "errors" ? "Fejl-laboratoriet" : Array.isArray(focus) ? "Værftets eget togt" : focus === "vocabulary" ? "Ordforråd" : focus === "order" ? "Ordstilling" : focus === "spelling" ? "Stavning" : focus === "dialogue" ? "Dialog" : "Blandet træning",
       subtitle: "En personlig træning bygget af dit ordforråd.",
       icon: "target",
       estimatedMinutes: kind === "speed" ? 4 : 7,
@@ -537,22 +658,34 @@ function PracticeView({
           <span className="feature-action">Start nu <ArrowRight size={18} /></span>
           <div className="feature-orbit" />
         </button>
-        <button className="practice-feature mistakes" onClick={() => makePractice("errors")}>
+        <button className="practice-feature mistakes" disabled={!weakQuestions.length} onClick={() => makePractice("errors")}>
           <span className="feature-icon"><BrainCircuit size={27} /></span>
           <div><p className="eyebrow">TILPASSET DIG</p><h2>Fejl-laboratoriet</h2><p>{weakQuestions.length ? `${weakQuestions.length} svære ord venter på et comeback.` : "Laboratoriet vågner, når du har lavet din første fejl."}</p></div>
           <span className="feature-action">Åbn laboratoriet <ArrowRight size={18} /></span>
         </button>
       </div>
 
+      {progress.purchasedBuildings.includes("biblioteket") && <section className="library-tool panel">
+        <div><p className="eyebrow">BIBLIOTEKET</p><h3>Byt dagens svageste kort</h3><p>{weakQuestions[0] ? `“${weakQuestions[0].answer}” står øverst i fejlarkivet.` : "Der er ikke et svagt kort at bytte endnu."}</p></div>
+        <button className="secondary-button" disabled={!weakQuestions[0] || progress.lastWeakRerollDate === dayKey()} onClick={() => weakQuestions[0] && onRerollWeakItem(weakQuestions[0].id)}><RotateCcw size={16} /> {progress.lastWeakRerollDate === dayKey() ? "Dagens omvalg er brugt" : "Byt kortet"}</button>
+      </section>}
+
+      {progress.purchasedBuildings.includes("vaerftet") && <section className="yard-builder panel">
+        <div className="yard-builder-heading"><div><p className="eyebrow">VÆRFTET</p><h3>Byg dit eget træningstogt</h3><p>Kombinér færdigheder og vælg længden selv.</p></div><output>{yardSize} opgaver</output></div>
+        <div className="yard-focuses">{(["vocabulary", "order", "spelling", "dialogue"] as PracticeFocus[]).map((focus) => <button key={focus} className={yardFocuses.includes(focus) ? "selected" : ""} onClick={() => setYardFocuses((items) => items.includes(focus) ? items.filter((item) => item !== focus) : [...items, focus])}>{focus === "vocabulary" ? "Ordforråd" : focus === "order" ? "Ordstilling" : focus === "spelling" ? "Stavning" : "Dialog"}</button>)}</div>
+        <input type="range" min={6} max={16} step={2} value={yardSize} onChange={(event) => setYardSize(Number(event.target.value))} />
+        <button className="primary-button" disabled={!yardFocuses.length} onClick={() => makePractice("mix", yardFocuses, yardSize)}><Hammer size={17} /> Søsæt træningen</button>
+      </section>}
+
       <section className="section-head practice-section-head"><div><p className="eyebrow">TRÆN EN FÆRDIGHED</p><h2>Vælg dit fokus</h2></div></section>
       <div className="focus-grid">
         {[
-          { icon: Languages, title: "Ordforråd", copy: "Genkend ord i en ægte sammenhæng", color: "mint" },
-          { icon: Layers3, title: "Ordstilling", copy: "Byg sætninger, der føles naturlige", color: "lavender" },
-          { icon: Keyboard, title: "Stavning", copy: "Skriv de ord, du vil huske", color: "peach" },
-          { icon: MessageCircle, title: "Dialog", copy: "Vælg det rigtige svar i hverdagen", color: "blue" },
+          { icon: Languages, title: "Ordforråd", copy: "Genkend ord i en ægte sammenhæng", color: "mint", focus: "vocabulary" as const },
+          { icon: Layers3, title: "Ordstilling", copy: "Byg sætninger, der føles naturlige", color: "lavender", focus: "order" as const },
+          { icon: Keyboard, title: "Stavning", copy: "Skriv de ord, du vil huske", color: "peach", focus: "spelling" as const },
+          { icon: MessageCircle, title: "Dialog", copy: "Vælg det rigtige svar i hverdagen", color: "blue", focus: "dialogue" as const },
         ].map((item) => (
-          <button className={`focus-card ${item.color}`} key={item.title} onClick={() => makePractice("mix")}>
+          <button className={`focus-card ${item.color}`} key={item.title} onClick={() => makePractice("mix", item.focus)}>
             <span><item.icon size={23} /></span><h3>{item.title}</h3><p>{item.copy}</p><ArrowRight size={18} />
           </button>
         ))}
@@ -714,11 +847,12 @@ function StatsView({
 }
 
 function ProfileView({ progress, setProgress }: { progress: ProgressState; setProgress: React.Dispatch<React.SetStateAction<ProgressState>> }) {
+  const rankName = MARITIME_RANKS.find((rank) => rank.id === progress.maritimeRankId)?.name ?? progress.maritimeRankId;
   return (
     <div className="view profile-view">
       <section className="page-intro"><div><p className="eyebrow">PERSONLIGT</p><h1>Indstillinger</h1><p>Gør Ordhavn til din rolige, faste danskerutine.</p></div></section>
       <div className="settings-grid">
-        <section className="panel profile-card"><div className="large-avatar">R</div><h2>Dansk elev</h2><p>På vej fra første “hej” til et sikkert hverdagsdansk.</p><div className="profile-badges"><span><Gem size={16} /> {progress.xp} XP</span><span><Medal size={16} /> {progress.completedMissions.length} missioner</span></div></section>
+        <section className="panel profile-card"><div className="large-avatar">R</div><h2>Dansk elev</h2><p>På vej fra første “hej” til et sikkert hverdagsdansk.</p><div className="profile-badges"><span><Gem size={16} /> {progress.rav} rav</span><span><Anchor size={16} /> {progress.kroner} kr.</span><span><Medal size={16} /> {rankName}</span></div></section>
         <section className="panel settings-card">
           <div className="setting-row"><span className="icon-box violet"><Target size={20} /></span><div><strong>Dagligt mål</strong><p>Hvor længe vil du træne?</p></div><select value={progress.dailyGoalMinutes} onChange={(event) => setProgress((old) => ({ ...old, dailyGoalMinutes: Number(event.target.value) }))}><option value={5}>5 min.</option><option value={10}>10 min.</option><option value={15}>15 min.</option><option value={20}>20 min.</option><option value={30}>30 min.</option></select></div>
           <div className="setting-row"><span className="icon-box blue"><Moon size={20} /></span><div><strong>Mørkt tema</strong><p>Blødere farver om aftenen.</p></div><button className={`toggle ${progress.darkMode ? "on" : ""}`} onClick={() => setProgress((old) => ({ ...old, darkMode: !old.darkMode }))}><span /></button></div>
@@ -740,6 +874,12 @@ function LessonPlayer({
   sessionId,
   startedAtIso,
   startedAtMs,
+  priorAttempts,
+  currentXp,
+  mastery,
+  maritimeRankId,
+  hintTokens,
+  onUseHint,
   onExit,
   onComplete,
 }: {
@@ -748,6 +888,12 @@ function LessonPlayer({
   sessionId: string;
   startedAtIso: string;
   startedAtMs: number;
+  priorAttempts: Attempt[];
+  currentXp: number;
+  mastery: MasteryState | null;
+  maritimeRankId: MaritimeRankId;
+  hintTokens: number;
+  onUseHint: () => boolean;
   onExit: () => void;
   onComplete: (attempts: Attempt[], session: StudySession) => void;
 }) {
@@ -760,6 +906,7 @@ function LessonPlayer({
   const [genderConfidence, setGenderConfidence] = useState<50 | 60 | 70 | 80 | 90 | 100>(70);
   const [combo, setCombo] = useState(0);
   const [earnedXp, setEarnedXp] = useState(0);
+  const [animatedXp, setAnimatedXp] = useState(0);
   const [localAttempts, setLocalAttempts] = useState<Attempt[]>([]);
   const [finished, setFinished] = useState(false);
   const questionStartedAt = useRef(startedAtMs);
@@ -780,10 +927,36 @@ function LessonPlayer({
         const option = question.options?.[Number(event.key) - 1];
         if (option) setSelected(option);
       }
+      if (question && ["gender-bet"].includes(question.type) && !checked && /^[12]$/.test(event.key)) {
+        const option = question.options?.[Number(event.key) - 1];
+        if (option) setSelected(option);
+      }
+      if (question && ["order", "ikke-position"].includes(question.type) && !checked && /^[1-9]$/.test(event.key)) {
+        const tokenIndex = Number(event.key) - 1;
+        const token = tokens[tokenIndex];
+        const alreadyUsed = token && ordered.filter((item) => item === token).length >= tokens.slice(0, tokenIndex + 1).filter((item) => item === token).length;
+        if (token && !alreadyUsed) setOrdered((items) => [...items, token]);
+      }
+      if (question && ["order", "ikke-position"].includes(question.type) && !checked && event.key === "Backspace") {
+        setOrdered((items) => items.slice(0, -1));
+      }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
   });
+
+  useEffect(() => {
+    if (!finished) return;
+    const step = Math.max(1, Math.ceil(earnedXp / 32));
+    const interval = window.setInterval(() => {
+      setAnimatedXp((value) => {
+        const next = Math.min(earnedXp, value + step);
+        if (next >= earnedXp) window.clearInterval(interval);
+        return next;
+      });
+    }, 24);
+    return () => window.clearInterval(interval);
+  }, [earnedXp, finished]);
 
   if (!question && !finished) return null;
 
@@ -861,6 +1034,31 @@ function LessonPlayer({
   if (finished) {
     const right = localAttempts.filter((attempt) => attempt.correct).length;
     const percentage = Math.round((right / Math.max(1, localAttempts.length)) * 100);
+    const bestCombo = localAttempts.reduce((best, attempt) => {
+      const next = attempt.correct ? best.current + 1 : 0;
+      return { current: next, maximum: Math.max(best.maximum, next) };
+    }, { current: 0, maximum: 0 }).maximum;
+    const returnItem = mission.questions
+      .map((item) => {
+        const record = mastery?.records[`${item.id}::${item.modality}`];
+        const dueAt = record?.cohort === "operational"
+          ? record.card.due
+          : record?.checkpoints.find((checkpoint) => checkpoint.observation === null)?.dueAt;
+        return { item, dueAt, seen: [...priorAttempts, ...localAttempts].filter((attempt) => attempt.questionId === item.id).length };
+      })
+      .filter((item): item is typeof item & { dueAt: string } => Boolean(item.dueAt))
+      .sort((left, rightItem) => Date.parse(left.dueAt) - Date.parse(rightItem.dueAt))[0];
+    const returnDays = returnItem ? calendarDaysBetween(dayKey(), dayKey(new Date(returnItem.dueAt))) : null;
+    const rank = evaluateMaritimeRank({
+      xp: currentXp,
+      retention: retentionMeasurements(mastery),
+      previousRankId: maritimeRankId,
+      retentionFailurePolicy: "threaten",
+    });
+    const rankTarget = rank.rankAtRisk ?? rank.nextRank;
+    const rankPercent = rankTarget
+      ? Math.max(0, Math.min(100, (currentXp - rank.rank.minimumXp) / Math.max(1, rankTarget.minimumXp - rank.rank.minimumXp) * 100))
+      : 100;
     return (
       <div className="lesson-overlay completion-screen">
         <div className="completion-confetti" aria-hidden="true"><i /><i /><i /><i /><i /></div>
@@ -869,7 +1067,9 @@ function LessonPlayer({
           <p className="eyebrow">MISSION FULDFØRT</p>
           <h1>Det sad godt!</h1>
           <p>Du har gjort dansk en lille smule mere automatisk.</p>
-          <div className="completion-stats"><div><Gem size={21} /><strong>+{earnedXp}</strong><span>XP</span></div><div><Target size={21} /><strong>{percentage}%</strong><span>præcision</span></div><div><Flame size={21} /><strong>{Math.max(combo, 1)}</strong><span>bedste combo</span></div></div>
+          <div className="completion-stats"><div><Gem size={21} /><strong>+{animatedXp}</strong><span>XP</span></div><div><Target size={21} /><strong>{percentage}%</strong><span>præcision</span></div><div><Anchor size={21} /><strong>{bestCombo}</strong><span>bedste strøm</span></div></div>
+          <div className="completion-rank"><div><span>{rank.rank.name}</span><strong>{rankTarget ? rankTarget.name : "Havnefoged"}</strong></div><div className="completion-rank-track"><i style={{ width: `${rankPercent}%` }} /></div><small>{rank.standing === "retention-locked" ? "XP er på plads — retention åbner den næste rang." : rankTarget ? `${currentXp.toLocaleString("da-DK")} / ${rankTarget.minimumXp.toLocaleString("da-DK")} XP` : "Højeste maritime rang nået"}</small></div>
+          {returnItem && <div className="next-review-note"><RotateCcw size={18} /><p><strong>“{returnItem.item.answer}” er mødt {returnItem.seen} {returnItem.seen === 1 ? "gang" : "gange"}</strong><span>{returnDays === 0 ? "Det er allerede klar til repetition i dag." : `Det vender tilbage om ${returnDays} ${returnDays === 1 ? "dag" : "dage"}.`}</span></p></div>}
           <button className="primary-button wide" onClick={onExit}>Tilbage til din sti <ArrowRight size={18} /></button>
         </div>
       </div>
@@ -881,7 +1081,7 @@ function LessonPlayer({
       <header className="lesson-header">
         <button className="icon-button" onClick={onExit} aria-label="Luk lektionen"><X size={23} /></button>
         <div className="lesson-progress"><span style={{ width: `${progressPercent}%` }} /></div>
-        <div className="lesson-hearts"><Heart size={20} fill="currentColor" /><span>Rolig tilstand</span></div>
+        <div className="lesson-hearts"><Anchor size={20} /><span>Havnepas</span></div>
       </header>
       <main className="lesson-main">
         <div className="question-meta"><span>{question.skill}</span><span>Opgave {index + 1} af {mission.questions.length}</span></div>
@@ -901,7 +1101,7 @@ function LessonPlayer({
         {question.type === "number-arcade" && <div className="number-arcade-display"><span>{question.value}</span><div><strong>Vigesimalt værksted</strong><small>{checked ? question.breakdown : "Find talordet før maskinen køler af"}</small></div></div>}
         {question.type === "definiteness" && <div className="grammar-transform"><span>{question.forms.indefinite}</span><ArrowRight size={16} /><span>{question.forms.definite}</span><ArrowRight size={16} /><span>{question.forms.modified}</span></div>}
         {question.type === "agreement" && <div className="grammar-rule"><Layers3 size={18} /><span>grundform</span><i>→</i><strong>{question.agreementForm === "t" ? "-t ved et-ord" : question.agreementForm === "e" ? "-e i bestemt/flertal" : "ingen endelse ved en-ord"}</strong></div>}
-        {question.type === "ikke-position" && <div className="field-model"><span>{question.clauseType === "main" ? "Hovedsætning · V2" : "Ledsætning"}</span><div>{question.clauseType === "main" ? <><i>forfelt</i><i>verbum</i><i>subjekt</i><i className="ikke">ikke</i></> : <><i>bindeord</i><i>subjekt</i><i className="ikke">ikke</i><i>verbum</i></>}</div></div>}
+        {question.type === "ikke-position" && <div className={`field-model ${checked ? "resolved" : ""}`}><span>{question.clauseType === "main" ? "Hovedsætning · V2" : "Ledsætning"}</span><div>{question.clauseType === "main" ? <><i>forfelt</i><i>verbum</i><i>subjekt</i><i className="ikke">ikke</i></> : <><i>bindeord</i><i>subjekt</i><i className="ikke">ikke</i><i>verbum</i></>}</div>{checked && <p className="field-answer-flight">{question.answer}</p>}</div>}
 
         {(question.type === "choice" || question.type === "number-arcade" || question.type === "definiteness" || question.type === "agreement") && (
           <div className="option-list">
@@ -952,7 +1152,7 @@ function LessonPlayer({
             <div className="token-bank">
               {tokens.map((token, tokenIndex) => {
                 const used = ordered.filter((item) => item === token).length >= tokens.slice(0, tokenIndex + 1).filter((item) => item === token).length;
-                return <button key={`${token}-${tokenIndex}`} disabled={used || checked} onClick={() => setOrdered((items) => [...items, token])}>{token}</button>;
+                return <button key={`${token}-${tokenIndex}`} disabled={used || checked} onClick={() => setOrdered((items) => [...items, token])}><kbd>{tokenIndex + 1}</kbd>{token}</button>;
               })}
             </div>
           </div>
@@ -966,7 +1166,9 @@ function LessonPlayer({
         )}
 
         {!checked && (
-          <button className="hint-button" onClick={() => setHintsUsed(1)}><CircleHelp size={17} /> {hintsUsed ? question.hint : "Vis et lille hint"}</button>
+          <button className="hint-button" disabled={!hintsUsed && hintTokens <= 0} onClick={() => {
+            if (!hintsUsed && onUseHint()) setHintsUsed(1);
+          }}><CircleHelp size={17} /> {hintsUsed ? question.hint : hintTokens > 0 ? `Brug 1 hint-token · ${hintTokens} tilbage` : "Ingen hint-tokens"}</button>
         )}
       </main>
       <footer className={`lesson-footer ${checked ? (correct ? "correct" : latestAttempt?.result === "partial" ? "partial" : "wrong") : ""}`}>
@@ -992,12 +1194,55 @@ export default function HomePage() {
   const [activeLesson, setActiveLesson] = useState<{ mission: Mission; levelId: string; sessionId: string; startedAtIso: string; startedAtMs: number } | null>(null);
   const [directoryHandle, setDirectoryHandle] = useState<DirectoryHandleLike | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const [clockNowMs, setClockNowMs] = useState(() => Date.now());
 
   useEffect(() => {
     const timeout = window.setTimeout(() => {
       try {
         const stored = localStorage.getItem(STORAGE_KEY);
-        if (stored) setProgress({ ...initialProgress, ...JSON.parse(stored) });
+        if (stored) {
+          const parsed = JSON.parse(stored) as Partial<ProgressState>;
+          const today = dayKey();
+          const migrated: ProgressState = {
+            ...initialProgress,
+            ...parsed,
+            version: 2,
+            relationships: { ...initialProgress.relationships, ...(parsed.relationships ?? {}) },
+            repliedCharacterIds: parsed.repliedCharacterIds ?? [],
+            scenarioRuns: parsed.scenarioRuns ?? [],
+            scenarioAttemptedIds: parsed.scenarioAttemptedIds ?? [...new Set((parsed.scenarioRuns ?? []).map((run) => run.caseId))],
+            purchasedBuildings: parsed.purchasedBuildings ?? [],
+            unlockedScenarioIds: parsed.unlockedScenarioIds ?? [],
+            ravClaims: parsed.ravClaims ?? [],
+            rerolledWeakItemIds: parsed.rerolledWeakItemIds ?? [],
+            weeklyStorms: parsed.weeklyStorms ?? [],
+            genderBankRuns: parsed.genderBankRuns ?? [],
+            claimedBossGates: parsed.claimedBossGates ?? [],
+          };
+          if (migrated.lastActiveDate && calendarDaysBetween(migrated.lastActiveDate, today) > 1) migrated.streak = 0;
+          if (migrated.lastWeakRerollDate !== today) migrated.rerolledWeakItemIds = [];
+          const fee = applyDailyHarborFee({
+            balance: { xp: migrated.xp, kroner: migrated.kroner, rav: migrated.rav },
+            lastChargedOn: migrated.lastHarborFeeDate,
+            throughDate: today,
+          });
+          migrated.kroner = fee.balance.kroner;
+          migrated.lastHarborFeeDate = fee.lastChargedOn;
+          if (migrated.purchasedBuildings.includes("kaffebaren")) {
+            const refillDays = migrated.lastHintRefillDate ? calendarDaysBetween(migrated.lastHintRefillDate, today) : 1;
+            if (refillDays > 0) migrated.hintTokens = Math.min(5, migrated.hintTokens + Math.min(3, refillDays));
+            migrated.lastHintRefillDate = today;
+          }
+          migrated.maritimeRankId = evaluateMaritimeRank({
+            xp: migrated.xp,
+            retention: retentionMeasurements(migrated.mastery),
+            previousRankId: migrated.maritimeRankId,
+            retentionFailurePolicy: "threaten",
+          }).rank.id;
+          setProgress(migrated);
+        } else {
+          setProgress({ ...initialProgress, lastHarborFeeDate: dayKey() });
+        }
       } catch {
         localStorage.removeItem(STORAGE_KEY);
       }
@@ -1012,6 +1257,24 @@ export default function HomePage() {
     document.documentElement.dataset.theme = progress.darkMode ? "dark" : "light";
   }, [progress, hydrated]);
 
+  useEffect(() => {
+    if (!hydrated) return;
+    const interval = window.setInterval(() => {
+      setClockNowMs(Date.now());
+      const today = dayKey();
+      setProgress((old) => {
+        if (old.lastHarborFeeDate === today) return old;
+        const fee = applyDailyHarborFee({
+          balance: { xp: old.xp, kroner: old.kroner, rav: old.rav },
+          lastChargedOn: old.lastHarborFeeDate,
+          throughDate: today,
+        });
+        return { ...old, kroner: fee.balance.kroner, lastHarborFeeDate: fee.lastChargedOn };
+      });
+    }, 60_000);
+    return () => window.clearInterval(interval);
+  }, [hydrated]);
+
   const notify = (message: string) => {
     setToast(message);
     window.setTimeout(() => setToast(null), 3200);
@@ -1021,6 +1284,50 @@ export default function HomePage() {
     const startedAtMs = Date.now();
     const unique = typeof globalThis.crypto?.randomUUID === "function" ? globalThis.crypto.randomUUID() : `${startedAtMs}-${Math.random().toString(36).slice(2, 8)}`;
     setActiveLesson({ mission, levelId, sessionId: `session-${unique}`, startedAtIso: new Date(startedAtMs).toISOString(), startedAtMs });
+  };
+
+  const startWeeklyStorm = () => {
+    const allQuestions = courseLevels.flatMap((level) => level.missions.flatMap((mission) => mission.questions));
+    const candidates = allQuestions.map((question) => {
+      const attempts = progress.attempts.filter((attempt) => attempt.questionId === question.id);
+      const accuracy = attempts.length ? attempts.filter((attempt) => attempt.correct).length / attempts.length : 0.55;
+      return { itemId: question.id, weakness: Math.min(1, Math.max(0, 1 - accuracy + (attempts.length === 0 ? 0.12 : 0))), skill: question.skill };
+    });
+    const storm = createWeeklyStorm({ profileId: "local-harbor", date: new Date(), candidates });
+    if (progress.weeklyStorms.some((attempt) => attempt.weekId === storm.id)) {
+      notify("Denne uges storm er allerede sejlet. Næste storm kommer mandag.");
+      return;
+    }
+    const byId = new Map(allQuestions.map((question) => [question.id, question]));
+    const questions = storm.itemIds.map((id) => byId.get(id)).filter((item): item is Challenge => Boolean(item));
+    setProgress((old) => old.weeklyStorms.some((attempt) => attempt.weekId === storm.id)
+      ? old
+      : { ...old, weeklyStorms: [...old.weeklyStorms, { weekId: storm.id, completedAt: new Date().toISOString(), score: 0, total: questions.length }] });
+    startLesson({ id: storm.id, title: "Ugens storm", subtitle: "Syv svage punkter. Én sejlads. Ingen omveje.", icon: "target", estimatedMinutes: 6, xp: 160, questions }, "storm");
+  };
+
+  const startDueReview = () => {
+    const records = progress.mastery?.records ?? {};
+    const dueIds = [
+      ...getDueHoldoutReviews(records, new Date(), 10).map((review) => review.itemId),
+      ...getDueOperationalReviews(records, new Date(), 10).map((review) => review.itemId),
+    ];
+    const uniqueDueIds = [...new Set(dueIds)].slice(0, 10);
+    const itemById = new Map(courseLevels.flatMap((level) => level.missions.flatMap((mission) => mission.questions)).map((question) => [question.id, question]));
+    const questions = uniqueDueIds.map((id) => itemById.get(id)).filter((item): item is Challenge => Boolean(item));
+    if (!questions.length) {
+      notify("Ingen gentagelser er klar endnu. Fyrtårnet holder øje med horisonten.");
+      return;
+    }
+    startLesson({
+      id: `practice-review-${dayKey()}`,
+      title: "Dagens gentagelser",
+      subtitle: "Holdout-tiderne ligger fast; resten følger FSRS-5.",
+      icon: "lighthouse",
+      estimatedMinutes: Math.max(2, Math.ceil(questions.length * 0.6)),
+      xp: questions.length * 10,
+      questions,
+    }, "review");
   };
 
   const buildExportFiles = (state = progress) => {
@@ -1065,12 +1372,41 @@ export default function HomePage() {
       "content-progress.json": JSON.stringify(contentProgress, null, 2),
       "item-catalog.json": JSON.stringify(itemCatalog, null, 2),
       "scenario-runs.json": JSON.stringify(state.scenarioRuns, null, 2),
+      "economy.json": JSON.stringify({
+        xp: state.xp,
+        kroner: state.kroner,
+        rav: state.rav,
+        maritimeRankId: state.maritimeRankId,
+        purchasedBuildings: state.purchasedBuildings,
+        unlockedScenarioIds: state.unlockedScenarioIds,
+        scenarioAttemptedIds: state.scenarioAttemptedIds,
+        relationships: state.relationships,
+        repliedCharacterIds: state.repliedCharacterIds,
+        hintTokens: state.hintTokens,
+        rerolledWeakItemIds: state.rerolledWeakItemIds,
+        lastWeakRerollDate: state.lastWeakRerollDate,
+        lastHarborFeeDate: state.lastHarborFeeDate,
+        ravClaims: state.ravClaims,
+      }, null, 2),
+      "weekly-storms.json": JSON.stringify(state.weeklyStorms, null, 2),
+      "gender-bank-runs.json": JSON.stringify(state.genderBankRuns, null, 2),
     };
     const summary = {
       exportedAt: new Date().toISOString(),
       app: "Ordhavn",
       dataVersion: state.version,
-      totals: { xp: state.xp, streak: state.streak, missions: state.completedMissions.length, attempts: state.attempts.length, sessions: state.sessions.length, scenarioRuns: state.scenarioRuns.length },
+      totals: {
+        xp: state.xp,
+        kroner: state.kroner,
+        rav: state.rav,
+        maritimeRankId: state.maritimeRankId,
+        purchasedBuildings: state.purchasedBuildings.length,
+        streak: state.streak,
+        missions: state.completedMissions.length,
+        attempts: state.attempts.length,
+        sessions: state.sessions.length,
+        scenarioRuns: state.scenarioRuns.length,
+      },
       privacy: "Generated locally. Contains learning responses; handle as personal data.",
       scheduler: { operational: "FSRS-5 via ts-fsrs 4.7.1", holdout: "fixed 1/3/7/14 days", holdoutPercent: 8 },
       modalities: ["read", "listen", "produce"],
@@ -1119,8 +1455,13 @@ export default function HomePage() {
 
   const completeLesson = (attempts: Attempt[], session: StudySession) => {
     setProgress((old) => {
-      const firstCompletion = !old.completedMissions.includes(session.missionId) && !session.missionId.startsWith("practice-");
-      const xpEarned = attempts.reduce((sum, attempt) => sum + attempt.xpAwarded, 0) + (firstCompletion ? 25 : 0);
+      const isStorm = session.missionId.startsWith("storm:");
+      const firstCompletion = !old.completedMissions.includes(session.missionId) && !session.missionId.startsWith("practice-") && !isStorm;
+      const xpEarned = isStorm ? 160 : attempts.reduce((sum, attempt) => sum + attempt.xpAwarded, 0) + (firstCompletion ? 25 : 0);
+      const kronerEarned = isStorm ? 70 : (firstCompletion ? 32 : 8) + attempts.filter((attempt) => attempt.correct).length * 2;
+      let ravEarned = 0;
+      const nextRavClaims = [...old.ravClaims];
+      const previouslySeenItems = new Set(old.attempts.map((attempt) => attempt.questionId));
       let mastery: MasteryState = old.mastery ?? createMasteryState(session.startedAt);
       for (const attempt of attempts) {
         const key = `${attempt.questionId}::${attempt.modality}` as const;
@@ -1137,6 +1478,11 @@ export default function HomePage() {
           } else if (existing.cohort === "holdout") {
             const due = getDueHoldoutReviews([existing], attempt.timestamp, 1)[0];
             if (due) {
+              const holdoutClaim = `holdout:${key}:${due.checkpointDay}`;
+              if (attempt.correct && (due.checkpointDay === 7 || due.checkpointDay === 14) && !nextRavClaims.includes(holdoutClaim)) {
+                ravEarned += due.checkpointDay === 14 ? 3 : 1;
+                nextRavClaims.push(holdoutClaim);
+              }
               const observation = recordHoldoutObservation(existing, {
                 checkpointDay: due.checkpointDay,
                 observedAt: attempt.timestamp,
@@ -1173,16 +1519,44 @@ export default function HomePage() {
             events: [...mastery.events, ...scheduled.events],
           };
         }
+        const brierClaim = `brier:${attempt.questionId}`;
+        if (!previouslySeenItems.has(attempt.questionId) && attempt.brierScore !== null && attempt.brierScore <= 0.05 && !nextRavClaims.includes(brierClaim)) {
+          ravEarned += 1;
+          nextRavClaims.push(brierClaim);
+        }
+        previouslySeenItems.add(attempt.questionId);
       }
+      const completedMissions = firstCompletion ? [...old.completedMissions, session.missionId] : old.completedMissions;
+      const successfulScenarioIds = new Set(old.scenarioRuns.filter((run) => run.success).map((run) => run.caseId));
+      const newlyClearedBosses = scenarioBossGates.filter((gate) => {
+        const pathLevel = courseLevels[gate.afterPathLevel - 1];
+        return pathLevel?.missions.every((mission) => completedMissions.includes(mission.id))
+          && !old.claimedBossGates.includes(gate.id)
+          && gate.scenarioIds.filter((id) => successfulScenarioIds.has(id)).length >= gate.requiredCompletions;
+      });
+      const bossKroner = newlyClearedBosses.reduce((sum, gate) => sum + gate.reward.kr, 0);
       const next: ProgressState = {
         ...old,
         xp: old.xp + xpEarned,
+        kroner: old.kroner + kronerEarned + bossKroner,
+        rav: old.rav + ravEarned,
+        ravClaims: nextRavClaims,
         streak: computeStreak(old.lastActiveDate, old.streak),
         lastActiveDate: dayKey(),
-        completedMissions: firstCompletion ? [...old.completedMissions, session.missionId] : old.completedMissions,
+        completedMissions,
         attempts: [...old.attempts, ...attempts],
         sessions: [...old.sessions, { ...session, xpEarned }],
+        weeklyStorms: isStorm
+          ? old.weeklyStorms.map((storm) => storm.weekId === session.missionId ? { ...storm, completedAt: session.endedAt, score: session.correct, total: session.total } : storm)
+          : old.weeklyStorms,
+        claimedBossGates: [...old.claimedBossGates, ...newlyClearedBosses.map((gate) => gate.id)],
         mastery,
+        maritimeRankId: evaluateMaritimeRank({
+          xp: old.xp + xpEarned,
+          retention: retentionMeasurements(mastery),
+          previousRankId: old.maritimeRankId,
+          retentionFailurePolicy: "threaten",
+        }).rank.id,
       };
       if (directoryHandle) window.setTimeout(() => exportData("folder", next), 300);
       return next;
@@ -1192,34 +1566,203 @@ export default function HomePage() {
   const completeScenario = (run: ScenarioRun) => {
     setProgress((old) => {
       const firstSuccess = run.success && !old.scenarioRuns.some((item) => item.caseId === run.caseId && item.success);
-      const xpEarned = run.score + (firstSuccess ? 75 : 0);
+      const xpEarned = run.score;
+      const contractOwner = harborCharacters.find((character) => character.contracts.some((contract) => contract.scenarioId === run.caseId));
+      const contract = contractOwner?.contracts.find((item) => item.scenarioId === run.caseId);
+      const kronerEarned = run.success ? (firstSuccess ? contract?.reward.kr ?? 90 : 36) : 12;
+      const rareClaim = `scenario:${run.caseId}`;
+      const checksUsed = Number(run.metadata.checksUsed ?? run.metadata.checks ?? 1);
+      const hintsUsed = Number(run.metadata.hintsUsed ?? (run.metadata.usedHint ? 1 : 0));
+      const firstTryMastery = run.metadata.firstAttemptEligible === true && run.success && checksUsed === 1 && hintsUsed === 0;
+      const earnsRav = firstTryMastery && !old.ravClaims.includes(rareClaim);
+      const relationshipId = run.kind === "dialogue"
+        ? String(run.metadata.character ?? "").toLocaleLowerCase("da-DK")
+        : contractOwner?.id ?? "";
+      const successfulCaseIds = new Set([...old.scenarioRuns.filter((item) => item.success).map((item) => item.caseId), ...(run.success ? [run.caseId] : [])]);
+      const newlyClearedBosses = scenarioBossGates.filter((gate) => {
+        const pathLevel = courseLevels[gate.afterPathLevel - 1];
+        const pathReady = Boolean(pathLevel) && pathLevel.missions.every((mission) => old.completedMissions.includes(mission.id));
+        return pathReady && !old.claimedBossGates.includes(gate.id) && gate.scenarioIds.filter((id) => successfulCaseIds.has(id)).length >= gate.requiredCompletions;
+      });
+      const bossKroner = newlyClearedBosses.reduce((sum, gate) => sum + gate.reward.kr, 0);
       const next: ProgressState = {
         ...old,
         xp: old.xp + xpEarned,
+        kroner: old.kroner + kronerEarned + bossKroner,
+        rav: old.rav + (earnsRav ? 1 : 0),
+        ravClaims: earnsRav ? [...old.ravClaims, rareClaim] : old.ravClaims,
+        relationships: relationshipId && Object.prototype.hasOwnProperty.call(old.relationships, relationshipId)
+          ? { ...old.relationships, [relationshipId]: Math.min(5, old.relationships[relationshipId] + (firstSuccess ? 1 : 0)) }
+          : old.relationships,
+        claimedBossGates: [...old.claimedBossGates, ...newlyClearedBosses.map((gate) => gate.id)],
         streak: computeStreak(old.lastActiveDate, old.streak),
         lastActiveDate: dayKey(),
         scenarioRuns: [...old.scenarioRuns, run],
+        maritimeRankId: evaluateMaritimeRank({
+          xp: old.xp + xpEarned,
+          retention: retentionMeasurements(old.mastery),
+          previousRankId: old.maritimeRankId,
+          retentionFailurePolicy: "threaten",
+        }).rank.id,
       };
       if (directoryHandle) window.setTimeout(() => exportData("folder", next), 300);
       return next;
     });
-    const bonus = run.success && !progress.scenarioRuns.some((item) => item.caseId === run.caseId && item.success) ? 75 : 0;
-    notify(run.success ? `Scenarie løst · +${run.score + bonus} XP` : `Forsøget er gemt · +${run.score} XP`);
+    notify(run.success ? `Scenarie løst · +${run.score} XP · havnen betaler` : `Forsøget er gemt · +${run.score} XP`);
   };
+
+  const startScenarioAttempt = (caseId: string) => {
+    const eligible = !progress.scenarioAttemptedIds.includes(caseId);
+    setProgress((old) => old.scenarioAttemptedIds.includes(caseId)
+      ? old
+      : { ...old, scenarioAttemptedIds: [...old.scenarioAttemptedIds, caseId] });
+    return eligible;
+  };
+
+  const spendKroner = (amount: number, reason: string) => {
+    if (progress.kroner < amount) {
+      notify(`Du mangler ${amount - progress.kroner} kr. til ${reason}.`);
+      return false;
+    }
+    setProgress((old) => ({ ...old, kroner: Math.max(0, old.kroner - amount) }));
+    return true;
+  };
+
+  const unlockScenario = (caseId: string, cost: number, ravCost = 0) => {
+    if (progress.unlockedScenarioIds.includes(caseId)) return true;
+    if (progress.kroner < cost || progress.rav < ravCost) {
+      notify(progress.kroner < cost ? `Du mangler ${cost - progress.kroner} kr. til fortsættelsen.` : `Du mangler ${ravCost - progress.rav} rav til fortsættelsen.`);
+      return false;
+    }
+    setProgress((old) => ({
+      ...old,
+      kroner: old.kroner - cost,
+      rav: old.rav - ravCost,
+      unlockedScenarioIds: [...old.unlockedScenarioIds, caseId],
+    }));
+    notify(`Ny kontrakt åbnet for ${cost} kr.${ravCost ? ` og ${ravCost} rav.` : "."}`);
+    return true;
+  };
+
+  const useHintToken = () => {
+    if (progress.hintTokens <= 0) {
+      notify("Ingen hint-tokens. Kaffebaren fylder dem op hver dag.");
+      return false;
+    }
+    setProgress((old) => ({ ...old, hintTokens: Math.max(0, old.hintTokens - 1) }));
+    return true;
+  };
+
+  const rerollWeakItem = (questionId: string) => {
+    const today = dayKey();
+    if (!progress.purchasedBuildings.includes("biblioteket") || progress.lastWeakRerollDate === today) return;
+    setProgress((old) => ({ ...old, rerolledWeakItemIds: [...old.rerolledWeakItemIds, questionId], lastWeakRerollDate: today }));
+    notify("Biblioteket har flyttet kortet ud af dagens fejltræning.");
+  };
+
+  const replyToCharacter = (characterId: string) => {
+    if (progress.repliedCharacterIds.includes(characterId)) return;
+    setProgress((old) => ({
+      ...old,
+      repliedCharacterIds: [...old.repliedCharacterIds, characterId],
+      relationships: Object.prototype.hasOwnProperty.call(old.relationships, characterId)
+        ? { ...old.relationships, [characterId]: Math.min(5, old.relationships[characterId] + 1) }
+        : old.relationships,
+    }));
+    notify("Dit svar ligger nu i havnens indbakke.");
+  };
+
+  const buyHarborBuilding = (buildingId: HarborBuildingId) => {
+    const rank = evaluateMaritimeRank({
+      xp: progress.xp,
+      retention: retentionMeasurements(progress.mastery),
+      previousRankId: progress.maritimeRankId,
+      retentionFailurePolicy: "threaten",
+    });
+    const purchase = purchaseHarborBuilding(
+      { xp: progress.xp, kroner: progress.kroner, rav: progress.rav },
+      buildingId,
+      progress.purchasedBuildings as HarborBuildingId[],
+      rank.rank.id,
+    );
+    if (!purchase.ok) {
+      const building = HARBOR_BUILDINGS.find((item) => item.id === buildingId)!;
+      notify(purchase.reason === "rank-locked" ? `${building.name} kræver rang ${building.requiredRank}.` : purchase.reason === "insufficient-kroner" ? `Du mangler ${purchase.shortfall} kr.` : `${building.name} er allerede bygget.`);
+      return false;
+    }
+    setProgress((old) => ({ ...old, kroner: purchase.balance.kroner, purchasedBuildings: purchase.owned }));
+    notify(`${purchase.building.name} er nu en del af Ordhavn.`);
+    return true;
+  };
+
+  const recordGenderBankOutcome = (outcome: GenderBankOutcome) => {
+    setProgress((old) => {
+      if (old.genderBankRuns.some((run) => run.id === outcome.id)) return old;
+      const calibrated = outcome.rounds >= 5 && outcome.meanBrier !== null && outcome.meanBrier <= 0.1;
+      const ravClaim = `brier-bank:${outcome.id}`;
+      return {
+        ...old,
+        kroner: old.kroner + outcome.payout,
+        rav: old.rav + (calibrated ? 1 : 0),
+        ravClaims: calibrated ? [...old.ravClaims, ravClaim] : old.ravClaims,
+        genderBankRuns: [...old.genderBankRuns, { id: outcome.id, completedAt: outcome.completedAt, stake: outcome.stake, payout: outcome.payout, rounds: outcome.rounds, meanBrier: outcome.meanBrier }],
+      };
+    });
+  };
+
+  const nextHarborMission = courseLevels.flatMap((level) => level.missions).find((mission) => !progress.completedMissions.includes(mission.id)) ?? null;
+  const reviewRecords = progress.mastery?.records ?? {};
+  const dueNowIds = new Set([
+    ...getDueHoldoutReviews(reviewRecords, new Date(clockNowMs)).map((review) => review.itemId),
+    ...getDueOperationalReviews(reviewRecords, new Date(clockNowMs)).map((review) => review.itemId),
+  ]);
+  const forecastIds = progress.purchasedBuildings.includes("fyrtaarnet")
+    ? new Set(getDueOperationalReviews(reviewRecords, new Date(clockNowMs + 7 * 86_400_000)).map((review) => review.itemId))
+    : new Set<string>();
+  const dueHarborCount = dueNowIds.size;
+  const forecastHarborCount = [...forecastIds].filter((id) => !dueNowIds.has(id)).length;
 
   return (
     <div className={`app-shell ${progress.darkMode ? "dark" : ""}`}>
       <Navigation view={view} setView={setView} />
       <div className="app-main">
         <Topbar progress={progress} onProfile={() => setView("profile")} onToggleTheme={() => setProgress((old) => ({ ...old, darkMode: !old.darkMode }))} />
-        {view === "home" && <HomeView progress={progress} onNavigate={setView} onStart={startLesson} />}
-        {view === "path" && <PathView progress={progress} onStart={startLesson} />}
-        {view === "practice" && <PracticeView progress={progress} onStart={startLesson} />}
-        {view === "scenarios" && <ScenarioHub runs={progress.scenarioRuns} onComplete={completeScenario} />}
+        {view === "home" && <HarborHome
+          xp={progress.xp}
+          kroner={progress.kroner}
+          rav={progress.rav}
+          streak={progress.streak}
+          completedMissions={progress.completedMissions}
+          attempts={progress.attempts}
+          scenarioRuns={progress.scenarioRuns}
+          weeklyStorms={progress.weeklyStorms}
+          purchasedBuildings={progress.purchasedBuildings}
+          relationships={progress.relationships}
+          repliedCharacterIds={progress.repliedCharacterIds}
+          retention={retentionMeasurements(progress.mastery)}
+          dueCount={dueHarborCount}
+          forecastCount={forecastHarborCount}
+          maritimeRankId={progress.maritimeRankId}
+          nextMission={nextHarborMission}
+          onStartNext={(mission) => {
+            const level = courseLevels.find((item) => item.missions.some((candidate) => candidate.id === mission.id));
+            startLesson(mission, level?.id ?? "harbor");
+          }}
+          onStartReview={startDueReview}
+          onReplyCharacter={replyToCharacter}
+          onNavigate={setView}
+          onBuyBuilding={buyHarborBuilding}
+          onOpenGenderBank={() => setView("gender-bank")}
+          onStartStorm={startWeeklyStorm}
+        />}
+        {view === "path" && <PathView progress={progress} onStart={startLesson} onOpenScenarios={() => setView("scenarios")} />}
+        {view === "practice" && <PracticeView progress={progress} onStart={startLesson} onRerollWeakItem={rerollWeakItem} />}
+        {view === "scenarios" && <ScenarioHub runs={progress.scenarioRuns} kroner={progress.kroner} unlockedScenarioIds={progress.unlockedScenarioIds} attemptedScenarioIds={progress.scenarioAttemptedIds} maritimeRankId={progress.maritimeRankId} relationships={progress.relationships} onStartAttempt={startScenarioAttempt} onComplete={completeScenario} onUnlockScenario={unlockScenario} onSpendKroner={spendKroner} onUseHint={useHintToken} />}
         {view === "stats" && <StatsView progress={progress} directoryHandle={directoryHandle} onConnectDirectory={connectDirectory} onExport={exportData} />}
         {view === "profile" && <ProfileView progress={progress} setProgress={setProgress} />}
+        {view === "gender-bank" && <GenderBankView kroner={progress.kroner} playedToday={progress.genderBankRuns.some((run) => dayKey(new Date(run.completedAt)) === dayKey())} onDeductStake={(amount) => spendKroner(amount, "Kønsbanken")} onRecordOutcome={recordGenderBankOutcome} onClose={() => setView("home")} />}
       </div>
-      {activeLesson && <LessonPlayer mission={activeLesson.mission} levelId={activeLesson.levelId} sessionId={activeLesson.sessionId} startedAtIso={activeLesson.startedAtIso} startedAtMs={activeLesson.startedAtMs} onExit={() => setActiveLesson(null)} onComplete={completeLesson} />}
+      {activeLesson && <LessonPlayer mission={activeLesson.mission} levelId={activeLesson.levelId} sessionId={activeLesson.sessionId} startedAtIso={activeLesson.startedAtIso} startedAtMs={activeLesson.startedAtMs} priorAttempts={progress.attempts} currentXp={progress.xp} mastery={progress.mastery} maritimeRankId={progress.maritimeRankId} hintTokens={progress.hintTokens} onUseHint={useHintToken} onExit={() => setActiveLesson(null)} onComplete={completeLesson} />}
       {toast && <div className="toast"><Check size={18} /> {toast}</div>}
     </div>
   );

@@ -15,6 +15,8 @@ test("course contains at least one hour of unique, audio-ready Danish content", 
   assert.ok(missions.reduce((sum, mission) => sum + mission.estimatedMinutes, 0) >= 100);
   assert.ok(items.every((item) => ["read", "produce"].includes(item.modality)));
   assert.ok(items.every((item) => item.assets.audio === null));
+  assert.equal(items.filter((item) => item.type === "gender-bet").length, 10);
+  assert.doesNotMatch(JSON.stringify(course.courseLevels), /[\u0400-\u04ff]/u);
   assert.deepEqual(
     new Set(items.map((item) => item.type)),
     new Set(["choice", "order", "input", "gender-bet", "number-arcade", "definiteness", "agreement", "ikke-position"]),

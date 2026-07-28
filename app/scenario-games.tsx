@@ -5,10 +5,12 @@ import Image from "next/image";
 import {
   Accessibility,
   ArrowLeft,
+  Bike,
   Brain,
   Check,
   ChevronRight,
   Clock3,
+  Coffee,
   Eye,
   Gamepad2,
   Lightbulb,
@@ -17,6 +19,7 @@ import {
   Map,
   MessageCircleMore,
   Moon,
+  PackageCheck,
   RotateCcw,
   Settings,
   ShieldCheck,
@@ -43,10 +46,21 @@ import {
   type ScenarioKind,
   type ScenarioRun,
 } from "@/lib/scenarioData";
+import { dialogueContinuationEpisodes } from "@/lib/dialogueEpisodes";
+import { harborCharacters, harborScenarioCases, type HarborScenarioCase, type HarborRankId } from "@/lib/harborData";
 
 type ScenarioHubProps = {
   runs: ScenarioRun[];
+  kroner: number;
+  unlockedScenarioIds: string[];
+  attemptedScenarioIds: string[];
+  maritimeRankId: HarborRankId;
+  relationships: Record<string, number>;
+  onStartAttempt: (caseId: string) => boolean;
   onComplete: (run: ScenarioRun) => void;
+  onUnlockScenario: (caseId: string, cost: number, ravCost?: number) => boolean;
+  onSpendKroner: (amount: number, reason: string) => boolean;
+  onUseHint: () => boolean;
 };
 
 type ActiveGame = ScenarioKind | null;
@@ -61,6 +75,16 @@ const gameCards: Array<{
   icon: typeof Smartphone;
   tone: string;
 }> = [
+  {
+    kind: "harbor",
+    eyebrow: "Hverdagsboss",
+    title: "Livet ved kajen",
+    level: "A1–A2",
+    description: "Bestil, forklar et cykelproblem og brug en pakkeboks. Små danske beslutninger med konkrete konsekvenser.",
+    meta: `${harborScenarioCases.length} kontrakter · flere grene`,
+    icon: Coffee,
+    tone: "mint",
+  },
   {
     kind: "phone",
     eyebrow: "Systemjagt",
@@ -77,7 +101,7 @@ const gameCards: Array<{
     title: "Mellem linjerne",
     level: "B1–B2",
     description: "Læs personen, vælg svar og balancér tillid, spænding, grænser og skjulte psykologiske behov.",
-    meta: `${dialogueCharacters.length} personer · forgrenede forløb`,
+    meta: `${dialogueCharacters.length + dialogueContinuationEpisodes.length} episoder · 3 psykologier`,
     icon: MessageCircleMore,
     tone: "rose",
   },
@@ -102,6 +126,18 @@ const gameCards: Array<{
     tone: "cyan",
   },
 ];
+
+const dialogueEpisodeCatalog = [...dialogueCharacters, ...dialogueContinuationEpisodes];
+const maritimeRankOrder: HarborRankId[] = ["skibsdreng", "letmatros", "matros", "baadsmand", "styrmand", "skipper", "lods", "havnefoged"];
+
+function dialogueEpisodeGate(item: DialogueCharacter) {
+  const owner = harborCharacters.find((character) => character.id === item.id);
+  const episode = owner?.episodes.find((candidate) => candidate.scenarioId === item.case.id);
+  const previousScenarioId = episode?.unlock.completedEpisodeId
+    ? owner?.episodes.find((candidate) => candidate.id === episode.unlock.completedEpisodeId)?.scenarioId
+    : undefined;
+  return { owner, episode, previousScenarioId };
+}
 
 function runId() {
   return typeof crypto !== "undefined" && "randomUUID" in crypto
@@ -135,6 +171,7 @@ function CaseResult({
   score,
   onReplay,
   onCases,
+  replayLabel = "Prøv igen",
 }: {
   success: boolean;
   title: string;
@@ -142,6 +179,7 @@ function CaseResult({
   score: number;
   onReplay: () => void;
   onCases: () => void;
+  replayLabel?: string;
 }) {
   return (
     <div className={`scenario-result ${success ? "success" : "retry"}`}>
@@ -152,20 +190,22 @@ function CaseResult({
       <div className="scenario-score"><Sparkles size={17} /> {score} XP</div>
       <div className="result-actions">
         <button className="secondary-button" onClick={onCases}>Vælg en anden sag</button>
-        <button className="primary-button" onClick={onReplay}><RotateCcw size={16} /> Prøv igen</button>
+        <button className="primary-button" onClick={onReplay}><RotateCcw size={16} /> {replayLabel}</button>
       </div>
     </div>
   );
 }
 
-export default function ScenarioHub({ runs, onComplete }: ScenarioHubProps) {
+export default function ScenarioHub({ runs, kroner, unlockedScenarioIds, attemptedScenarioIds, maritimeRankId, relationships, onStartAttempt, onComplete, onUnlockScenario, onSpendKroner, onUseHint }: ScenarioHubProps) {
   const [activeGame, setActiveGame] = useState<ActiveGame>(null);
   const successful = useMemo(() => new Set(runs.filter((run) => run.success).map((run) => run.caseId)), [runs]);
 
-  if (activeGame === "phone") return <PhoneGame onExit={() => setActiveGame(null)} onComplete={onComplete} successful={successful} />;
-  if (activeGame === "dialogue") return <DialogueGame onExit={() => setActiveGame(null)} onComplete={onComplete} successful={successful} />;
-  if (activeGame === "post") return <PostGame onExit={() => setActiveGame(null)} onComplete={onComplete} successful={successful} />;
-  if (activeGame === "metro") return <MetroGame onExit={() => setActiveGame(null)} onComplete={onComplete} successful={successful} />;
+  const common = { onComplete, successful, unlockedScenarioIds, attemptedScenarioIds, maritimeRankId, relationships, onStartAttempt, onUnlockScenario, onSpendKroner, onUseHint };
+  if (activeGame === "harbor") return <HarborCaseGame onExit={() => setActiveGame(null)} {...common} />;
+  if (activeGame === "phone") return <PhoneGame onExit={() => setActiveGame(null)} {...common} />;
+  if (activeGame === "dialogue") return <DialogueGame onExit={() => setActiveGame(null)} {...common} />;
+  if (activeGame === "post") return <PostGame onExit={() => setActiveGame(null)} {...common} />;
+  if (activeGame === "metro") return <MetroGame onExit={() => setActiveGame(null)} {...common} />;
 
   return (
     <main className="scenario-hub">
@@ -175,9 +215,10 @@ export default function ScenarioHub({ runs, onComplete }: ScenarioHubProps) {
           <h1>Dansk, når der er noget på spil.</h1>
           <p>Ikke oversæt en sætning. Forstå situationen, find signalerne og tag en beslutning, der virker i den virkelige verden.</p>
           <div className="scenario-hero-meta">
-            <span><Brain size={17} /> 4 systemer</span>
-            <span><ShieldCheck size={17} /> A2 → B2</span>
+            <span><Brain size={17} /> 5 systemer</span>
+            <span><ShieldCheck size={17} /> A1 → B2</span>
             <span><Trophy size={17} /> {successful.size} løst</span>
+            <span>{kroner} kr. i havnekassen</span>
           </div>
         </div>
         <div className="scenario-hero-art" aria-hidden="true">
@@ -212,42 +253,128 @@ export default function ScenarioHub({ runs, onComplete }: ScenarioHubProps) {
   );
 }
 
+function HarborCaseGame({ onExit, onComplete, successful, unlockedScenarioIds, attemptedScenarioIds, onStartAttempt, onUnlockScenario, onSpendKroner }: GameCommonProps) {
+  const [currentCase, setCurrentCase] = useState<HarborScenarioCase | null>(null);
+  const [nodeId, setNodeId] = useState("");
+  const [startedAt, setStartedAt] = useState("");
+  const [path, setPath] = useState<string[]>([]);
+  const [decisions, setDecisions] = useState<ScenarioRun["decisions"]>([]);
+  const [feedback, setFeedback] = useState("");
+  const [result, setResult] = useState<{ success: boolean; score: number; text: string } | null>(null);
+  const [firstAttemptEligible, setFirstAttemptEligible] = useState(false);
+
+  const start = (item: HarborScenarioCase) => {
+    setFirstAttemptEligible(onStartAttempt(item.id));
+    setCurrentCase(item); setNodeId(item.startNode); setStartedAt(new Date().toISOString()); setPath([item.startNode]); setDecisions([]); setFeedback(""); setResult(null);
+  };
+
+  const pickCase = (item: HarborScenarioCase) => {
+    if (attemptedScenarioIds.includes(item.id) && !onSpendKroner(item.retryCostKr, "et nyt kontraktforsøg")) return;
+    start(item);
+  };
+
+  const choose = (choiceId: string) => {
+    if (!currentCase || feedback || result) return;
+    const node = currentCase.nodes[nodeId];
+    const choice = node.choices?.find((item) => item.id === choiceId);
+    if (!choice) return;
+    const nextDecisions = [...decisions, { stepId: node.id, answerId: choice.id, answerText: choice.text, correct: choice.correct }];
+    const nextPath = [...path, choice.next];
+    setDecisions(nextDecisions); setPath(nextPath); setFeedback(choice.feedback);
+    const nextNode = currentCase.nodes[choice.next];
+    if (nextNode.type === "terminal" && nextNode.terminal) {
+      const success = nextNode.terminal.success;
+      const correctChoices = nextDecisions.filter((item) => item.correct).length;
+      const score = success ? Math.min(320, 180 + correctChoices * 45) : Math.max(60, 90 + correctChoices * 20);
+      setResult({ success, score, text: nextNode.terminal.summary });
+      onComplete({
+        id: runId(), kind: "harbor", caseId: currentCase.id, title: currentCase.title, level: currentCase.level,
+        startedAt, endedAt: new Date().toISOString(), success, score, maxScore: 320, path: nextPath, decisions: nextDecisions,
+        metadata: { checksUsed: 1, hintsUsed: 0, firstAttemptEligible, location: currentCase.location, skills: currentCase.skills },
+      });
+      return;
+    }
+    window.setTimeout(() => { setNodeId(choice.next); setFeedback(""); }, 520);
+  };
+
+  if (!currentCase) return <main className="scenario-play-page"><ScenarioHeader title="Livet ved kajen" subtitle="A1–A2-kontrakter fra Ordhavns beboere." onBack={onExit} /><CasePicker cases={harborScenarioCases} successful={successful} unlockedScenarioIds={unlockedScenarioIds} onUnlock={onUnlockScenario} onPick={pickCase} renderDescription={(item) => `${item.location} · ${item.objective}`} /></main>;
+  if (result) return <main className="scenario-play-page"><ScenarioHeader title="Livet ved kajen" subtitle={currentCase.title} onBack={() => setCurrentCase(null)} /><CaseResult success={result.success} title={result.success ? "Kontrakten er løst" : "Opgaven skal prøves igen"} text={result.text} score={result.score} replayLabel={`Prøv igen · ${currentCase.retryCostKr} kr.`} onReplay={() => { if (onSpendKroner(currentCase.retryCostKr, "et nyt kontraktforsøg")) start(currentCase); }} onCases={() => setCurrentCase(null)} /></main>;
+
+  const node = currentCase.nodes[nodeId];
+  return (
+    <main className="scenario-play-page">
+      <ScenarioHeader title={currentCase.title} subtitle={`${currentCase.level} · ${currentCase.location}`} onBack={() => setCurrentCase(null)} />
+      <div className={`harbor-case-stage case-${currentCase.icon}`}>
+        <div className="harbor-case-icon">{currentCase.icon === "coffee" ? <Coffee size={32} /> : currentCase.icon === "bike" ? <Bike size={32} /> : <PackageCheck size={32} />}</div>
+        <p className="eyebrow">KONTRAKTENS MÅL</p><h2>{currentCase.objective}</h2>
+        {node.speaker && <span className="harbor-speaker">{node.speaker}</span>}
+        <blockquote>“{node.text}”</blockquote>
+        {node.englishSupport && <p className="english-support">{node.englishSupport}</p>}
+        <div className="harbor-case-choices">{node.choices?.map((choice, index) => <button key={choice.id} disabled={Boolean(feedback)} onClick={() => choose(choice.id)}><span>{String.fromCharCode(65 + index)}</span>{choice.text}</button>)}</div>
+        {feedback && <div className="harbor-choice-feedback"><Lightbulb size={17} />{feedback}</div>}
+      </div>
+    </main>
+  );
+}
+
 type GameCommonProps = {
   onExit: () => void;
   onComplete: (run: ScenarioRun) => void;
   successful: Set<string>;
+  unlockedScenarioIds: string[];
+  attemptedScenarioIds: string[];
+  maritimeRankId: HarborRankId;
+  relationships: Record<string, number>;
+  onStartAttempt: (caseId: string) => boolean;
+  onUnlockScenario: (caseId: string, cost: number, ravCost?: number) => boolean;
+  onSpendKroner: (amount: number, reason: string) => boolean;
+  onUseHint: () => boolean;
 };
+
+function continuationCost(level: string, index: number) {
+  if (index === 0) return 0;
+  return level === "B2" ? 240 : level === "B1" ? 160 : 100;
+}
 
 function CasePicker<T extends { id: string; title: string; level: string }>({
   cases,
   successful,
   onPick,
   renderDescription,
+  unlockedScenarioIds,
+  onUnlock,
 }: {
   cases: T[];
   successful: Set<string>;
   onPick: (item: T) => void;
   renderDescription: (item: T) => string;
+  unlockedScenarioIds: string[];
+  onUnlock: (caseId: string, cost: number) => boolean;
 }) {
   return (
     <div className="case-picker">
-      {cases.map((item, index) => (
-        <button className="case-pick-card" key={item.id} onClick={() => onPick(item)}>
+      {cases.map((item, index) => {
+        const cost = continuationCost(item.level, index);
+        const locked = cost > 0 && !successful.has(item.id) && !unlockedScenarioIds.includes(item.id);
+        return (
+        <button className={`case-pick-card ${locked ? "case-locked" : ""}`} key={item.id} onClick={() => {
+          if (!locked || onUnlock(item.id, cost)) onPick(item);
+        }}>
           <div className="case-number">{String(index + 1).padStart(2, "0")}</div>
           <div>
             <div className="case-title-row"><h3>{item.title}</h3><LevelBadge level={item.level} /></div>
             <p>{renderDescription(item)}</p>
           </div>
-          <span className={`case-status ${successful.has(item.id) ? "done" : ""}`}>
-            {successful.has(item.id) ? <Check size={18} /> : <ChevronRight size={18} />}
+          <span className={`case-status ${successful.has(item.id) ? "done" : locked ? "priced" : ""}`}>
+            {successful.has(item.id) ? <Check size={18} /> : locked ? <><LockKeyhole size={13} />{cost}</> : <ChevronRight size={18} />}
           </span>
         </button>
-      ))}
+      )})}
     </div>
   );
 }
 
-function PhoneGame({ onExit, onComplete, successful }: GameCommonProps) {
+function PhoneGame({ onExit, onComplete, successful, unlockedScenarioIds, onStartAttempt, onUnlockScenario, onSpendKroner, onUseHint }: GameCommonProps) {
   const [mission, setMission] = useState<PhoneMission | null>(null);
   const [startedAt, setStartedAt] = useState("");
   const [page, setPage] = useState("root");
@@ -258,8 +385,10 @@ function PhoneGame({ onExit, onComplete, successful }: GameCommonProps) {
   const [hint, setHint] = useState(false);
   const [missing, setMissing] = useState<string[]>([]);
   const [result, setResult] = useState<{ score: number } | null>(null);
+  const [firstAttemptEligible, setFirstAttemptEligible] = useState(false);
 
   const startMission = (next: PhoneMission) => {
+    setFirstAttemptEligible(onStartAttempt(next.id));
     const defaults = Object.fromEntries(Object.values(phoneSettings).map((setting) => {
       if (setting.type === "toggle") return [setting.id, false];
       if (setting.type === "slider") return [setting.id, setting.min ?? 1];
@@ -295,6 +424,7 @@ function PhoneGame({ onExit, onComplete, successful }: GameCommonProps) {
 
   const checkSolution = () => {
     if (!mission) return;
+    if (!onSpendKroner(12, "systemkontrol")) return;
     const unmet = Object.entries(mission.requirements).filter(([id, required]) => values[id] !== required).map(([id]) => id);
     const nextChecks = checks + 1;
     setChecks(nextChecks);
@@ -305,7 +435,7 @@ function PhoneGame({ onExit, onComplete, successful }: GameCommonProps) {
       onComplete({
         id: runId(), kind: "phone", caseId: mission.id, title: mission.title, level: mission.level,
         startedAt, endedAt: new Date().toISOString(), success: true, score, maxScore: 320,
-        path, decisions, metadata: { checks: nextChecks, usedHint: hint, settingChanges: decisions.length },
+        path, decisions, metadata: { checks: nextChecks, usedHint: hint, firstAttemptEligible, settingChanges: decisions.length },
       });
     }
   };
@@ -314,7 +444,7 @@ function PhoneGame({ onExit, onComplete, successful }: GameCommonProps) {
     return (
       <main className="scenario-play-page">
         <ScenarioHeader title="Indstillingerne" subtitle="Find løsningen i en telefon, der kun taler dansk." onBack={onExit} />
-        <CasePicker cases={phoneMissions} successful={successful} onPick={startMission} renderDescription={(item) => item.brief} />
+        <CasePicker cases={phoneMissions} successful={successful} unlockedScenarioIds={unlockedScenarioIds} onUnlock={onUnlockScenario} onPick={startMission} renderDescription={(item) => item.brief} />
       </main>
     );
   }
@@ -333,9 +463,12 @@ function PhoneGame({ onExit, onComplete, successful }: GameCommonProps) {
           <h3>{mission.title}</h3>
           <p>{mission.brief}</p>
           <blockquote>{mission.message}</blockquote>
-          <button className="hint-button" onClick={() => setHint((current) => !current)}><Lightbulb size={17} /> {hint ? mission.hint : "Vis et diskret hint"}</button>
+          <button className="hint-button" onClick={() => {
+            if (hint) setHint(false);
+            else if (onUseHint()) setHint(true);
+          }}><Lightbulb size={17} /> {hint ? mission.hint : "Brug 1 hint-token"}</button>
           {checks > 0 && missing.length > 0 && <div className="check-feedback"><X size={17} /> Ikke helt endnu. {missing.length} indstilling{missing.length === 1 ? "" : "er"} mangler.</div>}
-          <button className="primary-button phone-check" onClick={checkSolution}><Check size={17} /> Kontrollér løsning</button>
+          <button className="primary-button phone-check" onClick={checkSolution}><Check size={17} /> Kontrollér · 12 kr.</button>
         </aside>
 
         <div className="phone-device" aria-label="Danske telefonindstillinger">
@@ -374,7 +507,7 @@ function PhoneGame({ onExit, onComplete, successful }: GameCommonProps) {
   );
 }
 
-function DialogueGame({ onExit, onComplete, successful }: GameCommonProps) {
+function DialogueGame({ onExit, onComplete, successful, unlockedScenarioIds, maritimeRankId, relationships, onStartAttempt, onUnlockScenario }: GameCommonProps) {
   const [character, setCharacter] = useState<DialogueCharacter | null>(null);
   const [startedAt, setStartedAt] = useState("");
   const [nodeId, setNodeId] = useState("");
@@ -384,8 +517,10 @@ function DialogueGame({ onExit, onComplete, successful }: GameCommonProps) {
   const [decisions, setDecisions] = useState<ScenarioRun["decisions"]>([]);
   const [feedback, setFeedback] = useState<{ insight: string; principle: string; next: string | null; trust: number; tension: number } | null>(null);
   const [result, setResult] = useState<{ success: boolean; score: number; text: string } | null>(null);
+  const [firstAttemptEligible, setFirstAttemptEligible] = useState(false);
 
   const start = (next: DialogueCharacter) => {
+    setFirstAttemptEligible(onStartAttempt(next.case.id));
     setCharacter(next);
     setStartedAt(new Date().toISOString());
     setNodeId(next.case.startNode);
@@ -423,7 +558,7 @@ function DialogueGame({ onExit, onComplete, successful }: GameCommonProps) {
     onComplete({
       id: runId(), kind: "dialogue", caseId: character.case.id, title: character.case.title, level: character.case.level,
       startedAt, endedAt: new Date().toISOString(), success, score, maxScore: 500,
-      path, decisions: [...decisions], metadata: { character: character.name, finalTrust: feedback.trust, finalTension: feedback.tension, dangerLimit: character.case.dangerLimit },
+      path, decisions: [...decisions], metadata: { character: character.name, firstAttemptEligible, finalTrust: feedback.trust, finalTension: feedback.tension, dangerLimit: character.case.dangerLimit },
     });
   };
 
@@ -432,18 +567,32 @@ function DialogueGame({ onExit, onComplete, successful }: GameCommonProps) {
       <main className="scenario-play-page">
         <ScenarioHeader title="Mellem linjerne" subtitle="Tre personer. Tre helt forskellige psykologiske regler." onBack={onExit} />
         <div className="character-grid">
-          {dialogueCharacters.map((item) => (
-            <button key={item.id} className="character-card" onClick={() => start(item)} style={{ "--character-color": item.color } as React.CSSProperties}>
-              <div className="character-portrait"><Image src={item.portrait} alt={`${item.name}, animeportræt`} width={640} height={900} sizes="(max-width: 760px) 100vw, 33vw" /></div>
+          {dialogueEpisodeCatalog.map((item) => {
+            const { episode, previousScenarioId } = dialogueEpisodeGate(item);
+            const rankLocked = Boolean(episode) && maritimeRankOrder.indexOf(maritimeRankId) < maritimeRankOrder.indexOf(episode!.unlock.rank);
+            const relationshipLocked = Boolean(episode) && (relationships[item.id] ?? 0) < episode!.unlock.relationship;
+            const previousLocked = Boolean(previousScenarioId) && !successful.has(previousScenarioId!);
+            const progressionLocked = rankLocked || relationshipLocked || previousLocked;
+            const purchase = episode?.unlock.purchase;
+            const purchaseLocked = Boolean(purchase) && !unlockedScenarioIds.includes(item.case.id);
+            const price = purchase ? `${purchase.kr} kr.${purchase.rav ? ` + ${purchase.rav} rav` : ""}` : "";
+            const lockLabel = rankLocked ? episode?.unlock.rank : relationshipLocked ? `forhold ${relationships[item.id] ?? 0}/${episode?.unlock.relationship}` : previousLocked ? "forrige episode" : "";
+            return (
+            <button key={item.case.id} className={`character-card ${progressionLocked || purchaseLocked ? "case-locked" : ""}`} onClick={() => {
+              if (progressionLocked) return;
+              if (purchaseLocked && purchase && !onUnlockScenario(item.case.id, purchase.kr, purchase.rav ?? 0)) return;
+              start(item);
+            }} style={{ "--character-color": item.color } as React.CSSProperties}>
+              <div className="character-portrait"><Image unoptimized src={item.portrait} alt={`${item.name}, animeportræt`} width={640} height={900} sizes="(max-width: 760px) 100vw, 33vw" /></div>
               <div className="character-card-copy">
                 <div className="case-title-row"><h3>{item.name}, {item.age}</h3><LevelBadge level={item.case.level} /></div>
                 <p className="character-type">{item.archetype}</p>
-                <p>{item.psychology}</p>
+                <p><strong>{item.case.title}</strong> · {item.case.premise}</p>
                 <span className="character-rule"><Eye size={15} /> {item.rule}</span>
-                <span className={`case-status ${successful.has(item.case.id) ? "done" : ""}`}>{successful.has(item.case.id) ? <Check size={18} /> : <ChevronRight size={18} />}</span>
+                <span className={`case-status ${successful.has(item.case.id) ? "done" : purchaseLocked ? "priced" : ""}`}>{successful.has(item.case.id) ? <Check size={18} /> : progressionLocked ? <><LockKeyhole size={13} />{lockLabel}</> : purchaseLocked ? price : <ChevronRight size={18} />}</span>
               </div>
             </button>
-          ))}
+          )})}
         </div>
       </main>
     );
@@ -462,7 +611,7 @@ function DialogueGame({ onExit, onComplete, successful }: GameCommonProps) {
         <LevelBadge level={character.case.level} />
       </div>
       <div className="dialogue-scene">
-        <Image src={character.portrait} alt={`${character.name} i scenariet`} fill priority sizes="(max-width: 760px) 100vw, 1080px" />
+        <Image unoptimized src={character.portrait} alt={`${character.name} i scenariet`} fill priority sizes="(max-width: 760px) 100vw, 1080px" />
         <div className="scene-gradient" />
         <div className="dialogue-objective"><span>DIT MÅL</span>{character.case.objective}</div>
         <div className="dialogue-meters">
@@ -487,14 +636,15 @@ function DialogueGame({ onExit, onComplete, successful }: GameCommonProps) {
   );
 }
 
-function PostGame({ onExit, onComplete, successful }: GameCommonProps) {
+function PostGame({ onExit, onComplete, successful, unlockedScenarioIds, onStartAttempt, onUnlockScenario }: GameCommonProps) {
   const [currentCase, setCurrentCase] = useState<PostCase | null>(null);
   const [startedAt, setStartedAt] = useState("");
   const [clues, setClues] = useState<string[]>([]);
   const [action, setAction] = useState("");
   const [result, setResult] = useState<{ success: boolean; score: number } | null>(null);
+  const [firstAttemptEligible, setFirstAttemptEligible] = useState(false);
 
-  const start = (item: PostCase) => { setCurrentCase(item); setStartedAt(new Date().toISOString()); setClues([]); setAction(""); setResult(null); };
+  const start = (item: PostCase) => { setFirstAttemptEligible(onStartAttempt(item.id)); setCurrentCase(item); setStartedAt(new Date().toISOString()); setClues([]); setAction(""); setResult(null); };
   const inspect = () => {
     if (!currentCase || !action || result) return;
     const trueClues = currentCase.clues.filter((item) => item.correct).map((item) => item.id);
@@ -512,11 +662,11 @@ function PostGame({ onExit, onComplete, successful }: GameCommonProps) {
         ...clues.map((id) => { const clue = currentCase.clues.find((item) => item.id === id)!; return { stepId: "clues", answerId: id, answerText: clue.text, correct: clue.correct }; }),
         { stepId: "action", answerId: action, answerText: currentCase.actions.find((item) => item.id === action)?.label ?? action, correct: actionCorrect },
       ],
-      metadata: { selectedClues: clues.length, correctClues: selectedCorrect, falseMarks },
+      metadata: { firstAttemptEligible, selectedClues: clues.length, correctClues: selectedCorrect, falseMarks },
     });
   };
 
-  if (!currentCase) return <main className="scenario-play-page"><ScenarioHeader title="Den mistænkelige post" subtitle="Find signalerne, før du handler." onBack={onExit} /><CasePicker cases={postCases} successful={successful} onPick={start} renderDescription={(item) => `${item.subject} · ${item.context}`} /></main>;
+  if (!currentCase) return <main className="scenario-play-page"><ScenarioHeader title="Den mistænkelige post" subtitle="Find signalerne, før du handler." onBack={onExit} /><CasePicker cases={postCases} successful={successful} unlockedScenarioIds={unlockedScenarioIds} onUnlock={onUnlockScenario} onPick={start} renderDescription={(item) => `${item.subject} · ${item.context}`} /></main>;
   if (result) return <main className="scenario-play-page"><ScenarioHeader title="Den mistænkelige post" subtitle={currentCase.title} onBack={() => setCurrentCase(null)} /><CaseResult success={result.success} title={result.success ? "God efterforskning" : "Et signal blev overset"} text={currentCase.explanation} score={result.score} onReplay={() => start(currentCase)} onCases={() => setCurrentCase(null)} /></main>;
 
   return (
@@ -542,12 +692,13 @@ function PostGame({ onExit, onComplete, successful }: GameCommonProps) {
   );
 }
 
-function MetroGame({ onExit, onComplete, successful }: GameCommonProps) {
+function MetroGame({ onExit, onComplete, successful, unlockedScenarioIds, onStartAttempt, onUnlockScenario }: GameCommonProps) {
   const [currentCase, setCurrentCase] = useState<MetroCase | null>(null);
   const [startedAt, setStartedAt] = useState("");
   const [route, setRoute] = useState("");
   const [result, setResult] = useState<{ success: boolean; score: number; explanation: string } | null>(null);
-  const start = (item: MetroCase) => { setCurrentCase(item); setStartedAt(new Date().toISOString()); setRoute(""); setResult(null); };
+  const [firstAttemptEligible, setFirstAttemptEligible] = useState(false);
+  const start = (item: MetroCase) => { setFirstAttemptEligible(onStartAttempt(item.id)); setCurrentCase(item); setStartedAt(new Date().toISOString()); setRoute(""); setResult(null); };
   const dispatch = () => {
     if (!currentCase || !route || result) return;
     const selected = currentCase.routes.find((item) => item.id === route)!;
@@ -559,11 +710,11 @@ function MetroGame({ onExit, onComplete, successful }: GameCommonProps) {
       startedAt, endedAt: new Date().toISOString(), success, score, maxScore: 380,
       path: [currentCase.start, route, currentCase.destination],
       decisions: [{ stepId: "route", answerId: route, answerText: selected.label, correct: success }],
-      metadata: { duration: selected.duration, changes: selected.changes, accessible: selected.accessible, incident: currentCase.incident },
+      metadata: { firstAttemptEligible, duration: selected.duration, changes: selected.changes, accessible: selected.accessible, incident: currentCase.incident },
     });
   };
 
-  if (!currentCase) return <main className="scenario-play-page"><ScenarioHeader title="Sidste forbindelse" subtitle="Driftsmeldinger er kun nyttige, hvis du læser dem rigtigt." onBack={onExit} /><CasePicker cases={metroCases} successful={successful} onPick={start} renderDescription={(item) => `${item.start} → ${item.destination} · ${item.incident}`} /></main>;
+  if (!currentCase) return <main className="scenario-play-page"><ScenarioHeader title="Sidste forbindelse" subtitle="Driftsmeldinger er kun nyttige, hvis du læser dem rigtigt." onBack={onExit} /><CasePicker cases={metroCases} successful={successful} unlockedScenarioIds={unlockedScenarioIds} onUnlock={onUnlockScenario} onPick={start} renderDescription={(item) => `${item.start} → ${item.destination} · ${item.incident}`} /></main>;
   if (result) return <main className="scenario-play-page"><ScenarioHeader title="Sidste forbindelse" subtitle={currentCase.title} onBack={() => setCurrentCase(null)} /><CaseResult success={result.success} title={result.success ? "Passageren når frem" : "Ruten holder ikke"} text={result.explanation} score={result.score} onReplay={() => start(currentCase)} onCases={() => setCurrentCase(null)} /></main>;
 
   return (

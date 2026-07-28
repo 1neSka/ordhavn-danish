@@ -1,5 +1,5 @@
-export type ScenarioKind = "phone" | "dialogue" | "post" | "metro";
-export type ScenarioLevel = "A2" | "B1" | "B2";
+export type ScenarioKind = "harbor" | "phone" | "dialogue" | "post" | "metro";
+export type ScenarioLevel = "A1" | "A2" | "B1" | "B2";
 
 export interface ScenarioRun {
   id: string;

@@ -19,7 +19,8 @@ test("server-renders the Ordhavn application shell", async () => {
   const html = await response.text();
   assert.match(html, /<title>Ordhavn — dansk der bliver hængende<\/title>/i);
   assert.match(html, /ordhavn/i);
-  assert.match(html, /Godt at se dig/i);
+  assert.match(html, /God vagt/i);
+  assert.match(html, /Din voksende ordhavn/i);
   assert.match(html, /Læringssti/i);
   assert.doesNotMatch(html, /codex-preview|SkeletonPreview|react-loading-skeleton/i);
 });

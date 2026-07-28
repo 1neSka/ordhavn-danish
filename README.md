@@ -2,16 +2,21 @@
 
 Ordhavn er et local-first læringsspil til dansk. Den nuværende udgave indeholder
 10 niveauer, 30 missioner, 240 unikke opgaver og over 100 minutters aktivt
-kursusindhold fra A0 til B2.
+kursusindhold fra A0 til B2. Brugerfladen og hjælpesproget er kun dansk og
+engelsk.
 
 ## Det særlige ved Ordhavn
 
 - hele den primære brugerflade er på enkelt dansk;
 - otte opgavetyper, herunder danske tal, `en/et` med sikkerhedsindsats,
   bestemthed, adjektivkongruens, V2 og placeringen af `ikke`;
-- fire udvidelige scenariesystemer: danske telefonindstillinger, forgrenede
-  psykologiske dialoger, mail-efterforskning og trafik-dispatch;
-- tre originale animefigurer med forskellige samtaleregler og flere udfald;
+- fem udvidelige scenariesystemer: danske telefonindstillinger, forgrenede
+  psykologiske dialoger, mail-efterforskning, trafik-dispatch og A1–A2-havnecases;
+- tre originale animefigurer med forskellige samtaleregler og ni spilbare episoder;
+- en levende havn med købte bygninger, karakterkontrakter, relationer og tidevand;
+- tre valutaer: XP til rang, kroner til valg og rav fra holdout, Brier og
+  scenarier løst rent i første forsøg;
+- maritime rangporte, Kønsbanken og en deterministisk ugentlig storm;
 - et mørkt standardtema samt et øjeblikkeligt sol/måne-skift til lyst tema;
 - tre adskilte mastery-dimensioner: `read`, `listen` og `produce`;
 - item-skemaet er audio-ready (`assets.audio: null`), men første version har
@@ -54,11 +59,15 @@ Se [data-exports/README.md](data-exports/README.md) for den fulde filliste.
 ## Arkitektur
 
 - `app/page.tsx` — navigation, læringssti, træning, player og statistik
-- `app/scenario-games.tsx` — de fire interaktive scenariemotorer
+- `app/scenario-games.tsx` — de fem interaktive scenariemotorer
+- `app/harbor-game.tsx` — havnen, karakterkontrakter og Kønsbanken
 - `lib/courseData.ts` — typed, data-driven dansk kursusindhold
 - `lib/scenarioData.ts` — typed cases, branches, settings and route data
+- `lib/gameEconomy.ts` — valutaer, rangporte, bygninger og ugens storm
+- `lib/harborData.ts` — karakterer, bosser og udvidelige havnecases
+- `lib/dialogueEpisodes.ts` — seks betalte, forgrenede karakterfortsættelser
 - `lib/scheduler.ts` — FSRS-5 og unbiased holdout-plan
-- `lib/analytics.ts` — eventlog, aggregater, validering og 21-fils eksport
+- `lib/analytics.ts` — eventlog, aggregater og validering
 - `data-exports/schema.json` — stabilt data- og audio-ready schema
 
 Kildedata og personlige eksporter bliver på enheden. Ingen ekstern analytics-

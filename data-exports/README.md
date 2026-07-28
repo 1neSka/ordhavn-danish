@@ -21,6 +21,9 @@ Eksporten består af separate filer:
 - `content-progress.json` — status for niveauer og missioner
 - `item-catalog.json` — typed item schema inkl. nullable audio assets
 - `scenario-runs.json` — valg, grene, udfald og score fra Scenario Lab
+- `economy.json` — XP, kroner, rav, rang, bygninger og oplåste kontrakter
+- `weekly-storms.json` — den ene gemte selvkonkurrence pr. uge
+- `gender-bank-runs.json` — indsatser, udbetalinger og runder fra Kønsbanken
 - `summary.json` — versions- og eksportoversigt
 
 Filer med personlige svar ignoreres af Git som standard. Behold kun README og
