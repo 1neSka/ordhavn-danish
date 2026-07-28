@@ -1,0 +1,595 @@
+"use client";
+
+import { useMemo, useState } from "react";
+import Image from "next/image";
+import {
+  Accessibility,
+  ArrowLeft,
+  Brain,
+  Check,
+  ChevronRight,
+  Clock3,
+  Eye,
+  Gamepad2,
+  Lightbulb,
+  LockKeyhole,
+  MailWarning,
+  Map,
+  MessageCircleMore,
+  Moon,
+  RotateCcw,
+  Settings,
+  ShieldCheck,
+  Signal,
+  Smartphone,
+  Sparkles,
+  Sun,
+  TrainFront,
+  Trophy,
+  X,
+} from "lucide-react";
+import {
+  dialogueCharacters,
+  metroCases,
+  phoneMissions,
+  phonePages,
+  phoneSettings,
+  postCases,
+  type DialogueCharacter,
+  type MetroCase,
+  type PhoneMission,
+  type PhoneValue,
+  type PostCase,
+  type ScenarioKind,
+  type ScenarioRun,
+} from "@/lib/scenarioData";
+
+type ScenarioHubProps = {
+  runs: ScenarioRun[];
+  onComplete: (run: ScenarioRun) => void;
+};
+
+type ActiveGame = ScenarioKind | null;
+
+const gameCards: Array<{
+  kind: ScenarioKind;
+  eyebrow: string;
+  title: string;
+  level: string;
+  description: string;
+  meta: string;
+  icon: typeof Smartphone;
+  tone: string;
+}> = [
+  {
+    kind: "phone",
+    eyebrow: "Systemjagt",
+    title: "Indstillingerne",
+    level: "A2–B1",
+    description: "Læs et rigtigt behov, find selv gennem telefonens danske menuer, og konfigurér den præcise løsning.",
+    meta: `${phoneMissions.length} missioner · fri navigation`,
+    icon: Smartphone,
+    tone: "violet",
+  },
+  {
+    kind: "dialogue",
+    eyebrow: "Social strategi",
+    title: "Mellem linjerne",
+    level: "B1–B2",
+    description: "Læs personen, vælg svar og balancér tillid, spænding, grænser og skjulte psykologiske behov.",
+    meta: `${dialogueCharacters.length} personer · forgrenede forløb`,
+    icon: MessageCircleMore,
+    tone: "rose",
+  },
+  {
+    kind: "post",
+    eyebrow: "Informationsdetektiv",
+    title: "Den mistænkelige post",
+    level: "A2–B2",
+    description: "Markér sproglige og kontekstuelle spor i mails, og vælg en sikker handling under tidspres.",
+    meta: `${postCases.length} sager · evidensbaseret`,
+    icon: MailWarning,
+    tone: "amber",
+  },
+  {
+    kind: "metro",
+    eyebrow: "Dispatch-puslespil",
+    title: "Sidste forbindelse",
+    level: "A2–B2",
+    description: "Kombinér driftsmeldinger, tid, tilgængelighed og skift til én rute, der faktisk virker.",
+    meta: `${metroCases.length} hændelser · flere begrænsninger`,
+    icon: TrainFront,
+    tone: "cyan",
+  },
+];
+
+function runId() {
+  return typeof crypto !== "undefined" && "randomUUID" in crypto
+    ? crypto.randomUUID()
+    : `scenario-${Date.now()}`;
+}
+
+function LevelBadge({ level }: { level: string }) {
+  return <span className={`scenario-level level-${level.toLowerCase().replace("–", "-")}`}>{level}</span>;
+}
+
+function ScenarioHeader({ title, subtitle, onBack }: { title: string; subtitle: string; onBack: () => void }) {
+  return (
+    <header className="scenario-play-header">
+      <button className="icon-button scenario-back" onClick={onBack} aria-label="Tilbage">
+        <ArrowLeft size={20} />
+      </button>
+      <div>
+        <p className="eyebrow">Interaktivt scenarie</p>
+        <h2>{title}</h2>
+        <p>{subtitle}</p>
+      </div>
+    </header>
+  );
+}
+
+function CaseResult({
+  success,
+  title,
+  text,
+  score,
+  onReplay,
+  onCases,
+}: {
+  success: boolean;
+  title: string;
+  text: string;
+  score: number;
+  onReplay: () => void;
+  onCases: () => void;
+}) {
+  return (
+    <div className={`scenario-result ${success ? "success" : "retry"}`}>
+      <div className="result-orbit">{success ? <Trophy size={34} /> : <RotateCcw size={32} />}</div>
+      <p className="eyebrow">{success ? "Scenariet løst" : "Ny strategi nødvendig"}</p>
+      <h3>{title}</h3>
+      <p>{text}</p>
+      <div className="scenario-score"><Sparkles size={17} /> {score} XP</div>
+      <div className="result-actions">
+        <button className="secondary-button" onClick={onCases}>Vælg en anden sag</button>
+        <button className="primary-button" onClick={onReplay}><RotateCcw size={16} /> Prøv igen</button>
+      </div>
+    </div>
+  );
+}
+
+export default function ScenarioHub({ runs, onComplete }: ScenarioHubProps) {
+  const [activeGame, setActiveGame] = useState<ActiveGame>(null);
+  const successful = useMemo(() => new Set(runs.filter((run) => run.success).map((run) => run.caseId)), [runs]);
+
+  if (activeGame === "phone") return <PhoneGame onExit={() => setActiveGame(null)} onComplete={onComplete} successful={successful} />;
+  if (activeGame === "dialogue") return <DialogueGame onExit={() => setActiveGame(null)} onComplete={onComplete} successful={successful} />;
+  if (activeGame === "post") return <PostGame onExit={() => setActiveGame(null)} onComplete={onComplete} successful={successful} />;
+  if (activeGame === "metro") return <MetroGame onExit={() => setActiveGame(null)} onComplete={onComplete} successful={successful} />;
+
+  return (
+    <main className="scenario-hub">
+      <section className="scenario-hero">
+        <div>
+          <p className="eyebrow"><Gamepad2 size={15} /> Scenario Lab</p>
+          <h1>Dansk, når der er noget på spil.</h1>
+          <p>Ikke oversæt en sætning. Forstå situationen, find signalerne og tag en beslutning, der virker i den virkelige verden.</p>
+          <div className="scenario-hero-meta">
+            <span><Brain size={17} /> 4 systemer</span>
+            <span><ShieldCheck size={17} /> A2 → B2</span>
+            <span><Trophy size={17} /> {successful.size} løst</span>
+          </div>
+        </div>
+        <div className="scenario-hero-art" aria-hidden="true">
+          <div className="art-phone"><Settings size={28} /><span>Indstillinger</span></div>
+          <div className="art-message">Hvad mener hun egentlig?</div>
+          <div className="art-route"><TrainFront size={24} /> M3 · 08.21</div>
+        </div>
+      </section>
+
+      <section className="scenario-grid" aria-label="Scenariespil">
+        {gameCards.map((game) => {
+          const Icon = game.icon;
+          const completed = runs.filter((run) => run.kind === game.kind && run.success).length;
+          return (
+            <button key={game.kind} className={`scenario-card ${game.tone}`} onClick={() => setActiveGame(game.kind)}>
+              <div className="scenario-card-top">
+                <span className="scenario-card-icon"><Icon size={25} /></span>
+                <LevelBadge level={game.level} />
+              </div>
+              <p className="eyebrow">{game.eyebrow}</p>
+              <h2>{game.title}</h2>
+              <p>{game.description}</p>
+              <div className="scenario-card-foot">
+                <span>{game.meta}</span>
+                <span className="scenario-complete"><Check size={14} /> {completed}</span>
+              </div>
+            </button>
+          );
+        })}
+      </section>
+    </main>
+  );
+}
+
+type GameCommonProps = {
+  onExit: () => void;
+  onComplete: (run: ScenarioRun) => void;
+  successful: Set<string>;
+};
+
+function CasePicker<T extends { id: string; title: string; level: string }>({
+  cases,
+  successful,
+  onPick,
+  renderDescription,
+}: {
+  cases: T[];
+  successful: Set<string>;
+  onPick: (item: T) => void;
+  renderDescription: (item: T) => string;
+}) {
+  return (
+    <div className="case-picker">
+      {cases.map((item, index) => (
+        <button className="case-pick-card" key={item.id} onClick={() => onPick(item)}>
+          <div className="case-number">{String(index + 1).padStart(2, "0")}</div>
+          <div>
+            <div className="case-title-row"><h3>{item.title}</h3><LevelBadge level={item.level} /></div>
+            <p>{renderDescription(item)}</p>
+          </div>
+          <span className={`case-status ${successful.has(item.id) ? "done" : ""}`}>
+            {successful.has(item.id) ? <Check size={18} /> : <ChevronRight size={18} />}
+          </span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function PhoneGame({ onExit, onComplete, successful }: GameCommonProps) {
+  const [mission, setMission] = useState<PhoneMission | null>(null);
+  const [startedAt, setStartedAt] = useState("");
+  const [page, setPage] = useState("root");
+  const [values, setValues] = useState<Record<string, PhoneValue>>({});
+  const [path, setPath] = useState<string[]>([]);
+  const [decisions, setDecisions] = useState<ScenarioRun["decisions"]>([]);
+  const [checks, setChecks] = useState(0);
+  const [hint, setHint] = useState(false);
+  const [missing, setMissing] = useState<string[]>([]);
+  const [result, setResult] = useState<{ score: number } | null>(null);
+
+  const startMission = (next: PhoneMission) => {
+    const defaults = Object.fromEntries(Object.values(phoneSettings).map((setting) => {
+      if (setting.type === "toggle") return [setting.id, false];
+      if (setting.type === "slider") return [setting.id, setting.min ?? 1];
+      return [setting.id, setting.options?.[0]?.value ?? ""];
+    }));
+    setMission(next);
+    setStartedAt(new Date().toISOString());
+    setPage("root");
+    setValues({ ...defaults, ...next.initialState });
+    setPath(["root"]);
+    setDecisions([]);
+    setChecks(0);
+    setHint(false);
+    setMissing([]);
+    setResult(null);
+  };
+
+  const visit = (nextPage: string) => {
+    setPage(nextPage);
+    setPath((current) => [...current, nextPage]);
+  };
+
+  const changeSetting = (id: string, value: PhoneValue) => {
+    setValues((current) => ({ ...current, [id]: value }));
+    setDecisions((current) => [...current, {
+      stepId: page,
+      answerId: id,
+      answerText: `${phoneSettings[id].label}: ${String(value)}`,
+      correct: Object.prototype.hasOwnProperty.call(mission?.requirements ?? {}, id) ? mission?.requirements[id] === value : null,
+    }]);
+    setMissing((current) => current.filter((item) => item !== id));
+  };
+
+  const checkSolution = () => {
+    if (!mission) return;
+    const unmet = Object.entries(mission.requirements).filter(([id, required]) => values[id] !== required).map(([id]) => id);
+    const nextChecks = checks + 1;
+    setChecks(nextChecks);
+    setMissing(unmet);
+    if (unmet.length === 0) {
+      const score = Math.max(140, 320 - (nextChecks - 1) * 35 - (hint ? 45 : 0) - Math.max(0, decisions.length - 5) * 3);
+      setResult({ score });
+      onComplete({
+        id: runId(), kind: "phone", caseId: mission.id, title: mission.title, level: mission.level,
+        startedAt, endedAt: new Date().toISOString(), success: true, score, maxScore: 320,
+        path, decisions, metadata: { checks: nextChecks, usedHint: hint, settingChanges: decisions.length },
+      });
+    }
+  };
+
+  if (!mission) {
+    return (
+      <main className="scenario-play-page">
+        <ScenarioHeader title="Indstillingerne" subtitle="Find løsningen i en telefon, der kun taler dansk." onBack={onExit} />
+        <CasePicker cases={phoneMissions} successful={successful} onPick={startMission} renderDescription={(item) => item.brief} />
+      </main>
+    );
+  }
+
+  if (result) {
+    return <main className="scenario-play-page"><ScenarioHeader title="Indstillingerne" subtitle={mission.title} onBack={() => setMission(null)} /><CaseResult success title={mission.title} text={mission.successText} score={result.score} onReplay={() => startMission(mission)} onCases={() => setMission(null)} /></main>;
+  }
+
+  const currentPage = phonePages[page];
+  return (
+    <main className="scenario-play-page">
+      <ScenarioHeader title="Indstillingerne" subtitle={`${mission.level} · ${mission.title}`} onBack={() => setMission(null)} />
+      <div className="phone-game-layout">
+        <aside className="mission-brief-card">
+          <div className="mission-brief-top"><span>MISSION</span><Clock3 size={16} /> ca. {mission.timeLimitMinutes} min</div>
+          <h3>{mission.title}</h3>
+          <p>{mission.brief}</p>
+          <blockquote>{mission.message}</blockquote>
+          <button className="hint-button" onClick={() => setHint((current) => !current)}><Lightbulb size={17} /> {hint ? mission.hint : "Vis et diskret hint"}</button>
+          {checks > 0 && missing.length > 0 && <div className="check-feedback"><X size={17} /> Ikke helt endnu. {missing.length} indstilling{missing.length === 1 ? "" : "er"} mangler.</div>}
+          <button className="primary-button phone-check" onClick={checkSolution}><Check size={17} /> Kontrollér løsning</button>
+        </aside>
+
+        <div className="phone-device" aria-label="Danske telefonindstillinger">
+          <div className="phone-speaker" />
+          <div className="phone-status"><span>09.41</span><span><Signal size={14} /> 5G · 87%</span></div>
+          <div className="phone-screen">
+            <div className="phone-page-head" style={{ "--phone-accent": currentPage.accent } as React.CSSProperties}>
+              {currentPage.parent && <button onClick={() => visit(currentPage.parent!)} aria-label="Tilbage"><ArrowLeft size={18} /></button>}
+              <div><h3>{currentPage.title}</h3><p>{currentPage.subtitle}</p></div>
+            </div>
+            <div className="phone-list">
+              {currentPage.links?.map((link) => (
+                <button className="phone-link" key={link.pageId} onClick={() => visit(link.pageId)}>
+                  <span className="phone-link-icon">{link.icon === "moon" ? <Moon /> : link.icon === "signal" ? <Signal /> : link.icon === "sun" ? <Sun /> : link.icon === "accessibility" ? <Accessibility /> : link.icon === "shield" ? <LockKeyhole /> : <Settings />}</span>
+                  <span><strong>{link.label}</strong><small>{link.description}</small></span><ChevronRight size={17} />
+                </button>
+              ))}
+              {currentPage.settings?.map((id) => {
+                const setting = phoneSettings[id];
+                const isMissing = missing.includes(id);
+                return (
+                  <div className={`phone-setting ${isMissing ? "missing" : ""}`} key={id}>
+                    <div><strong>{setting.label}</strong><small>{setting.description}</small></div>
+                    {setting.type === "toggle" && <button className={`phone-toggle ${values[id] ? "on" : ""}`} onClick={() => changeSetting(id, !values[id])} aria-label={`Skift ${setting.label}`}><span /></button>}
+                    {setting.type === "choice" && <select value={String(values[id])} onChange={(event) => changeSetting(id, event.target.value)}>{setting.options?.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select>}
+                    {setting.type === "slider" && <div className="phone-slider"><input type="range" min={setting.min} max={setting.max} step={setting.step} value={Number(values[id])} onChange={(event) => changeSetting(id, Number(event.target.value))} /><span>{String(values[id])}{setting.unit}</span></div>}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+          <div className="phone-home-bar" />
+        </div>
+      </div>
+    </main>
+  );
+}
+
+function DialogueGame({ onExit, onComplete, successful }: GameCommonProps) {
+  const [character, setCharacter] = useState<DialogueCharacter | null>(null);
+  const [startedAt, setStartedAt] = useState("");
+  const [nodeId, setNodeId] = useState("");
+  const [trust, setTrust] = useState(50);
+  const [tension, setTension] = useState(25);
+  const [path, setPath] = useState<string[]>([]);
+  const [decisions, setDecisions] = useState<ScenarioRun["decisions"]>([]);
+  const [feedback, setFeedback] = useState<{ insight: string; principle: string; next: string | null; trust: number; tension: number } | null>(null);
+  const [result, setResult] = useState<{ success: boolean; score: number; text: string } | null>(null);
+
+  const start = (next: DialogueCharacter) => {
+    setCharacter(next);
+    setStartedAt(new Date().toISOString());
+    setNodeId(next.case.startNode);
+    setTrust(50); setTension(25); setPath([next.case.startNode]); setDecisions([]); setFeedback(null); setResult(null);
+  };
+
+  const choose = (choiceId: string) => {
+    if (!character || feedback) return;
+    const node = character.case.nodes[nodeId];
+    const choice = node.choices.find((item) => item.id === choiceId)!;
+    const nextTrust = Math.max(0, Math.min(100, trust + choice.trust));
+    const nextTension = Math.max(0, Math.min(100, tension + choice.tension));
+    setTrust(nextTrust); setTension(nextTension);
+    setDecisions((current) => [...current, { stepId: node.id, answerId: choice.id, answerText: choice.text, correct: choice.trust > 0 && choice.tension <= 0, delta: { trust: choice.trust, tension: choice.tension } }]);
+    setFeedback({ insight: choice.insight, principle: choice.principle, next: choice.next, trust: nextTrust, tension: nextTension });
+  };
+
+  const continueDialogue = () => {
+    if (!character || !feedback) return;
+    const danger = feedback.tension >= character.case.dangerLimit;
+    if (feedback.next && !danger) {
+      setNodeId(feedback.next);
+      setPath((current) => [...current, feedback.next!]);
+      setFeedback(null);
+      return;
+    }
+    const success = !danger && feedback.trust >= character.case.successTrust;
+    const score = Math.min(500, Math.max(80, Math.round(220 + feedback.trust * 3 - feedback.tension * 2)));
+    const text = success
+      ? `Du læste ${character.name}s behov uden at opgive dine egne grænser. Samtalen endte med en konkret vej videre.`
+      : danger
+        ? "Spændingen blev for høj. Du afsluttede samtalen og forlod situationen; prøv en roligere, tydeligere strategi næste gang."
+        : "Samtalen sluttede uden en stabil aftale. Se især på forskellen mellem kortvarig beroligelse og langsigtet tillid.";
+    setResult({ success, score, text });
+    onComplete({
+      id: runId(), kind: "dialogue", caseId: character.case.id, title: character.case.title, level: character.case.level,
+      startedAt, endedAt: new Date().toISOString(), success, score, maxScore: 500,
+      path, decisions: [...decisions], metadata: { character: character.name, finalTrust: feedback.trust, finalTension: feedback.tension, dangerLimit: character.case.dangerLimit },
+    });
+  };
+
+  if (!character) {
+    return (
+      <main className="scenario-play-page">
+        <ScenarioHeader title="Mellem linjerne" subtitle="Tre personer. Tre helt forskellige psykologiske regler." onBack={onExit} />
+        <div className="character-grid">
+          {dialogueCharacters.map((item) => (
+            <button key={item.id} className="character-card" onClick={() => start(item)} style={{ "--character-color": item.color } as React.CSSProperties}>
+              <div className="character-portrait"><Image src={item.portrait} alt={`${item.name}, animeportræt`} width={640} height={900} sizes="(max-width: 760px) 100vw, 33vw" /></div>
+              <div className="character-card-copy">
+                <div className="case-title-row"><h3>{item.name}, {item.age}</h3><LevelBadge level={item.case.level} /></div>
+                <p className="character-type">{item.archetype}</p>
+                <p>{item.psychology}</p>
+                <span className="character-rule"><Eye size={15} /> {item.rule}</span>
+                <span className={`case-status ${successful.has(item.case.id) ? "done" : ""}`}>{successful.has(item.case.id) ? <Check size={18} /> : <ChevronRight size={18} />}</span>
+              </div>
+            </button>
+          ))}
+        </div>
+      </main>
+    );
+  }
+
+  if (result) {
+    return <main className="scenario-play-page"><ScenarioHeader title="Mellem linjerne" subtitle={`${character.name} · ${character.case.title}`} onBack={() => setCharacter(null)} /><CaseResult {...result} title={result.success ? "Du fandt balancen" : "Samtalen gled af sporet"} onReplay={() => start(character)} onCases={() => setCharacter(null)} /></main>;
+  }
+
+  const node = character.case.nodes[nodeId];
+  return (
+    <main className="dialogue-stage" style={{ "--character-color": character.color } as React.CSSProperties}>
+      <div className="dialogue-topbar">
+        <button className="icon-button" onClick={() => setCharacter(null)} aria-label="Tilbage"><ArrowLeft size={20} /></button>
+        <div><strong>{character.case.title}</strong><span>{character.case.location}</span></div>
+        <LevelBadge level={character.case.level} />
+      </div>
+      <div className="dialogue-scene">
+        <Image src={character.portrait} alt={`${character.name} i scenariet`} fill priority sizes="(max-width: 760px) 100vw, 1080px" />
+        <div className="scene-gradient" />
+        <div className="dialogue-objective"><span>DIT MÅL</span>{character.case.objective}</div>
+        <div className="dialogue-meters">
+          <label>Tillid <span>{trust}</span><i><b style={{ width: `${trust}%` }} /></i></label>
+          <label>Spænding <span>{tension}</span><i className="tension"><b style={{ width: `${tension}%` }} /></i></label>
+        </div>
+        <div className="dialogue-box">
+          <p className="dialogue-stage-note">{node.stage}</p>
+          <h3>{node.speaker}</h3>
+          <blockquote>“{node.line}”</blockquote>
+          {!feedback ? (
+            <div className="dialogue-choices">{node.choices.map((choice, index) => <button key={choice.id} onClick={() => choose(choice.id)}><span>{String.fromCharCode(65 + index)}</span>{choice.text}</button>)}</div>
+          ) : (
+            <div className="dialogue-feedback">
+              <div><Lightbulb size={18} /><p><strong>{feedback.principle}</strong>{feedback.insight}</p></div>
+              <button className="primary-button" onClick={continueDialogue}>{feedback.next && feedback.tension < character.case.dangerLimit ? "Fortsæt samtalen" : "Se udfald"}<ChevronRight size={17} /></button>
+            </div>
+          )}
+        </div>
+      </div>
+    </main>
+  );
+}
+
+function PostGame({ onExit, onComplete, successful }: GameCommonProps) {
+  const [currentCase, setCurrentCase] = useState<PostCase | null>(null);
+  const [startedAt, setStartedAt] = useState("");
+  const [clues, setClues] = useState<string[]>([]);
+  const [action, setAction] = useState("");
+  const [result, setResult] = useState<{ success: boolean; score: number } | null>(null);
+
+  const start = (item: PostCase) => { setCurrentCase(item); setStartedAt(new Date().toISOString()); setClues([]); setAction(""); setResult(null); };
+  const inspect = () => {
+    if (!currentCase || !action || result) return;
+    const trueClues = currentCase.clues.filter((item) => item.correct).map((item) => item.id);
+    const selectedCorrect = clues.filter((id) => trueClues.includes(id)).length;
+    const falseMarks = clues.filter((id) => !trueClues.includes(id)).length;
+    const actionCorrect = currentCase.actions.find((item) => item.id === action)?.correct ?? false;
+    const success = selectedCorrect >= Math.max(2, trueClues.length - 1) && falseMarks === 0 && actionCorrect;
+    const score = Math.max(70, 160 + selectedCorrect * 45 - falseMarks * 35 + (actionCorrect ? 90 : 0));
+    setResult({ success, score });
+    onComplete({
+      id: runId(), kind: "post", caseId: currentCase.id, title: currentCase.title, level: currentCase.level,
+      startedAt, endedAt: new Date().toISOString(), success, score, maxScore: 430,
+      path: [currentCase.id, ...clues, action],
+      decisions: [
+        ...clues.map((id) => { const clue = currentCase.clues.find((item) => item.id === id)!; return { stepId: "clues", answerId: id, answerText: clue.text, correct: clue.correct }; }),
+        { stepId: "action", answerId: action, answerText: currentCase.actions.find((item) => item.id === action)?.label ?? action, correct: actionCorrect },
+      ],
+      metadata: { selectedClues: clues.length, correctClues: selectedCorrect, falseMarks },
+    });
+  };
+
+  if (!currentCase) return <main className="scenario-play-page"><ScenarioHeader title="Den mistænkelige post" subtitle="Find signalerne, før du handler." onBack={onExit} /><CasePicker cases={postCases} successful={successful} onPick={start} renderDescription={(item) => `${item.subject} · ${item.context}`} /></main>;
+  if (result) return <main className="scenario-play-page"><ScenarioHeader title="Den mistænkelige post" subtitle={currentCase.title} onBack={() => setCurrentCase(null)} /><CaseResult success={result.success} title={result.success ? "God efterforskning" : "Et signal blev overset"} text={currentCase.explanation} score={result.score} onReplay={() => start(currentCase)} onCases={() => setCurrentCase(null)} /></main>;
+
+  return (
+    <main className="scenario-play-page">
+      <ScenarioHeader title="Den mistænkelige post" subtitle={`${currentCase.level} · ${currentCase.title}`} onBack={() => setCurrentCase(null)} />
+      <div className="post-layout">
+        <section className="mail-window">
+          <div className="mail-toolbar"><MailWarning size={20} /><span>Indbakke / ukendt afsender</span><time>{currentCase.received}</time></div>
+          <div className="mail-head"><p>Fra: <strong>{currentCase.sender}</strong></p><h2>{currentCase.subject}</h2></div>
+          <div className="mail-body">{currentCase.body.map((paragraph) => <p key={paragraph}>{paragraph}</p>)}</div>
+          <div className="mail-context"><Eye size={18} /><p><strong>Kontekst uden for mailen</strong>{currentCase.context}</p></div>
+        </section>
+        <aside className="evidence-panel">
+          <p className="eyebrow">Trin 1 · Markér stærke signaler</p>
+          <h3>Hvad er relevant evidens?</h3>
+          <div className="clue-list">{currentCase.clues.map((clue) => <label key={clue.id} className={clues.includes(clue.id) ? "selected" : ""}><input type="checkbox" checked={clues.includes(clue.id)} onChange={() => setClues((current) => current.includes(clue.id) ? current.filter((id) => id !== clue.id) : [...current, clue.id])} /><span>{clue.text}</span></label>)}</div>
+          <p className="eyebrow evidence-step">Trin 2 · Vælg handling</p>
+          <div className="action-list">{currentCase.actions.map((item) => <label key={item.id} className={action === item.id ? "selected" : ""}><input type="radio" name="post-action" checked={action === item.id} onChange={() => setAction(item.id)} /><span><strong>{item.label}</strong><small>{item.description}</small></span></label>)}</div>
+          <button className="primary-button" disabled={!action} onClick={inspect}><ShieldCheck size={17} /> Afgiv vurdering</button>
+        </aside>
+      </div>
+    </main>
+  );
+}
+
+function MetroGame({ onExit, onComplete, successful }: GameCommonProps) {
+  const [currentCase, setCurrentCase] = useState<MetroCase | null>(null);
+  const [startedAt, setStartedAt] = useState("");
+  const [route, setRoute] = useState("");
+  const [result, setResult] = useState<{ success: boolean; score: number; explanation: string } | null>(null);
+  const start = (item: MetroCase) => { setCurrentCase(item); setStartedAt(new Date().toISOString()); setRoute(""); setResult(null); };
+  const dispatch = () => {
+    if (!currentCase || !route || result) return;
+    const selected = currentCase.routes.find((item) => item.id === route)!;
+    const success = selected.correct;
+    const score = success ? 380 : 120;
+    setResult({ success, score, explanation: selected.explanation });
+    onComplete({
+      id: runId(), kind: "metro", caseId: currentCase.id, title: currentCase.title, level: currentCase.level,
+      startedAt, endedAt: new Date().toISOString(), success, score, maxScore: 380,
+      path: [currentCase.start, route, currentCase.destination],
+      decisions: [{ stepId: "route", answerId: route, answerText: selected.label, correct: success }],
+      metadata: { duration: selected.duration, changes: selected.changes, accessible: selected.accessible, incident: currentCase.incident },
+    });
+  };
+
+  if (!currentCase) return <main className="scenario-play-page"><ScenarioHeader title="Sidste forbindelse" subtitle="Driftsmeldinger er kun nyttige, hvis du læser dem rigtigt." onBack={onExit} /><CasePicker cases={metroCases} successful={successful} onPick={start} renderDescription={(item) => `${item.start} → ${item.destination} · ${item.incident}`} /></main>;
+  if (result) return <main className="scenario-play-page"><ScenarioHeader title="Sidste forbindelse" subtitle={currentCase.title} onBack={() => setCurrentCase(null)} /><CaseResult success={result.success} title={result.success ? "Passageren når frem" : "Ruten holder ikke"} text={result.explanation} score={result.score} onReplay={() => start(currentCase)} onCases={() => setCurrentCase(null)} /></main>;
+
+  return (
+    <main className="scenario-play-page">
+      <ScenarioHeader title="Sidste forbindelse" subtitle={`${currentCase.level} · ${currentCase.title}`} onBack={() => setCurrentCase(null)} />
+      <div className="metro-layout">
+        <section className="dispatch-board">
+          <div className="dispatch-time"><span>NU</span><strong>{currentCase.now}</strong><i /><span>SENEST</span><strong>{currentCase.deadline}</strong></div>
+          <div className="route-title"><Map size={20} /><div><strong>{currentCase.start}</strong><span>til</span><strong>{currentCase.destination}</strong></div></div>
+          <div className="metro-line-map" aria-hidden="true"><span className="station active" /><i /><span className="station change" /><i /><span className="station destination" /></div>
+          <div className="incident-banner"><Signal size={18} /><div><strong>Driftsmelding</strong><p>{currentCase.incident}</p></div></div>
+          <div className="passenger-card"><Accessibility size={19} /><p><strong>{currentCase.passenger}</strong>{currentCase.constraints.join(" · ")}</p></div>
+        </section>
+        <aside className="route-options">
+          <p className="eyebrow">Vælg én anbefaling</p>
+          <h3>Hvilken rute opfylder alt?</h3>
+          {currentCase.routes.map((item) => (
+            <label key={item.id} className={route === item.id ? "selected" : ""}>
+              <input type="radio" name="metro-route" checked={route === item.id} onChange={() => setRoute(item.id)} />
+              <span className="route-copy"><strong>{item.label}</strong><small>{item.steps.join(" → ")}</small></span>
+              <span className="route-metrics"><b>{item.duration} min</b><small>{item.changes} skift</small></span>
+            </label>
+          ))}
+          <button className="primary-button" disabled={!route} onClick={dispatch}><TrainFront size={17} /> Send ruten</button>
+        </aside>
+      </div>
+    </main>
+  );
+}

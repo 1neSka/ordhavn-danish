@@ -17,6 +17,7 @@ import {
   Download,
   Flame,
   FolderCheck,
+  Gamepad2,
   Gauge,
   Gem,
   Heart,
@@ -38,12 +39,15 @@ import {
   ShieldCheck,
   Sparkles,
   Star,
+  Sun,
   Target,
   Trophy,
   X,
   Zap,
 } from "lucide-react";
 import { courseLevels, type Challenge, type Mission } from "../lib/courseData";
+import ScenarioHub from "./scenario-games";
+import type { ScenarioRun } from "../lib/scenarioData";
 import {
   assignHoldout,
   createFixedHoldoutSchedule,
@@ -57,7 +61,7 @@ import {
   type OperationalMasteryRecord,
 } from "../lib/scheduler";
 
-type View = "home" | "path" | "practice" | "stats" | "profile";
+type View = "home" | "path" | "practice" | "scenarios" | "stats" | "profile";
 
 type Attempt = {
   id: string;
@@ -107,6 +111,7 @@ type ProgressState = {
   dailyGoalMinutes: number;
   darkMode: boolean;
   mastery: MasteryState | null;
+  scenarioRuns: ScenarioRun[];
 };
 
 type DirectoryHandleLike = {
@@ -129,8 +134,9 @@ const initialProgress: ProgressState = {
   attempts: [],
   sessions: [],
   dailyGoalMinutes: 15,
-  darkMode: false,
+  darkMode: true,
   mastery: null,
+  scenarioRuns: [],
 };
 
 const iconMap: Record<string, React.ComponentType<{ size?: number; strokeWidth?: number }>> = {
@@ -234,6 +240,7 @@ function Navigation({ view, setView }: { view: View; setView: (view: View) => vo
     { id: "home" as View, label: "Hjem", icon: Home },
     { id: "path" as View, label: "Læringssti", icon: MapIcon },
     { id: "practice" as View, label: "Træning", icon: BrainCircuit },
+    { id: "scenarios" as View, label: "Scenarier", icon: Gamepad2 },
     { id: "stats" as View, label: "Statistik", icon: BarChart3 },
   ];
   return (
@@ -276,12 +283,15 @@ function Navigation({ view, setView }: { view: View; setView: (view: View) => vo
   );
 }
 
-function Topbar({ progress, onProfile }: { progress: ProgressState; onProfile: () => void }) {
+function Topbar({ progress, onProfile, onToggleTheme }: { progress: ProgressState; onProfile: () => void; onToggleTheme: () => void }) {
   return (
     <header className="topbar">
       <div className="mobile-brand"><AppLogo /></div>
       <div className="topbar-spacer" />
       <div className="top-stats">
+        <button className="theme-button" aria-label={progress.darkMode ? "Skift til lyst tema" : "Skift til mørkt tema"} onClick={onToggleTheme}>
+          {progress.darkMode ? <Sun size={18} /> : <Moon size={18} />}
+        </button>
         <span className="top-pill flame"><Flame size={18} fill="currentColor" /> {progress.streak}</span>
         <span className="top-pill gem"><Gem size={18} fill="currentColor" /> {progress.xp}</span>
         <button className="avatar small" aria-label="Åbn profil" onClick={onProfile}>R</button>
@@ -416,6 +426,9 @@ function HomeView({
         <button className="training-card peach" onClick={() => onNavigate("path")}>
           <span className="training-icon"><Compass size={22} /></span><div><h3>Hverdagsmissioner</h3><p>Små historier fra et ægte dansk hverdagsliv.</p></div><ChevronRight />
         </button>
+        <button className="training-card blue" onClick={() => onNavigate("scenarios")}>
+          <span className="training-icon"><Gamepad2 size={22} /></span><div><h3>Scenario Lab</h3><p>Løs telefoner, dialoger, svindel og trafik på dansk.</p></div><ChevronRight />
+        </button>
       </div>
     </div>
   );
@@ -428,10 +441,12 @@ function PathView({
   progress: ProgressState;
   onStart: (mission: Mission, levelId: string) => void;
 }) {
+  const missionCount = courseLevels.reduce((sum, level) => sum + level.missions.length, 0);
+  const minuteCount = courseLevels.reduce((sum, level) => sum + level.missions.reduce((levelSum, mission) => levelSum + mission.estimatedMinutes, 0), 0);
   return (
     <div className="view path-view">
       <section className="page-intro">
-        <div><p className="eyebrow">FRA FØRSTE HEJ TIL HVERDAGSDANSK</p><h1>Din læringssti</h1><p>24 håndlavede missioner · over 60 minutters aktiv træning</p></div>
+        <div><p className="eyebrow">FRA FØRSTE HEJ TIL SIKKERT DANSK</p><h1>Din læringssti</h1><p>{missionCount} håndlavede missioner · {minuteCount} minutters aktiv træning · op til B2</p></div>
         <div className="path-score"><Trophy size={22} /><span><strong>{progress.xp} XP</strong>{progress.completedMissions.length} missioner klaret</span></div>
       </section>
       <div className="level-list">
@@ -622,6 +637,7 @@ function StatsView({
         <article className="metric-card"><span className="icon-box mint"><Clock3 size={20} /></span><div><p>Aktiv tid</p><strong>{formatDuration(totalSeconds)}</strong><small>Kun tid i opgaver</small></div></article>
         <article className="metric-card"><span className="icon-box amber"><Flame size={20} /></span><div><p>Nuværende stime</p><strong>{progress.streak} dage</strong><small>Bedste vane lige nu</small></div></article>
         <article className="metric-card"><span className="icon-box blue"><Gauge size={20} /></span><div><p>Svartid</p><strong>{avgResponse} sek.</strong><small>Gennemsnit pr. opgave</small></div></article>
+        <article className="metric-card"><span className="icon-box violet"><Gamepad2 size={20} /></span><div><p>Scenarier</p><strong>{new Set(progress.scenarioRuns.filter((run) => run.success).map((run) => run.caseId)).size}</strong><small>{progress.scenarioRuns.length} gennemførte forsøg</small></div></article>
       </div>
 
       <div className="stats-main-grid">
@@ -1048,12 +1064,13 @@ export default function HomePage() {
       "modality.csv": toCsv(modalityRows),
       "content-progress.json": JSON.stringify(contentProgress, null, 2),
       "item-catalog.json": JSON.stringify(itemCatalog, null, 2),
+      "scenario-runs.json": JSON.stringify(state.scenarioRuns, null, 2),
     };
     const summary = {
       exportedAt: new Date().toISOString(),
       app: "Ordhavn",
       dataVersion: state.version,
-      totals: { xp: state.xp, streak: state.streak, missions: state.completedMissions.length, attempts: state.attempts.length, sessions: state.sessions.length },
+      totals: { xp: state.xp, streak: state.streak, missions: state.completedMissions.length, attempts: state.attempts.length, sessions: state.sessions.length, scenarioRuns: state.scenarioRuns.length },
       privacy: "Generated locally. Contains learning responses; handle as personal data.",
       scheduler: { operational: "FSRS-5 via ts-fsrs 4.7.1", holdout: "fixed 1/3/7/14 days", holdoutPercent: 8 },
       modalities: ["read", "listen", "produce"],
@@ -1172,14 +1189,33 @@ export default function HomePage() {
     });
   };
 
+  const completeScenario = (run: ScenarioRun) => {
+    setProgress((old) => {
+      const firstSuccess = run.success && !old.scenarioRuns.some((item) => item.caseId === run.caseId && item.success);
+      const xpEarned = run.score + (firstSuccess ? 75 : 0);
+      const next: ProgressState = {
+        ...old,
+        xp: old.xp + xpEarned,
+        streak: computeStreak(old.lastActiveDate, old.streak),
+        lastActiveDate: dayKey(),
+        scenarioRuns: [...old.scenarioRuns, run],
+      };
+      if (directoryHandle) window.setTimeout(() => exportData("folder", next), 300);
+      return next;
+    });
+    const bonus = run.success && !progress.scenarioRuns.some((item) => item.caseId === run.caseId && item.success) ? 75 : 0;
+    notify(run.success ? `Scenarie løst · +${run.score + bonus} XP` : `Forsøget er gemt · +${run.score} XP`);
+  };
+
   return (
     <div className={`app-shell ${progress.darkMode ? "dark" : ""}`}>
       <Navigation view={view} setView={setView} />
       <div className="app-main">
-        <Topbar progress={progress} onProfile={() => setView("profile")} />
+        <Topbar progress={progress} onProfile={() => setView("profile")} onToggleTheme={() => setProgress((old) => ({ ...old, darkMode: !old.darkMode }))} />
         {view === "home" && <HomeView progress={progress} onNavigate={setView} onStart={startLesson} />}
         {view === "path" && <PathView progress={progress} onStart={startLesson} />}
         {view === "practice" && <PracticeView progress={progress} onStart={startLesson} />}
+        {view === "scenarios" && <ScenarioHub runs={progress.scenarioRuns} onComplete={completeScenario} />}
         {view === "stats" && <StatsView progress={progress} directoryHandle={directoryHandle} onConnectDirectory={connectDirectory} onExport={exportData} />}
         {view === "profile" && <ProfileView progress={progress} setProgress={setProgress} />}
       </div>

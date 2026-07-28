@@ -1,14 +1,18 @@
 # Ordhavn
 
-Ordhavn er et local-first læringsspil til dansk. Første udgave indeholder
-8 niveauer, 24 missioner, 192 unikke opgaver og cirka 80 minutters aktivt
-indhold fra A0 til A2.
+Ordhavn er et local-first læringsspil til dansk. Den nuværende udgave indeholder
+10 niveauer, 30 missioner, 240 unikke opgaver og over 100 minutters aktivt
+kursusindhold fra A0 til B2.
 
 ## Det særlige ved Ordhavn
 
 - hele den primære brugerflade er på enkelt dansk;
 - otte opgavetyper, herunder danske tal, `en/et` med sikkerhedsindsats,
   bestemthed, adjektivkongruens, V2 og placeringen af `ikke`;
+- fire udvidelige scenariesystemer: danske telefonindstillinger, forgrenede
+  psykologiske dialoger, mail-efterforskning og trafik-dispatch;
+- tre originale animefigurer med forskellige samtaleregler og flere udfald;
+- et mørkt standardtema samt et øjeblikkeligt sol/måne-skift til lyst tema;
 - tre adskilte mastery-dimensioner: `read`, `listen` og `produce`;
 - item-skemaet er audio-ready (`assets.audio: null`), men første version har
   bevidst ingen lydafspilning, mikrofon eller stemmedata;
@@ -50,7 +54,9 @@ Se [data-exports/README.md](data-exports/README.md) for den fulde filliste.
 ## Arkitektur
 
 - `app/page.tsx` — navigation, læringssti, træning, player og statistik
+- `app/scenario-games.tsx` — de fire interaktive scenariemotorer
 - `lib/courseData.ts` — typed, data-driven dansk kursusindhold
+- `lib/scenarioData.ts` — typed cases, branches, settings and route data
 - `lib/scheduler.ts` — FSRS-5 og unbiased holdout-plan
 - `lib/analytics.ts` — eventlog, aggregater, validering og 21-fils eksport
 - `data-exports/schema.json` — stabilt data- og audio-ready schema

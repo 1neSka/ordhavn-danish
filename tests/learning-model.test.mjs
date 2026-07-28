@@ -3,15 +3,16 @@ import test from "node:test";
 
 const course = await import("../lib/courseData.ts");
 const scheduler = await import("../lib/scheduler.ts");
+const scenarios = await import("../lib/scenarioData.ts");
 
 test("course contains at least one hour of unique, audio-ready Danish content", () => {
   const missions = course.courseLevels.flatMap((level) => level.missions);
   const items = missions.flatMap((mission) => mission.questions);
-  assert.equal(course.courseLevels.length, 8);
-  assert.equal(missions.length, 24);
-  assert.equal(items.length, 192);
+  assert.equal(course.courseLevels.length, 10);
+  assert.equal(missions.length, 30);
+  assert.equal(items.length, 240);
   assert.equal(new Set(items.map((item) => item.id)).size, items.length);
-  assert.ok(missions.reduce((sum, mission) => sum + mission.estimatedMinutes, 0) >= 60);
+  assert.ok(missions.reduce((sum, mission) => sum + mission.estimatedMinutes, 0) >= 100);
   assert.ok(items.every((item) => ["read", "produce"].includes(item.modality)));
   assert.ok(items.every((item) => item.assets.audio === null));
   assert.deepEqual(
@@ -33,6 +34,27 @@ test("every item has a playable answer path", () => {
       assert.ok(item.tokens.length >= 2, `${item.id}: missing tokens`);
     }
   }
+});
+
+test("all scenario cases are internally playable and expandable", () => {
+  assert.ok(scenarios.phoneMissions.length >= 3);
+  assert.ok(scenarios.dialogueCharacters.length >= 3);
+  assert.ok(scenarios.postCases.length >= 3);
+  assert.ok(scenarios.metroCases.length >= 3);
+
+  for (const mission of scenarios.phoneMissions) {
+    for (const settingId of Object.keys(mission.requirements)) assert.ok(scenarios.phoneSettings[settingId], `${mission.id}: unknown setting ${settingId}`);
+  }
+  for (const character of scenarios.dialogueCharacters) {
+    const dialogue = character.case;
+    assert.ok(dialogue.nodes[dialogue.startNode], `${dialogue.id}: missing start node`);
+    for (const node of Object.values(dialogue.nodes)) {
+      assert.ok(node.choices.length >= 2, `${node.id}: needs a meaningful choice`);
+      for (const choice of node.choices) if (choice.next) assert.ok(dialogue.nodes[choice.next], `${choice.id}: missing branch ${choice.next}`);
+    }
+  }
+  for (const item of scenarios.postCases) assert.equal(item.actions.filter((action) => action.correct).length, 1, item.id);
+  for (const item of scenarios.metroCases) assert.equal(item.routes.filter((route) => route.correct).length, 1, item.id);
 });
 
 test("FSRS-5 operational scheduling stays separate from fixed holdout measurement", () => {

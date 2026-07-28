@@ -20,6 +20,7 @@ Eksporten består af separate filer:
 - `modality.csv` — read/listen/produce opdelt
 - `content-progress.json` — status for niveauer og missioner
 - `item-catalog.json` — typed item schema inkl. nullable audio assets
+- `scenario-runs.json` — valg, grene, udfald og score fra Scenario Lab
 - `summary.json` — versions- og eksportoversigt
 
 Filer med personlige svar ignoreres af Git som standard. Behold kun README og
