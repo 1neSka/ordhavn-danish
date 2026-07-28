@@ -1,0 +1,17 @@
+{
+  "version": 2,
+  "app": "Ordhavn",
+  "item": {
+    "discriminatedBy": "type",
+    "types": ["choice", "order", "input", "gender-bet", "number-arcade", "definiteness", "agreement", "ikke-position"],
+    "modality": ["read", "listen", "produce"],
+    "assets": { "audio": null }
+  },
+  "masteryKey": "itemId::modality",
+  "scheduler": {
+    "operational": "FSRS-5",
+    "implementation": "ts-fsrs@4.7.1",
+    "holdoutPercent": 8,
+    "holdoutDays": [1, 3, 7, 14]
+  }
+}
