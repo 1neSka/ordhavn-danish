@@ -14,6 +14,9 @@ engelsk.
   psykologiske dialoger, mail-efterforskning, trafik-dispatch, A1–A2-havnecases,
   en B1–B2-manualkonsol og tidevandsbaseret last-routing;
 - et lokalt miniordbogskort ved markering af præcis ét dansk ord;
+- **Ordle** som dagligt fem-bogstavsspil, fri træning og fire valgfrie
+  checkpoints på læringsstien. Svarbanken har 500 hyppige ord, mens 6.071
+  danske gæt accepteres;
 - en lokal Developer mode med testkroner og direkte adgang til senere stiniveauer;
 - tre originale animefigurer med forskellige samtaleregler og ni spilbare episoder;
 - en levende havn med købte bygninger, karakterkontrakter, relationer og tidevand;
@@ -28,7 +31,9 @@ engelsk.
   `ts-fsrs@4.7.1`;
 - 8% af items holdes uden for FSRS og måles på en fast 1/3/7/14-dages plan,
   så retentionskurven ikke bliver biased af scheduleren;
-- alle svar og sessions gemmes lokalt og kan eksporteres som separate JSON/CSV-filer.
+- alle svar og sessions gemmes lokalt og kan eksporteres som separate JSON/CSV-filer;
+- fremskridt migreres på samme storage-nøgle og hvert nyt snapshot beholder den
+  foregående gyldige version som lokal recovery-kopi.
 
 ## Kør lokalt
 
@@ -56,7 +61,10 @@ npm run check
 
 Kontrollen bygger produktionsversionen, typechecker hele projektet, kører ESLint,
 verificerer server-rendering, indholdsinvarianter, FSRS-adskillelsen og den
-deterministiske holdout-gruppe.
+deterministiske holdout-gruppe samt Ordles to ordlister og bogstavscoring.
+
+Ordles datakilder, filtrering og licenser er dokumenteret i
+[WORDLE_SOURCES.md](WORDLE_SOURCES.md).
 
 ## Dataeksport
 
@@ -72,6 +80,7 @@ Se [data-exports/README.md](data-exports/README.md) for den fulde filliste.
 - `app/scenario-games.tsx` — indgangen til de syv interaktive scenariesystemer
 - `app/instruction-puzzle-games.tsx` — manual- og ruteopgaver med beregninger
 - `app/selection-dictionary.tsx` — miniordbog for markerede danske enkeltord
+- `app/wordle-game.tsx` — daglig Ordle, træningsrunder og sti-checkpoints
 - `app/harbor-game.tsx` — havnen, karakterkontrakter og Kønsbanken
 - `lib/courseData.ts` — typed, data-driven dansk kursusindhold
 - `lib/scenarioData.ts` — typed cases, branches, settings and route data
@@ -81,6 +90,9 @@ Se [data-exports/README.md](data-exports/README.md) for den fulde filliste.
 - `lib/harborData.ts` — karakterer, bosser og udvidelige havnecases
 - `lib/dialogueEpisodes.ts` — seks betalte, forgrenede karakterfortsættelser
 - `lib/scheduler.ts` — FSRS-5 og unbiased holdout-plan
+- `lib/wordle.ts` — deterministiske ordvalg, duplicate-aware scoring og spiltyper
+- `lib/wordleData.ts` — genererede, adskilte svar- og gættelister
+- `lib/progressStorage.ts` — migration og recovery-snapshot for lokal fremgang
 - `lib/analytics.ts` — eventlog, aggregater og validering
 - `data-exports/schema.json` — stabilt data- og audio-ready schema
 

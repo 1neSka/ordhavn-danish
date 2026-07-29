@@ -50,6 +50,7 @@ import {
 import { courseLevels, type Challenge, type Mission } from "../lib/courseData";
 import ScenarioHub from "./scenario-games";
 import SelectionDictionary from "./selection-dictionary";
+import WordleGame from "./wordle-game";
 import { GenderBankView, HarborHome, type GenderBankOutcome } from "./harbor-game";
 import type { ScenarioRun } from "../lib/scenarioData";
 import { harborCharacters, scenarioBossGates } from "../lib/harborData";
@@ -83,8 +84,15 @@ import {
   type MasteryState,
   type OperationalMasteryRecord,
 } from "../lib/scheduler";
+import {
+  WORDLE_PATH_CHECKPOINTS,
+  type WordleGameSnapshot,
+  type WordlePathCheckpoint,
+  type WordleRun,
+} from "../lib/wordle";
+import { prepareProgressWrite, readProgressWithBackup } from "../lib/progressStorage";
 
-type View = "home" | "path" | "practice" | "scenarios" | "stats" | "profile" | "gender-bank";
+type View = "home" | "path" | "practice" | "wordle" | "scenarios" | "stats" | "profile" | "gender-bank";
 
 type Attempt = {
   id: string;
@@ -124,7 +132,7 @@ type StudySession = {
 };
 
 type ProgressState = {
-  version: 2;
+  version: 3;
   xp: number;
   kroner: number;
   rav: number;
@@ -154,6 +162,9 @@ type ProgressState = {
   claimedBossGates: string[];
   developerMode: boolean;
   developerUnlockedLevelIndex: number;
+  wordleGames: Record<string, WordleGameSnapshot>;
+  wordleRuns: WordleRun[];
+  completedWordleCheckpoints: string[];
 };
 
 type DirectoryHandleLike = {
@@ -165,10 +176,11 @@ type DirectoryHandleLike = {
 };
 
 const STORAGE_KEY = "ordhavn-progress-v1";
+const STORAGE_BACKUP_KEY = "ordhavn-progress-backup-v1";
 const CURRENT_WEEKDAY_INDEX = (new Date().getDay() + 6) % 7;
 
 const initialProgress: ProgressState = {
-  version: 2,
+  version: 3,
   xp: 0,
   kroner: 180,
   rav: 0,
@@ -198,6 +210,9 @@ const initialProgress: ProgressState = {
   claimedBossGates: [],
   developerMode: false,
   developerUnlockedLevelIndex: 0,
+  wordleGames: {},
+  wordleRuns: [],
+  completedWordleCheckpoints: [],
 };
 
 const iconMap: Record<string, React.ComponentType<{ size?: number; strokeWidth?: number }>> = {
@@ -344,6 +359,7 @@ function Navigation({ view, setView }: { view: View; setView: (view: View) => vo
     { id: "home" as View, label: "Hjem", icon: Home },
     { id: "path" as View, label: "Læringssti", icon: MapIcon },
     { id: "practice" as View, label: "Træning", icon: BrainCircuit },
+    { id: "wordle" as View, label: "Ordle", icon: Keyboard },
     { id: "scenarios" as View, label: "Scenarier", icon: Gamepad2 },
     { id: "stats" as View, label: "Statistik", icon: BarChart3 },
   ];
@@ -543,11 +559,13 @@ function PathView({
   progress,
   onStart,
   onOpenScenarios,
+  onOpenWordleCheckpoint,
   onDeveloperUnlockLevel,
 }: {
   progress: ProgressState;
   onStart: (mission: Mission, levelId: string) => void;
   onOpenScenarios: () => void;
+  onOpenWordleCheckpoint: (checkpoint: WordlePathCheckpoint) => void;
   onDeveloperUnlockLevel: (levelIndex: number) => void;
 }) {
   const missionCount = courseLevels.reduce((sum, level) => sum + level.missions.length, 0);
@@ -568,6 +586,9 @@ function PathView({
           const LevelIcon = iconMap[level.missions[0]?.icon] ?? Compass;
           const bossGate = scenarioBossGates.find((gate) => gate.afterPathLevel === levelIndex + 1);
           const bossProgress = bossGate ? bossGate.scenarioIds.filter((id) => progress.scenarioRuns.some((run) => run.caseId === id && run.success)).length : 0;
+          const wordleCheckpoint = WORDLE_PATH_CHECKPOINTS.find((checkpoint) => checkpoint.afterLevelIndex === levelIndex);
+          const wordleComplete = wordleCheckpoint ? progress.completedWordleCheckpoints.includes(wordleCheckpoint.id) : false;
+          const wordleAvailable = developerOpen || (previousComplete && levelComplete === level.missions.length);
           return (
             <section className={`level-section ${!previousComplete ? "locked" : ""}`} key={level.id} style={{ "--level-color": level.color } as React.CSSProperties}>
               <div className="level-marker">
@@ -607,6 +628,16 @@ function PathView({
                   <span className="boss-seal">{bossProgress >= bossGate.requiredCompletions ? <Check size={20} /> : <Anchor size={20} />}</span>
                   <div><p className="eyebrow">HAVNEPRØVE · BOSS</p><h3>{bossGate.title}</h3><span>{bossGate.description}</span></div>
                   <strong>{bossProgress}/{bossGate.requiredCompletions}</strong><ChevronRight size={19} />
+                </button>}
+                {wordleCheckpoint && <button
+                  className={`path-wordle-card ${wordleComplete ? "completed" : ""} ${!wordleAvailable ? "locked" : ""}`}
+                  disabled={!wordleAvailable}
+                  onClick={() => onOpenWordleCheckpoint(wordleCheckpoint)}
+                >
+                  <span className="wordle-mini-grid" aria-hidden="true">{["O", "R", "D", "L", "E"].map((letter, letterIndex) => <i key={letter} className={letterIndex < (wordleComplete ? 5 : 2) ? "lit" : ""}>{letter}</i>)}</span>
+                  <span className="path-wordle-copy"><span className="eyebrow">ORDLE · VALGFRIT CHECKPOINT</span><strong>{wordleCheckpoint.title}</strong><small>{wordleCheckpoint.subtitle}</small></span>
+                  <span className="path-wordle-status">{wordleComplete ? <><Check size={17} /> Klaret</> : wordleAvailable ? "6 forsøg" : <LockKeyhole size={17} />}</span>
+                  <ChevronRight size={19} />
                 </button>}
               </div>
             </section>
@@ -1215,6 +1246,7 @@ function LessonPlayer({
 
 export default function HomePage() {
   const [view, setView] = useState<View>("home");
+  const [wordleCheckpoint, setWordleCheckpoint] = useState<WordlePathCheckpoint | null>(null);
   const [progress, setProgress] = useState<ProgressState>(initialProgress);
   const [hydrated, setHydrated] = useState(false);
   const [activeLesson, setActiveLesson] = useState<{ mission: Mission; levelId: string; sessionId: string; startedAtIso: string; startedAtMs: number } | null>(null);
@@ -1225,14 +1257,16 @@ export default function HomePage() {
   useEffect(() => {
     const timeout = window.setTimeout(() => {
       try {
-        const stored = localStorage.getItem(STORAGE_KEY);
-        if (stored) {
-          const parsed = JSON.parse(stored) as Partial<ProgressState>;
+        const parsed = readProgressWithBackup(
+          localStorage.getItem(STORAGE_KEY),
+          localStorage.getItem(STORAGE_BACKUP_KEY),
+        ) as Partial<ProgressState> | null;
+        if (parsed) {
           const today = dayKey();
           const migrated: ProgressState = {
             ...initialProgress,
             ...parsed,
-            version: 2,
+            version: 3,
             relationships: { ...initialProgress.relationships, ...(parsed.relationships ?? {}) },
             repliedCharacterIds: parsed.repliedCharacterIds ?? [],
             scenarioRuns: parsed.scenarioRuns ?? [],
@@ -1244,6 +1278,9 @@ export default function HomePage() {
             weeklyStorms: parsed.weeklyStorms ?? [],
             genderBankRuns: parsed.genderBankRuns ?? [],
             claimedBossGates: parsed.claimedBossGates ?? [],
+            wordleGames: parsed.wordleGames ?? {},
+            wordleRuns: parsed.wordleRuns ?? [],
+            completedWordleCheckpoints: parsed.completedWordleCheckpoints ?? [],
           };
           if (migrated.lastActiveDate && calendarDaysBetween(migrated.lastActiveDate, today) > 1) migrated.streak = 0;
           if (migrated.lastWeakRerollDate !== today) migrated.rerolledWeakItemIds = [];
@@ -1270,7 +1307,7 @@ export default function HomePage() {
           setProgress({ ...initialProgress, lastHarborFeeDate: dayKey() });
         }
       } catch {
-        localStorage.removeItem(STORAGE_KEY);
+        setProgress({ ...initialProgress, lastHarborFeeDate: dayKey() });
       }
       setHydrated(true);
     }, 0);
@@ -1279,7 +1316,14 @@ export default function HomePage() {
 
   useEffect(() => {
     if (!hydrated) return;
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(progress));
+    try {
+      const serialized = JSON.stringify(progress);
+      const prepared = prepareProgressWrite(localStorage.getItem(STORAGE_KEY), serialized);
+      if (prepared.backup) localStorage.setItem(STORAGE_BACKUP_KEY, prepared.backup);
+      localStorage.setItem(STORAGE_KEY, prepared.primary);
+    } catch {
+      // A storage quota or privacy setting must never crash the learning UI.
+    }
     document.documentElement.dataset.theme = progress.darkMode ? "dark" : "light";
   }, [progress, hydrated]);
 
@@ -1744,6 +1788,46 @@ export default function HomePage() {
     });
   };
 
+  const navigate = (nextView: View) => {
+    setWordleCheckpoint(null);
+    setView(nextView);
+  };
+
+  const openWordleCheckpoint = (checkpoint: WordlePathCheckpoint) => {
+    setWordleCheckpoint(checkpoint);
+    setView("wordle");
+  };
+
+  const saveWordleGame = (game: WordleGameSnapshot) => {
+    setProgress((old) => ({
+      ...old,
+      wordleGames: { ...old.wordleGames, [game.key]: game },
+    }));
+  };
+
+  const completeWordleRun = (run: WordleRun) => {
+    setProgress((old) => {
+      if (old.wordleRuns.some((existing) => existing.id === run.id)) return old;
+      const checkpointFirstWin = Boolean(run.success && run.checkpointId && !old.completedWordleCheckpoints.includes(run.checkpointId));
+      const gameFirstWin = Boolean(run.success && !old.wordleRuns.some((existing) => existing.gameKey === run.gameKey && existing.success));
+      const rewardEligible = run.kind === "path" ? checkpointFirstWin : gameFirstWin;
+      const xpReward = rewardEligible ? run.kind === "path" ? 80 : run.kind === "daily" ? 45 : 15 : 0;
+      const kronerReward = rewardEligible ? run.kind === "path" ? 35 : run.kind === "daily" ? 20 : 8 : 0;
+      return {
+        ...old,
+        xp: old.xp + xpReward,
+        kroner: old.kroner + kronerReward,
+        wordleRuns: [...old.wordleRuns, run],
+        completedWordleCheckpoints: checkpointFirstWin && run.checkpointId
+          ? [...old.completedWordleCheckpoints, run.checkpointId]
+          : old.completedWordleCheckpoints,
+      };
+    });
+    notify(run.success
+      ? run.kind === "path" ? "Ordle-checkpoint klaret · +80 XP · +35 kr." : "Havneordet er fundet."
+      : "Ordle-runden er gemt — næste ord venter.");
+  };
+
   const nextHarborMission = courseLevels.flatMap((level) => level.missions).find((mission) => !progress.completedMissions.includes(mission.id)) ?? null;
   const reviewRecords = progress.mastery?.records ?? {};
   const dueNowIds = new Set([
@@ -1758,9 +1842,9 @@ export default function HomePage() {
 
   return (
     <div className={`app-shell ${progress.darkMode ? "dark" : ""}`}>
-      <Navigation view={view} setView={setView} />
+      <Navigation view={view} setView={navigate} />
       <div className="app-main">
-        <Topbar progress={progress} onProfile={() => setView("profile")} onToggleTheme={() => setProgress((old) => ({ ...old, darkMode: !old.darkMode }))} />
+        <Topbar progress={progress} onProfile={() => navigate("profile")} onToggleTheme={() => setProgress((old) => ({ ...old, darkMode: !old.darkMode }))} />
         {view === "home" && <HarborHome
           xp={progress.xp}
           kroner={progress.kroner}
@@ -1784,17 +1868,25 @@ export default function HomePage() {
           }}
           onStartReview={startDueReview}
           onReplyCharacter={replyToCharacter}
-          onNavigate={setView}
+          onNavigate={navigate}
           onBuyBuilding={buyHarborBuilding}
-          onOpenGenderBank={() => setView("gender-bank")}
+          onOpenGenderBank={() => navigate("gender-bank")}
           onStartStorm={startWeeklyStorm}
         />}
-        {view === "path" && <PathView progress={progress} onStart={startLesson} onOpenScenarios={() => setView("scenarios")} onDeveloperUnlockLevel={developerUnlockLevel} />}
+        {view === "path" && <PathView progress={progress} onStart={startLesson} onOpenScenarios={() => navigate("scenarios")} onOpenWordleCheckpoint={openWordleCheckpoint} onDeveloperUnlockLevel={developerUnlockLevel} />}
         {view === "practice" && <PracticeView progress={progress} onStart={startLesson} onRerollWeakItem={rerollWeakItem} />}
+        {view === "wordle" && <WordleGame
+          launch={wordleCheckpoint ? { kind: "path", checkpoint: wordleCheckpoint } : { kind: "daily" }}
+          savedGames={progress.wordleGames}
+          runs={progress.wordleRuns}
+          onSave={saveWordleGame}
+          onComplete={completeWordleRun}
+          onExitPath={() => navigate("path")}
+        />}
         {view === "scenarios" && <ScenarioHub runs={progress.scenarioRuns} kroner={progress.kroner} unlockedScenarioIds={progress.unlockedScenarioIds} attemptedScenarioIds={progress.scenarioAttemptedIds} maritimeRankId={progress.maritimeRankId} relationships={progress.relationships} onStartAttempt={startScenarioAttempt} onComplete={completeScenario} onUnlockScenario={unlockScenario} onSpendKroner={spendKroner} onUseHint={useHintToken} />}
         {view === "stats" && <StatsView progress={progress} directoryHandle={directoryHandle} onConnectDirectory={connectDirectory} onExport={exportData} />}
         {view === "profile" && <ProfileView progress={progress} setProgress={setProgress} />}
-        {view === "gender-bank" && <GenderBankView kroner={progress.kroner} playedToday={progress.genderBankRuns.some((run) => dayKey(new Date(run.completedAt)) === dayKey())} onDeductStake={(amount) => spendKroner(amount, "Kønsbanken")} onRecordOutcome={recordGenderBankOutcome} onClose={() => setView("home")} />}
+        {view === "gender-bank" && <GenderBankView kroner={progress.kroner} playedToday={progress.genderBankRuns.some((run) => dayKey(new Date(run.completedAt)) === dayKey())} onDeductStake={(amount) => spendKroner(amount, "Kønsbanken")} onRecordOutcome={recordGenderBankOutcome} onClose={() => navigate("home")} />}
       </div>
       {activeLesson && <LessonPlayer mission={activeLesson.mission} levelId={activeLesson.levelId} sessionId={activeLesson.sessionId} startedAtIso={activeLesson.startedAtIso} startedAtMs={activeLesson.startedAtMs} priorAttempts={progress.attempts} currentXp={progress.xp} mastery={progress.mastery} maritimeRankId={progress.maritimeRankId} hintTokens={progress.hintTokens} onUseHint={useHintToken} onExit={() => setActiveLesson(null)} onComplete={completeLesson} />}
       <SelectionDictionary />

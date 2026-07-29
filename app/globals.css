@@ -207,6 +207,15 @@ h1, h2, h3 { letter-spacing: -.035em; }
 .path-boss-card:hover { transform: translateY(-2px); box-shadow: var(--shadow); }.path-boss-card.cleared { border-color: #448f80; background: radial-gradient(circle at 92% 25%, rgba(75,184,156,.16), transparent 28%), #253531; }
 .boss-seal { width: 42px; height: 42px; display: grid; place-items: center; border-radius: 13px; color: #baaaff; background: rgba(255,255,255,.07); }.path-boss-card.cleared .boss-seal { color: #6fd0b7; }
 .path-boss-card .eyebrow { margin: 0 0 3px; color: #a994fa; }.path-boss-card h3 { margin: 0 0 4px; font-size: 14px; }.path-boss-card div > span { color: #a9a4b5; font-size: 9px; }.path-boss-card > strong { color: #d7d1e2; font-size: 11px; }.path-boss-card > svg { color: #7f788f; }
+.path-wordle-card { width: 100%; min-height: 88px; display: grid; grid-template-columns: auto 1fr auto 20px; gap: 14px; align-items: center; margin-top: 13px; padding: 15px 17px; border: 1px solid #cad8d4; border-radius: 16px; color: var(--ink); background: linear-gradient(115deg, rgba(73,183,158,.13), rgba(255,255,255,.6)); text-align: left; cursor: pointer; transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease; }
+.path-wordle-card:hover { transform: translateY(-2px); border-color: #72bbaa; box-shadow: var(--shadow); }
+.path-wordle-card.locked { opacity: .5; cursor: not-allowed; filter: saturate(.55); }.path-wordle-card.locked:hover { transform: none; box-shadow: none; }
+.path-wordle-card.completed { border-color: #63b9a5; background: linear-gradient(115deg, rgba(73,183,158,.22), rgba(255,255,255,.6)); }
+.wordle-mini-grid { display: grid; grid-template-columns: repeat(5, 28px); gap: 4px; }
+.wordle-mini-grid i { width: 28px; height: 28px; display: grid; place-items: center; border: 1px solid #c9c6d1; border-radius: 6px; color: #8e8998; background: var(--surface); font-style: normal; font-size: 11px; font-weight: 850; }
+.wordle-mini-grid i.lit { color: white; border-color: #46aa92; background: #46aa92; }
+.path-wordle-copy { display: grid; gap: 3px; }.path-wordle-copy .eyebrow { color: #258a73; margin: 0; }.path-wordle-copy strong { font-size: 14px; }.path-wordle-copy small { color: var(--muted); font-size: 9px; }
+.path-wordle-status { display: flex; align-items: center; gap: 5px; color: #258a73; font-size: 10px; font-weight: 780; white-space: nowrap; }.path-wordle-card > svg { color: var(--muted); }
 
 .practice-hero-grid { display: grid; grid-template-columns: 1.18fr .82fr; gap: 18px; }
 .practice-feature { min-height: 250px; border: 0; border-radius: 22px; padding: 28px; display: flex; flex-direction: column; align-items: flex-start; text-align: left; cursor: pointer; overflow: hidden; position: relative; transition: .22s ease; }
@@ -644,6 +653,8 @@ h1, h2, h3 { letter-spacing: -.035em; }
 .app-shell.dark .developer-panel { background: linear-gradient(120deg, #332f24, var(--surface)); border-color: #5d512c; }
 .app-shell.dark .developer-skip { color: #e5c966; border-color: #62582e; background: #332f24; }
 .app-shell.dark .developer-skip.open { color: #74ceb8; border-color: #31594f; background: #203a35; }
+.app-shell.dark .path-wordle-card { border-color: #355d55; background: linear-gradient(115deg, rgba(73,183,158,.13), var(--surface)); }
+.app-shell.dark .path-wordle-card.completed { border-color: #468f7e; background: linear-gradient(115deg, rgba(73,183,158,.22), var(--surface)); }
 .app-shell.dark .tip-card { background: #342f25; border-color: #51472e; }
 .app-shell.dark .check-feedback { background: #3b292c; }
 .app-shell.dark .incident-banner { background: #342f25; border-color: #59492e; }.app-shell.dark .incident-banner p { color: #c7ad87; }
@@ -658,6 +669,10 @@ h1, h2, h3 { letter-spacing: -.035em; }
   .app-main { margin-left: 82px; }
   .topbar { padding-inline: 32px; }
   .mission-row { grid-template-columns: 1fr; }
+  .path-wordle-card { grid-template-columns: 1fr auto; }
+  .wordle-mini-grid { grid-column: 1 / -1; grid-template-columns: repeat(5, 1fr); }
+  .wordle-mini-grid i { width: 100%; }
+  .path-wordle-status { display: none; }
   .mission-card { min-height: 112px; }
   .metric-grid { grid-template-columns: repeat(2, 1fr); }
   .training-cards { grid-template-columns: repeat(2, 1fr); }
@@ -675,7 +690,7 @@ h1, h2, h3 { letter-spacing: -.035em; }
   .mobile-brand { display: block; }
   .mobile-brand .brand-mark { width: 31px; height: 31px; border-radius: 10px 10px 10px 4px; }
   .mobile-brand .brand-name { font-size: 18px; }
-  .mobile-nav { position: fixed; display: grid; grid-template-columns: repeat(5, 1fr); z-index: 50; inset: auto 0 0; min-height: 64px; padding: 8px 8px max(8px, env(safe-area-inset-bottom)); border-top: 1px solid var(--line); background: rgba(255,255,255,.94); backdrop-filter: blur(18px); }
+  .mobile-nav { position: fixed; display: grid; grid-template-columns: repeat(6, 1fr); z-index: 50; inset: auto 0 0; min-height: 64px; padding: 8px 8px max(8px, env(safe-area-inset-bottom)); border-top: 1px solid var(--line); background: rgba(255,255,255,.94); backdrop-filter: blur(18px); }
   .mobile-nav button { border: 0; background: transparent; display: grid; justify-items: center; gap: 3px; color: #8d8998; font-size: 8px; }
   .mobile-nav button.active { color: var(--violet); }
   .view { width: min(100% - 28px, 640px); padding: 27px 0 44px; }
