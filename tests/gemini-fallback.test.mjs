@@ -25,6 +25,8 @@ test("evaluation requests are bounded before any external request", () => {
     level: "B2",
   };
   assert.equal(gemini.isGeminiEvaluationRequest(request), true);
+  assert.equal(gemini.isGeminiEvaluationRequest({ ...request, task: "operational-note" }), true);
+  assert.equal(gemini.isGeminiEvaluationRequest({ ...request, task: "public-notice" }), true);
   assert.equal(gemini.isGeminiEvaluationRequest({ ...request, submission: "kort" }), false);
   assert.equal(gemini.isGeminiEvaluationRequest({ ...request, requiredFacts: Array(21).fill("x") }), false);
 });

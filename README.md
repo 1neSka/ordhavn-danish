@@ -11,10 +11,15 @@ engelsk.
 - elleve opgavetyper, herunder danske tal, `en/et` med sikkerhedsindsats,
   bestemthed, adjektivkongruens, V2, placeringen af `ikke`, flerdelte cloze-felter,
   registermatching og fri sætningsomskrivning med delvis kredit;
-- otte udvidelige scenariesystemer: danske telefonindstillinger, forgrenede
+- ti udvidelige scenariesystemer: danske telefonindstillinger, forgrenede
   psykologiske dialoger, mail-efterforskning, trafik-dispatch, A1–A2-havnecases,
   en B1–B2-manualkonsol, tidevandsbaseret last-routing og Sagslaboratoriets tre
-  AI-hybride efterforskninger;
+  AI-hybride efterforskninger samt to nye A2–B2-laboratorier med tolv sager;
+- `Borgerservice & bybud` lader spilleren læse digital post, udfylde blanketter,
+  beregne priser og bygge ruter med frister, tidsvinduer, zoner og billetvalg;
+- `Vagtcentralen` har tre entydige begrænsningsgitre og tre
+  betydningsredaktører, hvor før/efter, kun, medmindre og præcise referencer er
+  selve puslespillets regler;
 - `Havnefogedens sag` kombinerer V2-afhøring, evidentialitet, en entydig tidslinje
   og et formelt rapportskift. `Stormvagten` og `Færgens reserveplan` kombinerer
   dansk manualforståelse, beregninger og en kodevalideret kontrolsekvens;
@@ -72,7 +77,7 @@ npm run check
 Kontrollen bygger produktionsversionen, typechecker hele projektet, kører ESLint,
 verificerer server-rendering, indholdsinvarianter, FSRS-adskillelsen og den
 deterministiske holdout-gruppe, de 128 nye kursusitems, tre nye opgavetyper,
-tre avancerede scenarier, Gemini-fallback og Ordles to ordlister.
+femten avancerede scenariecases, Gemini-fallback og Ordles to ordlister.
 
 Ordles datakilder, filtrering og licenser er dokumenteret i
 [WORDLE_SOURCES.md](WORDLE_SOURCES.md).
@@ -88,8 +93,10 @@ Se [data-exports/README.md](data-exports/README.md) for den fulde filliste.
 ## Arkitektur
 
 - `app/page.tsx` — navigation, læringssti, træning, player og statistik
-- `app/scenario-games.tsx` — indgangen til de otte interaktive scenariesystemer
+- `app/scenario-games.tsx` — indgangen til de ti interaktive scenariesystemer
 - `app/advanced-scenario-games.tsx` — afhøring, kodepuslespil og fri rapportproduktion
+- `app/city-scenario-games.tsx` — blanketter, beregninger og ruteplanlægning
+- `app/logic-scenario-games.tsx` — begrænsningsgitre og betydningsredigering
 - `app/api/gemini/evaluate/route.ts` — server-side Gemini-evaluering med model-fallback
 - `app/instruction-puzzle-games.tsx` — manual- og ruteopgaver med beregninger
 - `app/selection-dictionary.tsx` — miniordbog for markerede danske enkeltord
@@ -98,6 +105,8 @@ Se [data-exports/README.md](data-exports/README.md) for den fulde filliste.
 - `lib/courseData.ts` — typed, data-driven dansk kursusindhold
 - `lib/scenarioData.ts` — typed cases, branches, settings and route data
 - `lib/advancedScenarioData.ts` — tre deterministiske B1–B2-sager og offline rubric
+- `lib/cityScenarioData.ts` — seks A2–B1-cases med breve, priser, tid og zoner
+- `lib/logicScenarioData.ts` — seks B1–B2-cases med entydig logik og fri produktion
 - `lib/geminiEvaluation.ts` — validering, struktureret output og modelstige
 - `lib/exerciseScoring.ts` — Levenshtein og delvis kredit for sammensatte svar
 - `lib/instructionPuzzleData.ts` — seks B1–B2-manualpuslespil

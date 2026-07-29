@@ -7,12 +7,14 @@ import {
   ArrowLeft,
   Bike,
   Brain,
+  Building2,
   Check,
   ChevronRight,
   Clock3,
   Coffee,
   Eye,
   Gamepad2,
+  Grid3X3,
   Lightbulb,
   LockKeyhole,
   MailWarning,
@@ -44,6 +46,7 @@ import {
   type PhoneValue,
   type PostCase,
   type ScenarioKind,
+  type ScenarioLevel,
   type ScenarioRun,
 } from "@/lib/scenarioData";
 import { dialogueContinuationEpisodes } from "@/lib/dialogueEpisodes";
@@ -51,7 +54,11 @@ import { harborCharacters, harborScenarioCases, type HarborScenarioCase, type Ha
 import { cargoRoutingCases, safetyConsoleCases } from "@/lib/instructionPuzzleData";
 import InstructionPuzzleHub from "./instruction-puzzle-games";
 import AdvancedScenarioHub from "./advanced-scenario-games";
+import { CityScenarioHub } from "./city-scenario-games";
+import { LogicScenarioHub, type LogicScenarioRun } from "./logic-scenario-games";
 import { advancedScenarioCards } from "@/lib/advancedScenarioData";
+import { cityScenarioCards, getCityCase, type CityAttemptMetadata } from "@/lib/cityScenarioData";
+import { logicScenarioCards } from "@/lib/logicScenarioData";
 import { evaluateScenarioSubmission } from "@/lib/scenarioAiClient";
 
 type ScenarioHubProps = {
@@ -75,6 +82,7 @@ const gameCards: Array<{
   eyebrow: string;
   title: string;
   level: string;
+  levels: ScenarioLevel[];
   description: string;
   meta: string;
   icon: typeof Smartphone;
@@ -85,6 +93,7 @@ const gameCards: Array<{
     eyebrow: "Hverdagsboss",
     title: "Livet ved kajen",
     level: "A1–A2",
+    levels: ["A1", "A2"],
     description: "Bestil, forklar et cykelproblem og brug en pakkeboks. Små danske beslutninger med konkrete konsekvenser.",
     meta: `${harborScenarioCases.length} kontrakter · flere grene`,
     icon: Coffee,
@@ -95,6 +104,7 @@ const gameCards: Array<{
     eyebrow: "Systemjagt",
     title: "Indstillingerne",
     level: "A2–B1",
+    levels: ["A2", "B1"],
     description: "Læs et rigtigt behov, find selv gennem telefonens danske menuer, og konfigurér den præcise løsning.",
     meta: `${phoneMissions.length} missioner · fri navigation`,
     icon: Smartphone,
@@ -105,6 +115,7 @@ const gameCards: Array<{
     eyebrow: "Social strategi",
     title: "Mellem linjerne",
     level: "B1–B2",
+    levels: ["B1", "B2"],
     description: "Læs personen, vælg svar og balancér tillid, spænding, grænser og skjulte psykologiske behov.",
     meta: `${dialogueCharacters.length + dialogueContinuationEpisodes.length} episoder · 3 psykologier`,
     icon: MessageCircleMore,
@@ -115,6 +126,7 @@ const gameCards: Array<{
     eyebrow: "Informationsdetektiv",
     title: "Den mistænkelige post",
     level: "A2–B2",
+    levels: ["A2", "B1", "B2"],
     description: "Markér sproglige og kontekstuelle spor i mails, og vælg en sikker handling under tidspres.",
     meta: `${postCases.length} sager · evidensbaseret`,
     icon: MailWarning,
@@ -125,6 +137,7 @@ const gameCards: Array<{
     eyebrow: "Dispatch-puslespil",
     title: "Sidste forbindelse",
     level: "A2–B2",
+    levels: ["A2", "B1", "B2"],
     description: "Kombinér driftsmeldinger, tid, tilgængelighed og skift til én rute, der faktisk virker.",
     meta: `${metroCases.length} hændelser · flere begrænsninger`,
     icon: TrainFront,
@@ -135,6 +148,7 @@ const gameCards: Array<{
     eyebrow: "Manualprøve",
     title: "Sikkerhedskonsollen",
     level: "B1–B2",
+    levels: ["B1", "B2"],
     description: "Læs en driftsmanual, kombiner serienummer, farver og symbolregler, og beregn kontroltallet før du låser rækkefølgen.",
     meta: `${safetyConsoleCases.length} sværhedsgrader · logik + matematik`,
     icon: ShieldCheck,
@@ -145,6 +159,7 @@ const gameCards: Array<{
     eyebrow: "Tidevandspuslespil",
     title: "Tidevandscentralen",
     level: "B1–B2",
+    levels: ["B1", "B2"],
     description: "Før lasten gennem havnen ved at krydslæse vind, vandstand, prioritet, brokapacitet og destination.",
     meta: `${cargoRoutingCases.length} sager · ruter + beregninger`,
     icon: PackageCheck,
@@ -155,10 +170,33 @@ const gameCards: Array<{
     eyebrow: "AI-hybrid efterforskning",
     title: "Sagslaboratoriet",
     level: "B1–B2",
+    levels: ["B1", "B2"],
     description: "Afhør vidner, læs evidentialitet, løs entydige protokoller og skriv dansk, som vurderes uden at lade AI styre selve puslespillet.",
     meta: `${advancedScenarioCards.length} sager · kode + fri produktion`,
     icon: Brain,
     tone: "cyan",
+  },
+  {
+    kind: "logic",
+    eyebrow: "Sprog som logikmotor",
+    title: "Vagtcentralen",
+    level: "B1–B2",
+    levels: ["B1", "B2"],
+    description: "Placer hold i en entydig begrænsningsmatrix, og redigér driftsmeldinger uden at ændre betydningen af før, efter, kun og medmindre.",
+    meta: `${logicScenarioCards.length} sager · gitter + betydningsredigering`,
+    icon: Grid3X3,
+    tone: "rose",
+  },
+  {
+    kind: "city",
+    eyebrow: "Hverdagslogik i byen",
+    title: "Borgerservice & bybud",
+    level: "A2–B1",
+    levels: ["A2", "B1"],
+    description: "Læs digital post, udfyld blanketter, beregn gebyrer og planlæg en rute med tidsvinduer, zoner og den billigste gyldige billet.",
+    meta: `${cityScenarioCards.reduce((sum, card) => sum + card.caseCount, 0)} sager · dokumenter + ruter`,
+    icon: Building2,
+    tone: "amber",
   },
 ];
 
@@ -178,6 +216,36 @@ function runId() {
   return typeof crypto !== "undefined" && "randomUUID" in crypto
     ? crypto.randomUUID()
     : `scenario-${Date.now()}`;
+}
+
+function cityRunFromMetadata(metadata: CityAttemptMetadata): ScenarioRun {
+  const cityCase = getCityCase(metadata.scenarioId, metadata.caseId);
+  const endedAt = new Date().toISOString();
+  const checksUsed = Math.max(1, metadata.attemptNumber);
+  const score = Math.max(140, 320 - (checksUsed - 1) * 40);
+  return {
+    id: runId(),
+    kind: "city",
+    caseId: metadata.caseId,
+    title: cityCase?.title ?? metadata.caseId,
+    level: cityCase?.level === "B1" ? "B1" : "A2",
+    startedAt: endedAt,
+    endedAt,
+    success: true,
+    score,
+    maxScore: 320,
+    path: [metadata.scenarioId, metadata.caseId],
+    decisions: [],
+    metadata: {
+      scenarioId: metadata.scenarioId,
+      checksUsed,
+      hintsUsed: 0,
+      firstAttemptEligible: metadata.firstAttemptEligible,
+      firstAttemptSuccess: metadata.firstAttemptSuccess,
+      localScore: metadata.score,
+      kronerReward: metadata.kronerEarned,
+    },
+  };
 }
 
 function LevelBadge({ level }: { level: string }) {
@@ -233,7 +301,11 @@ function CaseResult({
 
 export default function ScenarioHub({ runs, kroner, unlockedScenarioIds, attemptedScenarioIds, maritimeRankId, relationships, onStartAttempt, onComplete, onUnlockScenario, onSpendKroner, onUseHint }: ScenarioHubProps) {
   const [activeGame, setActiveGame] = useState<ActiveGame>(null);
+  const [levelFilter, setLevelFilter] = useState<"alle" | ScenarioLevel>("alle");
   const successful = useMemo(() => new Set(runs.filter((run) => run.success).map((run) => run.caseId)), [runs]);
+  const visibleGames = levelFilter === "alle"
+    ? gameCards
+    : gameCards.filter((game) => game.levels.includes(levelFilter));
 
   const common = { onComplete, successful, unlockedScenarioIds, attemptedScenarioIds, maritimeRankId, relationships, onStartAttempt, onUnlockScenario, onSpendKroner, onUseHint };
   if (activeGame === "harbor") return <HarborCaseGame onExit={() => setActiveGame(null)} {...common} />;
@@ -260,6 +332,22 @@ export default function ScenarioHub({ runs, kroner, unlockedScenarioIds, attempt
       onExit={() => setActiveGame(null)}
     />;
   }
+  if (activeGame === "logic") {
+    return <LogicScenarioHub
+      runs={runs.filter((run) => run.kind === "logic") as LogicScenarioRun[]}
+      onComplete={onComplete}
+      onEvaluate={evaluateScenarioSubmission}
+      onStartAttempt={onStartAttempt}
+      onExit={() => setActiveGame(null)}
+    />;
+  }
+  if (activeGame === "city") {
+    return <CityScenarioHub
+      onExit={() => setActiveGame(null)}
+      onStartAttempt={onStartAttempt}
+      onComplete={(metadata) => onComplete(cityRunFromMetadata(metadata))}
+    />;
+  }
 
   return (
     <main className="scenario-hub">
@@ -269,7 +357,7 @@ export default function ScenarioHub({ runs, kroner, unlockedScenarioIds, attempt
           <h1>Dansk, når der er noget på spil.</h1>
           <p>Ikke oversæt en sætning. Forstå situationen, find signalerne og tag en beslutning, der virker i den virkelige verden.</p>
           <div className="scenario-hero-meta">
-            <span><Brain size={17} /> 8 systemer</span>
+            <span><Brain size={17} /> {gameCards.length} systemer</span>
             <span><ShieldCheck size={17} /> A1 → B2</span>
             <span><Trophy size={17} /> {successful.size} løst</span>
             <span>{kroner} kr. i havnekassen</span>
@@ -282,8 +370,28 @@ export default function ScenarioHub({ runs, kroner, unlockedScenarioIds, attempt
         </div>
       </section>
 
+      <section className="scenario-catalog-bar" aria-label="Filtrér scenarier efter niveau">
+        <div>
+          <p className="eyebrow">SAGSKATALOG</p>
+          <strong>{visibleGames.length} interaktive systemer</strong>
+        </div>
+        <div className="scenario-level-filters">
+          {(["alle", "A2", "B1", "B2"] as const).map((level) => (
+            <button
+              key={level}
+              type="button"
+              className={levelFilter === level ? "active" : ""}
+              aria-pressed={levelFilter === level}
+              onClick={() => setLevelFilter(level)}
+            >
+              {level === "alle" ? "Alle" : level}
+            </button>
+          ))}
+        </div>
+      </section>
+
       <section className="scenario-grid" aria-label="Scenariespil">
-        {gameCards.map((game) => {
+        {visibleGames.map((game) => {
           const Icon = game.icon;
           const completed = runs.filter((run) => run.kind === game.kind && run.success).length;
           return (

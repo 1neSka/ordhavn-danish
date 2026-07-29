@@ -8,7 +8,12 @@ export const GEMINI_MODEL_FALLBACK = [
   "gemini-2.5-flash-lite",
 ] as const;
 
-export type GeminiEvaluationTask = "formal-report" | "risk-briefing" | "public-message";
+export type GeminiEvaluationTask =
+  | "formal-report"
+  | "risk-briefing"
+  | "public-message"
+  | "operational-note"
+  | "public-notice";
 
 export interface GeminiEvaluationRequest {
   scenarioId: string;
@@ -46,6 +51,8 @@ const taskRubrics: Record<GeminiEvaluationTask, string> = {
   "formal-report": "Evaluate formal Danish administrative register, chronology, evidential caution, cohesion, and coverage of verified facts.",
   "risk-briefing": "Evaluate concise Danish operational language, prioritisation, modal precision, risk communication, and coverage of verified facts.",
   "public-message": "Evaluate clear Danish public-facing language, tone, factual restraint, useful instructions, and coverage of verified facts.",
+  "operational-note": "Evaluate concise Danish operational language, exact ordering, temporal connectors, unambiguous references, and coverage of verified facts.",
+  "public-notice": "Evaluate accessible Danish public information, preserved meaning, actionable instructions, calm register, and coverage of verified facts.",
 };
 
 export function isGeminiEvaluationRequest(value: unknown): value is GeminiEvaluationRequest {
@@ -54,7 +61,7 @@ export function isGeminiEvaluationRequest(value: unknown): value is GeminiEvalua
   return typeof request.scenarioId === "string"
     && request.scenarioId.length > 0
     && request.scenarioId.length <= 80
-    && ["formal-report", "risk-briefing", "public-message"].includes(request.task ?? "")
+    && ["formal-report", "risk-briefing", "public-message", "operational-note", "public-notice"].includes(request.task ?? "")
     && typeof request.submission === "string"
     && request.submission.trim().length >= 20
     && request.submission.length <= 4_000

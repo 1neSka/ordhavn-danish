@@ -1746,7 +1746,13 @@ export default function HomePage() {
       const xpEarned = run.score;
       const contractOwner = harborCharacters.find((character) => character.contracts.some((contract) => contract.scenarioId === run.caseId));
       const contract = contractOwner?.contracts.find((item) => item.scenarioId === run.caseId);
-      const kronerEarned = run.success ? (firstSuccess ? contract?.reward.kr ?? 90 : 36) : 12;
+      const explicitKronerReward = Number(run.metadata.kronerReward);
+      const hasExplicitKronerReward = Number.isFinite(explicitKronerReward) && explicitKronerReward >= 0;
+      const kronerEarned = run.success
+        ? hasExplicitKronerReward
+          ? Math.round(explicitKronerReward)
+          : firstSuccess ? contract?.reward.kr ?? 90 : 36
+        : 12;
       const rareClaim = `scenario:${run.caseId}`;
       const checksUsed = Number(run.metadata.checksUsed ?? run.metadata.checks ?? 1);
       const hintsUsed = Number(run.metadata.hintsUsed ?? (run.metadata.usedHint ? 1 : 0));

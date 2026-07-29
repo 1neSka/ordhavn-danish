@@ -519,6 +519,24 @@ export const scenarioBossGates: ScenarioBossGate[] = [
     requiredCompletions: 3,
     reward: { kr: 650, buildingId: "building-havnekontoret" },
   },
+  {
+    id: "boss-gate-level-12",
+    afterPathLevel: 12,
+    title: "Byens nøgleprøve",
+    description: "Løs to virkelige bysager med breve, frister, priser eller ruter — uden at gætte dig gennem teksten.",
+    scenarioIds: ["storskrald", "flyttedag", "morgenbud", "regnvej"],
+    requiredCompletions: 2,
+    reward: { kr: 820 },
+  },
+  {
+    id: "boss-gate-level-14",
+    afterPathLevel: 14,
+    title: "Havnefogedens certifikat",
+    description: "Bevis, at du kan omsætte nuanceret dansk til en entydig plan og en præcis offentlig tekst.",
+    scenarioIds: ["harbor-investigation", "night-dispatch", "sluice-warning", "platform-change"],
+    requiredCompletions: 3,
+    reward: { kr: 1200, buildingId: "building-stormtaarnet" },
+  },
 ];
 
 export type HarborCaseSkill =
