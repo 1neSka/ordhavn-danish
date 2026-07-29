@@ -36,6 +36,26 @@ export const ACTIVITY_REWARDS: Readonly<Record<ActivityRewardSource, Readonly<Ec
   "weekly-storm-completed": { xp: 160, kroner: 70, rav: 0 },
 };
 
+export interface ScenarioKronerRewardInput {
+  success: boolean;
+  firstSuccess: boolean;
+  contractReward?: number | null;
+  explicitReward?: number | string | null;
+}
+
+/**
+ * Scenario engines may calculate a local payout from puzzle quality. Keep that
+ * amount authoritative so the result screen and the persisted balance agree.
+ */
+export function resolveScenarioKronerReward(input: ScenarioKronerRewardInput): number {
+  if (!input.success) return 12;
+  const explicitReward = input.explicitReward == null ? Number.NaN : Number(input.explicitReward);
+  if (Number.isFinite(explicitReward) && explicitReward >= 0) return Math.round(explicitReward);
+  if (!input.firstSuccess) return 36;
+  const contractReward = input.contractReward ?? 90;
+  return Number.isFinite(contractReward) && contractReward >= 0 ? Math.round(contractReward) : 90;
+}
+
 export const DEFAULT_BALANCE: Readonly<EconomyBalance> = {
   xp: 0,
   kroner: 120,

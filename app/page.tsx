@@ -61,6 +61,7 @@ import {
   HARBOR_BUILDINGS,
   MARITIME_RANKS,
   purchaseHarborBuilding,
+  resolveScenarioKronerReward,
   type HarborBuildingId,
   type MaritimeRankId,
   type RankRetentionMeasurements,
@@ -1746,13 +1747,14 @@ export default function HomePage() {
       const xpEarned = run.score;
       const contractOwner = harborCharacters.find((character) => character.contracts.some((contract) => contract.scenarioId === run.caseId));
       const contract = contractOwner?.contracts.find((item) => item.scenarioId === run.caseId);
-      const explicitKronerReward = Number(run.metadata.kronerReward);
-      const hasExplicitKronerReward = Number.isFinite(explicitKronerReward) && explicitKronerReward >= 0;
-      const kronerEarned = run.success
-        ? hasExplicitKronerReward
-          ? Math.round(explicitKronerReward)
-          : firstSuccess ? contract?.reward.kr ?? 90 : 36
-        : 12;
+      const kronerEarned = resolveScenarioKronerReward({
+        success: run.success,
+        firstSuccess,
+        contractReward: contract?.reward.kr,
+        explicitReward: typeof run.metadata.kronerReward === "string" || typeof run.metadata.kronerReward === "number"
+          ? run.metadata.kronerReward
+          : null,
+      });
       const rareClaim = `scenario:${run.caseId}`;
       const checksUsed = Number(run.metadata.checksUsed ?? run.metadata.checks ?? 1);
       const hintsUsed = Number(run.metadata.hintsUsed ?? (run.metadata.usedHint ? 1 : 0));

@@ -13,6 +13,13 @@ test("XP grants rank progress but cannot be passed to the spending API", () => {
   assert.deepEqual(purchase.balance, { xp: 580, kroner: 100, rav: 3 });
 });
 
+test("scenario payouts preserve an engine's explicit kroner result", () => {
+  assert.equal(economy.resolveScenarioKronerReward({ success: true, firstSuccess: true, explicitReward: 55, contractReward: 90 }), 55);
+  assert.equal(economy.resolveScenarioKronerReward({ success: true, firstSuccess: true, contractReward: 140 }), 140);
+  assert.equal(economy.resolveScenarioKronerReward({ success: true, firstSuccess: false }), 36);
+  assert.equal(economy.resolveScenarioKronerReward({ success: false, firstSuccess: true, explicitReward: 500 }), 12);
+});
+
 test("maritime ranks require XP, retention and a meaningful sample", () => {
   const locked = economy.evaluateMaritimeRank({
     xp: 5_200,

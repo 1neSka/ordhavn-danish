@@ -403,7 +403,7 @@ export function CityScenarioHub({ initialScenarioId = null, initialCaseId, onExi
       <header className="city-game-header">
         <button type="button" onClick={onExit}>← <span>Scenarier</span></button>
         <div><small>ORDHAVN · BYLIV</small><strong>Virkelige sager</strong></div>
-        <b>6 sager</b>
+        <b>10 sager</b>
       </header>
       <section className="city-hub-hero">
         <small>SPROGET UDEN FOR LEKTIONEN</small>

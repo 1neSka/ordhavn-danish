@@ -4,15 +4,15 @@ import test from "node:test";
 
 const data = await import("../lib/cityScenarioData.ts");
 
-test("city registry exposes two thematic engines with three difficulty cases each", () => {
+test("city registry exposes two thematic engines with five difficulty cases each", () => {
   assert.equal(data.cityScenarios.length, 2);
   assert.equal(data.cityScenarioCards.length, 2);
   assert.deepEqual(new Set(data.cityScenarios.map((scenario) => scenario.engine)), new Set(["civic-form", "route-planner"]));
   for (const scenario of data.cityScenarios) {
     assert.equal(scenario.kind, "city");
-    assert.equal(scenario.cases.length, 3);
-    assert.equal(scenario.caseCount, 3);
-    assert.deepEqual(scenario.cases.map((cityCase) => cityCase.level), ["A2", "A2+", "B1"]);
+    assert.equal(scenario.cases.length, 5);
+    assert.equal(scenario.caseCount, 5);
+    assert.deepEqual(new Set(scenario.cases.map((cityCase) => cityCase.level)), new Set(["A2", "A2+", "B1"]));
     assert.equal(data.cityScenarioRegistry[scenario.id], scenario);
   }
   assert.equal(data.cityScenarioIntegration.component, "CityScenarioHub");
@@ -91,12 +91,23 @@ test("first-attempt metadata mints rav once and scales kroner locally", () => {
 test("all learner content is Danish with English support and no Cyrillic", () => {
   const serialized = JSON.stringify(data.cityScenarios);
   assert.doesNotMatch(serialized, /[А-Яа-яЁё]/u);
+  assert.match(serialized, /[æøå]/iu);
+  assert.equal(new Set(data.cityScenarios.flatMap((scenario) => scenario.cases.map((cityCase) => cityCase.id))).size, 10);
   for (const scenario of data.cityScenarios) {
     assert.ok(scenario.englishDescription.length > 30);
     for (const cityCase of scenario.cases) {
+      assert.ok(cityCase.title.length > 10);
+      assert.ok(cityCase.brief.length > 45);
       assert.ok(cityCase.englishBrief.length > 30);
       assert.ok(cityCase.glossary.length >= 3);
       assert.ok(cityCase.glossary.every((entry) => entry.english.length > 2 && entry.note.length > 10));
+      if (cityCase.engine === "civic-form") {
+        assert.ok(cityCase.document.paragraphs.every((paragraph) => paragraph.length > 45));
+        assert.ok(cityCase.document.englishParagraphs.every((paragraph) => paragraph.length > 40));
+      } else {
+        assert.ok(cityCase.dispatch.every((message) => message.length >= 45));
+        assert.ok(cityCase.englishDispatch.every((message) => message.length > 40));
+      }
     }
   }
 });

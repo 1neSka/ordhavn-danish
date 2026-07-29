@@ -14,10 +14,10 @@ engelsk.
 - ti udvidelige scenariesystemer: danske telefonindstillinger, forgrenede
   psykologiske dialoger, mail-efterforskning, trafik-dispatch, A1–A2-havnecases,
   en B1–B2-manualkonsol, tidevandsbaseret last-routing og Sagslaboratoriets tre
-  AI-hybride efterforskninger samt to nye A2–B2-laboratorier med tolv sager;
+  AI-hybride efterforskninger samt to nye A2–B2-laboratorier med tyve sager;
 - `Borgerservice & bybud` lader spilleren læse digital post, udfylde blanketter,
   beregne priser og bygge ruter med frister, tidsvinduer, zoner og billetvalg;
-- `Vagtcentralen` har tre entydige begrænsningsgitre og tre
+- `Vagtcentralen` har fem entydige begrænsningsgitre og fem
   betydningsredaktører, hvor før/efter, kun, medmindre og præcise referencer er
   selve puslespillets regler;
 - `Havnefogedens sag` kombinerer V2-afhøring, evidentialitet, en entydig tidslinje

@@ -6,17 +6,17 @@ const data = await import("../lib/logicScenarioData.ts");
 
 const stableId = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
-test("logic scenario package exposes two engines with three cases each", () => {
+test("logic scenario package exposes two engines with five cases each", () => {
   assert.equal(data.logicScenarioEngines.length, 2);
-  assert.equal(data.logicScenarios.length, 6);
-  assert.equal(data.logicScenarioCards.length, 6);
+  assert.equal(data.logicScenarios.length, 10);
+  assert.equal(data.logicScenarioCards.length, 10);
   assert.deepEqual(
     new Set(data.logicScenarios.map((scenario) => scenario.engine)),
     new Set(["constraint-grid", "meaning-editor"]),
   );
   for (const engine of data.logicScenarioEngines) {
-    assert.equal(engine.scenarioIds.length, 3, `${engine.id}: expected three cases`);
-    assert.equal(new Set(engine.scenarioIds).size, 3);
+    assert.equal(engine.scenarioIds.length, 5, `${engine.id}: expected five cases`);
+    assert.equal(new Set(engine.scenarioIds).size, 5);
     assert.ok(engine.scenarioIds.every((id) => data.logicScenarioRegistry[id].engine === engine.id));
   }
   for (const scenario of data.logicScenarios) {
@@ -33,12 +33,12 @@ test("logic scenario package exposes two engines with three cases each", () => {
 
 test("every dispatch grid has one and only one code-valid solution", () => {
   const grids = data.logicScenarios.filter((scenario) => scenario.engine === "constraint-grid");
-  assert.equal(grids.length, 3);
+  assert.equal(grids.length, 5);
   for (const scenario of grids) {
-    assert.equal(scenario.subjects.length, 3);
-    assert.equal(scenario.slots.length, 3);
-    assert.equal(new Set(scenario.subjects.map((item) => item.id)).size, 3);
-    assert.equal(new Set(scenario.slots.map((item) => item.id)).size, 3);
+    assert.ok([3, 4].includes(scenario.subjects.length));
+    assert.equal(scenario.slots.length, scenario.subjects.length);
+    assert.equal(new Set(scenario.subjects.map((item) => item.id)).size, scenario.subjects.length);
+    assert.equal(new Set(scenario.slots.map((item) => item.id)).size, scenario.slots.length);
     assert.ok(scenario.clues.length >= 3);
     assert.ok(scenario.clues.every((clue) => clue.text.length >= 24));
     const solutions = data.enumerateConstraintSolutions(scenario);
@@ -46,9 +46,16 @@ test("every dispatch grid has one and only one code-valid solution", () => {
     assert.deepEqual(solutions[0], scenario.solution);
     assert.deepEqual(data.evaluateConstraintAssignment(scenario, scenario.solution), {
       success: true,
-      correctSubjects: 3,
-      totalSubjects: 3,
+      correctSubjects: scenario.subjects.length,
+      totalSubjects: scenario.subjects.length,
     });
+    for (let index = 0; index < scenario.rules.length; index += 1) {
+      const withoutRule = { ...scenario, rules: scenario.rules.filter((_, ruleIndex) => ruleIndex !== index) };
+      assert.ok(
+        data.enumerateConstraintSolutions(withoutRule).length > 1,
+        `${scenario.id}: rule ${index} (${scenario.rules[index].type}) is not logically essential`,
+      );
+    }
     const reversed = Object.fromEntries(
       scenario.subjects.map((subject, index) => [subject.id, scenario.slots[scenario.slots.length - index - 1].id]),
     );
@@ -68,7 +75,7 @@ test("grid rules reject missing, duplicate and foreign assignments", () => {
 
 test("meaning editors preserve exactly three independent semantic dimensions", () => {
   const editors = data.logicScenarios.filter((scenario) => scenario.engine === "meaning-editor");
-  assert.equal(editors.length, 3);
+  assert.equal(editors.length, 5);
   for (const scenario of editors) {
     assert.equal(scenario.slots.length, 3);
     assert.equal(scenario.traps.length, 3);
@@ -85,6 +92,9 @@ test("meaning editors preserve exactly three independent semantic dimensions", (
       assert.equal(new Set(slot.choices.map((choice) => choice.id)).size, 3);
       assert.ok(slot.choices.some((choice) => choice.id === slot.correctChoiceId));
       assert.ok(slot.choices.every((choice) => choice.text.length >= 20 && choice.explanation.length >= 15));
+      const oneWrong = { ...correct, [slot.id]: slot.choices.find((choice) => choice.id !== slot.correctChoiceId).id };
+      assert.equal(data.evaluateMeaningSelection(scenario, oneWrong).success, false, `${scenario.id}/${slot.id}: semantic slot is not essential`);
+      assert.equal(data.evaluateMeaningSelection(scenario, oneWrong).correctSlots, scenario.slots.length - 1);
     }
     const wrong = Object.fromEntries(scenario.slots.map((slot) => [slot.id, slot.choices.find((choice) => choice.id !== slot.correctChoiceId).id]));
     assert.equal(data.evaluateMeaningSelection(scenario, wrong).success, false);
@@ -100,6 +110,7 @@ test("Danish logic markers are mechanically essential rather than decorative", (
   assert.match(allClues, /før/u);
   assert.match(allClues, /hverken/u);
   assert.match(allClues, /ved siden af/u);
+  assert.match(allClues, /mellem/u);
 
   const editorCopy = data.logicScenarios
     .filter((scenario) => scenario.engine === "meaning-editor")
@@ -109,6 +120,8 @@ test("Danish logic markers are mechanically essential rather than decorative", (
   assert.match(editorCopy, /udelukker ikke/u);
   assert.match(editorCopy, /kun/u);
   assert.match(editorCopy, /først/u);
+  assert.match(editorCopy, /ikke alle/u);
+  assert.match(editorCopy, /både … og/u);
 });
 
 test("offline free-text rubric is deterministic and AI request is bounded to the public contract", () => {
@@ -128,6 +141,8 @@ test("offline free-text rubric is deterministic and AI request is bounded to the
     assert.equal(request.submission, "En afgrænset prøvebesked");
     assert.notEqual(request.requiredFacts, scenario.report.requiredFacts);
     assert.deepEqual(request.requiredFacts, scenario.report.requiredFacts);
+    const bounded = data.createLogicEvaluationRequest(scenario, "x".repeat(data.LOGIC_SUBMISSION_MAX_CHARS + 50));
+    assert.equal(bounded.submission.length, data.LOGIC_SUBMISSION_MAX_CHARS);
   }
 });
 

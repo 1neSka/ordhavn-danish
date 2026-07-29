@@ -12,15 +12,15 @@ const scenarioHubSource = await readFile(new URL("../app/scenario-games.tsx", im
 const harborSource = await readFile(new URL("../app/harbor-game.tsx", import.meta.url), "utf8");
 const pageSource = await readFile(new URL("../app/page.tsx", import.meta.url), "utf8");
 
-test("scenario catalog adds twelve distinct A2-B2 cases across four mechanics", () => {
-  assert.equal(cityCases.length, 6);
-  assert.equal(logicCases.length, 6);
+test("scenario catalog adds twenty distinct A2-B2 cases across four mechanics", () => {
+  assert.equal(cityCases.length, 10);
+  assert.equal(logicCases.length, 10);
   assert.deepEqual(new Set(city.cityScenarios.map((scenario) => scenario.engine)), new Set(["civic-form", "route-planner"]));
   assert.deepEqual(new Set(logic.logicScenarios.map((scenario) => scenario.engine)), new Set(["constraint-grid", "meaning-editor"]));
   assert.ok(cityCases.every((item) => item.level === "A2" || item.level === "A2+" || item.level === "B1"));
   assert.ok(logicCases.every((item) => item.level === "B1" || item.level === "B2"));
   const ids = [...cityCases.map((item) => item.id), ...logicCases.map((item) => item.id)];
-  assert.equal(new Set(ids).size, 12);
+  assert.equal(new Set(ids).size, 20);
 });
 
 test("new scenario packages are wired into the shared hub and evaluation route", () => {
@@ -30,8 +30,7 @@ test("new scenario packages are wired into the shared hub and evaluation route",
   assert.match(scenarioHubSource, /onEvaluate=\{evaluateScenarioSubmission\}/u);
   assert.match(scenarioHubSource, /cityRunFromMetadata/u);
   assert.match(scenarioHubSource, /kronerReward: metadata\.kronerEarned/u);
-  assert.match(pageSource, /hasExplicitKronerReward/u);
-  assert.match(pageSource, /Math\.round\(explicitKronerReward\)/u);
+  assert.match(pageSource, /resolveScenarioKronerReward/u);
 });
 
 test("levels twelve and fourteen end in scenario gates backed by real cases", () => {
@@ -41,8 +40,8 @@ test("levels twelve and fourteen end in scenario gates backed by real cases", ()
   assert.ok(gate14);
   const cityIds = new Set(cityCases.map((item) => item.id));
   const logicIds = new Set(logicCases.map((item) => item.id));
-  assert.ok(gate12.scenarioIds.every((id) => cityIds.has(id)));
-  assert.ok(gate14.scenarioIds.some((id) => logicIds.has(id)));
+  assert.ok([...cityIds].every((id) => gate12.scenarioIds.includes(id)));
+  assert.ok([...logicIds].every((id) => gate14.scenarioIds.includes(id)));
   assert.ok(gate12.requiredCompletions >= 2);
   assert.ok(gate14.requiredCompletions >= 3);
 });

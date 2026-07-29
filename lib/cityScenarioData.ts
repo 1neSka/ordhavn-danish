@@ -4,9 +4,13 @@ export type CityCaseId =
   | "storskrald"
   | "flyttedag"
   | "boligstoette"
+  | "blodproeve"
+  | "varmeaflaesning"
   | "morgenbud"
   | "regnvej"
-  | "kulturaften";
+  | "kulturaften"
+  | "natskift"
+  | "oefaergen";
 
 export interface CityScenarioCard {
   id: CityScenarioId;
@@ -193,7 +197,7 @@ const borgerpost: CivicFormScenario = {
   location: "Borgerservice · Skranke 4",
   accent: "#e5a75e",
   levels: ["A2", "A2+", "B1"],
-  caseCount: 3,
+  caseCount: 5,
   cases: [
     {
       id: "storskrald",
@@ -449,6 +453,190 @@ const borgerpost: CivicFormScenario = {
       ],
       workflowSolution: ["scan", "calculate", "submit", "receipt"],
     },
+    {
+      id: "blodproeve",
+      engine: "civic-form",
+      title: "Før laboratoriet åbner",
+      englishTitle: "Before the laboratory opens",
+      level: "A2",
+      brief: "En laboratorietid har flere betingelser end selve klokkeslættet. Find indgangen, forberedelsen og det rigtige ankomsttidspunkt.",
+      englishBrief: "A laboratory appointment has more conditions than the appointment time. Find the entrance, preparation, and correct arrival time.",
+      rewardKroner: 62,
+      accent: "#d96d70",
+      glossary: [
+        { danish: "fastende", english: "fasting", note: "Not eating for a stated period before a test." },
+        { danish: "henvisning", english: "referral", note: "A medical request sent by a doctor." },
+        { danish: "sundhedskort", english: "health card", note: "The Danish card used to identify a patient." },
+      ],
+      document: {
+        sender: "Sundhedshuset Øst",
+        title: "Tid til blodprøve onsdag 6. november",
+        englishTitle: "Blood test appointment on Wednesday 6 November",
+        reference: "Laboratoriesag L-3307 · Tid kl. 10.20",
+        paragraphs: [
+          "Mød ved laboratoriets indgang B kl. 10.05, altså 15 minutter før tiden. Klinikkens hovedindgang A åbner først kl. 11.",
+          "Du skal være fastende i otte timer før prøven. Du må drikke vand, men ikke kaffe, juice eller tygge tyggegummi.",
+          "Medbring sundhedskort. Din læge har allerede sendt henvisningen digitalt, så den skal ikke printes.",
+        ],
+        englishParagraphs: [
+          "Meet at laboratory entrance B at 10:05, which is 15 minutes before the appointment. Clinic entrance A does not open until 11:00.",
+          "You must fast for eight hours before the test. You may drink water, but not coffee, juice, or chew gum.",
+          "Bring your health card. Your doctor has already sent the referral digitally, so it does not need to be printed.",
+        ],
+      },
+      fields: [
+        {
+          id: "entrance",
+          label: "Indgang",
+          englishLabel: "Entrance",
+          correctOptionId: "b",
+          options: [
+            { id: "a", label: "Hovedindgang A", englishLabel: "main entrance A" },
+            { id: "b", label: "Laboratoriets indgang B", englishLabel: "laboratory entrance B" },
+            { id: "emergency", label: "Akutindgangen", englishLabel: "emergency entrance" },
+          ],
+        },
+        {
+          id: "arrival",
+          label: "Mødetid",
+          englishLabel: "Arrival time",
+          correctOptionId: "1005",
+          options: [
+            { id: "1005", label: "Kl. 10.05", englishLabel: "10:05" },
+            { id: "1020", label: "Kl. 10.20", englishLabel: "10:20" },
+            { id: "1100", label: "Kl. 11.00", englishLabel: "11:00" },
+          ],
+        },
+        {
+          id: "drink",
+          label: "Tilladt drik",
+          englishLabel: "Allowed drink",
+          correctOptionId: "water",
+          options: [
+            { id: "coffee", label: "Sort kaffe", englishLabel: "black coffee" },
+            { id: "juice", label: "Juice", englishLabel: "juice" },
+            { id: "water", label: "Vand", englishLabel: "water" },
+          ],
+        },
+        {
+          id: "bring",
+          label: "Medbring",
+          englishLabel: "Bring",
+          correctOptionId: "card",
+          options: [
+            { id: "referral", label: "Printet henvisning", englishLabel: "printed referral" },
+            { id: "card", label: "Sundhedskort", englishLabel: "health card" },
+            { id: "passport", label: "Pas", englishLabel: "passport" },
+          ],
+        },
+      ],
+      calculation: {
+        prompt: "Fra mødetid kl. 10.05 til prøvetid kl. 10.20: Hvor længe venter du?",
+        englishPrompt: "From arrival at 10:05 to the test at 10:20: How long do you wait?",
+        unit: "min.",
+        expected: 15,
+      },
+      workflowOptions: [
+        { id: "fast", label: "Begynd fasten otte timer før prøven", englishLabel: "Begin fasting eight hours before the test" },
+        { id: "water", label: "Drik kun vand om morgenen", englishLabel: "Drink only water in the morning" },
+        { id: "card", label: "Tag sundhedskortet med", englishLabel: "Bring the health card" },
+        { id: "check-in", label: "Mød ved indgang B kl. 10.05", englishLabel: "Arrive at entrance B at 10:05" },
+        { id: "coffee", label: "Drik kaffe lige før prøven", englishLabel: "Drink coffee just before the test" },
+      ],
+      workflowSolution: ["fast", "water", "card", "check-in"],
+    },
+    {
+      id: "varmeaflaesning",
+      engine: "civic-form",
+      title: "Måleren taler ikke selv",
+      englishTitle: "The meter cannot speak for itself",
+      level: "B1",
+      brief: "Varmeværket har både et gammelt tal, et nyt tal og et fakturanummer. Dokumentér den aktuelle måler uden at sende personlige papirer.",
+      englishBrief: "The heating company lists an old number, a new number, and an invoice number. Document the current meter without sending personal papers.",
+      rewardKroner: 94,
+      accent: "#d87b55",
+      glossary: [
+        { danish: "målerstand", english: "meter reading", note: "The number currently displayed by a utility meter." },
+        { danish: "aflæsningsfrist", english: "reading deadline", note: "The last day a reading may be submitted." },
+        { danish: "forbrug", english: "consumption", note: "The amount used between two readings." },
+      ],
+      document: {
+        sender: "Øresund Varme",
+        title: "Årlig aflæsning af varmemåler",
+        englishTitle: "Annual heating-meter reading",
+        reference: "Måler V-58204 · Faktura 117930 · Frist 3. december",
+        paragraphs: [
+          "Sidste godkendte målerstand var 17.890 kWh. Displayet viser nu 18.452 kWh. Indtast det aktuelle tal uden punktum på Min Varme.",
+          "Tag først et tydeligt foto, hvor både målernummer V-58204 og displayet kan læses. Gem fotoet, indtil årsopgørelsen er modtaget.",
+          "Aflæsningen skal indsendes senest 3. december. Vi beder ikke om pas, betalingskort eller MitID-oplysninger via e-mail.",
+        ],
+        englishParagraphs: [
+          "The last approved reading was 17,890 kWh. The display now shows 18,452 kWh. Enter the current figure without punctuation on My Heating.",
+          "First take a clear photograph showing both meter number V-58204 and the display. Keep the photo until the annual statement arrives.",
+          "Submit the reading by 3 December. We do not request passports, payment cards, or MitID details by email.",
+        ],
+      },
+      fields: [
+        {
+          id: "meter",
+          label: "Målernummer",
+          englishLabel: "Meter number",
+          correctOptionId: "meter",
+          options: [
+            { id: "meter", label: "V-58204", englishLabel: "meter number" },
+            { id: "invoice", label: "117930", englishLabel: "invoice number" },
+            { id: "old", label: "17890", englishLabel: "previous reading" },
+          ],
+        },
+        {
+          id: "reading",
+          label: "Aktuel målerstand",
+          englishLabel: "Current meter reading",
+          correctOptionId: "current",
+          options: [
+            { id: "previous", label: "17890", englishLabel: "previous reading" },
+            { id: "current", label: "18452", englishLabel: "current reading" },
+            { id: "difference", label: "562", englishLabel: "consumption difference" },
+          ],
+        },
+        {
+          id: "channel",
+          label: "Indsend via",
+          englishLabel: "Submit through",
+          correctOptionId: "portal",
+          options: [
+            { id: "email", label: "E-mail med MitID", englishLabel: "email with MitID details" },
+            { id: "portal", label: "Min Varme", englishLabel: "My Heating portal" },
+            { id: "bank", label: "Netbank", englishLabel: "online banking" },
+          ],
+        },
+        {
+          id: "deadline",
+          label: "Frist",
+          englishLabel: "Deadline",
+          correctOptionId: "dec3",
+          options: [
+            { id: "nov30", label: "30. november", englishLabel: "30 November" },
+            { id: "dec3", label: "3. december", englishLabel: "3 December" },
+            { id: "annual", label: "Når årsopgørelsen kommer", englishLabel: "when the annual statement arrives" },
+          ],
+        },
+      ],
+      calculation: {
+        prompt: "18.452 kWh minus 17.890 kWh: Hvor stort er årets registrerede forbrug?",
+        englishPrompt: "18,452 kWh minus 17,890 kWh: What is the recorded annual consumption?",
+        unit: "kWh",
+        expected: 562,
+      },
+      workflowOptions: [
+        { id: "match", label: "Kontrollér målernummeret", englishLabel: "Check the meter number" },
+        { id: "photo", label: "Fotografér nummer og display", englishLabel: "Photograph the number and display" },
+        { id: "submit", label: "Indtast 18452 på Min Varme", englishLabel: "Enter 18452 on My Heating" },
+        { id: "receipt", label: "Gem kvitteringen og fotoet", englishLabel: "Keep the receipt and photograph" },
+        { id: "send-id", label: "Send pas og MitID via e-mail", englishLabel: "Email a passport and MitID details" },
+      ],
+      workflowSolution: ["match", "photo", "submit", "receipt"],
+    },
   ],
 };
 
@@ -464,7 +652,7 @@ const byruten: RouteScenario = {
   location: "Budcentralen · Kajplads 7",
   accent: "#66b9ae",
   levels: ["A2", "A2+", "B1"],
-  caseCount: 3,
+  caseCount: 5,
   cases: [
     {
       id: "morgenbud",
@@ -608,6 +796,102 @@ const byruten: RouteScenario = {
       ],
       solutionRoute: ["gallery", "theatre", "archive", "radio"],
       solutionTicketId: "three-hour",
+    },
+    {
+      id: "natskift",
+      engine: "route-planner",
+      title: "Sidste skift mod hospitalet",
+      englishTitle: "The last connection to the hospital",
+      level: "A2+",
+      brief: "En vigtig kuvert skal med tre forskellige linjer. Hvert skift har få minutter, og den korte billet skal dække både tid og zoner.",
+      englishBrief: "An important envelope must travel on three different lines. Each transfer is short, and the ticket must cover both time and zones.",
+      rewardKroner: 82,
+      accent: "#5b8fc4",
+      glossary: [
+        { danish: "omstigning", english: "transfer", note: "Changing from one transport line to another." },
+        { danish: "natbus", english: "night bus", note: "A bus service that operates late at night." },
+        { danish: "afgang", english: "departure", note: "The time when a bus, train, or ferry leaves." },
+      ],
+      start: { id: "night-depot", label: "Budcentralen", englishLabel: "courier depot", zone: 1, time: 1320 },
+      dispatch: [
+        "Linje 12 tager kuverten fra Budcentralen til Søtorvet. Chaufføren venter kun kl. 22.08–22.12.",
+        "Ved Søtorvet skal du skifte til metroen kl. 22.20–22.25 og derefter til natbus 91 kl. 22.32–22.37.",
+        "Hospitalets nattevagt modtager kuverten fra kl. 22.47 til 22.57. Hele turen går gennem zone 1, 2 og 3.",
+      ],
+      englishDispatch: [
+        "Line 12 takes the envelope from the depot to Lake Square. The driver only waits from 22:08–22:12.",
+        "At Lake Square, transfer to the metro from 22:20–22:25 and then to night bus 91 from 22:32–22:37.",
+        "The hospital night officer accepts the envelope from 22:47–22:57. The whole trip crosses zones 1, 2, and 3.",
+      ],
+      stops: [
+        { id: "line12", label: "Linje 12", englishLabel: "bus line 12", zone: 1, windowStart: 1328, windowEnd: 1332, serviceMinutes: 2, task: "Giv kuverten til chaufføren", englishTask: "Give the envelope to the driver" },
+        { id: "metro", label: "Metroen ved Søtorvet", englishLabel: "metro at Lake Square", zone: 2, windowStart: 1340, windowEnd: 1345, serviceMinutes: 2, task: "Skift fra bus til metro", englishTask: "Transfer from bus to metro" },
+        { id: "nightbus", label: "Natbus 91", englishLabel: "night bus 91", zone: 3, windowStart: 1352, windowEnd: 1357, serviceMinutes: 2, task: "Skift fra metro til natbus", englishTask: "Transfer from metro to night bus" },
+        { id: "hospital", label: "Hospitalets nattevagt", englishLabel: "hospital night officer", zone: 3, windowStart: 1367, windowEnd: 1377, serviceMinutes: 3, task: "Aflever den forseglede kuvert", englishTask: "Deliver the sealed envelope" },
+      ],
+      travelMinutes: {
+        [routeKey("night-depot", "line12")]: 8, [routeKey("night-depot", "metro")]: 20, [routeKey("night-depot", "nightbus")]: 31, [routeKey("night-depot", "hospital")]: 47,
+        [routeKey("line12", "metro")]: 8, [routeKey("line12", "nightbus")]: 20, [routeKey("line12", "hospital")]: 37,
+        [routeKey("metro", "line12")]: 10, [routeKey("metro", "nightbus")]: 8, [routeKey("metro", "hospital")]: 25,
+        [routeKey("nightbus", "line12")]: 21, [routeKey("nightbus", "metro")]: 8, [routeKey("nightbus", "hospital")]: 9,
+        [routeKey("hospital", "line12")]: 37, [routeKey("hospital", "metro")]: 25, [routeKey("hospital", "nightbus")]: 9,
+      },
+      tickets: [
+        { id: "two-night", label: "2 zoner · 60 min", englishLabel: "2 zones · 60 min", zones: [1, 2], validityMinutes: 60, cost: 24 },
+        { id: "three-night", label: "3 zoner · 60 min", englishLabel: "3 zones · 60 min", zones: [1, 2, 3], validityMinutes: 60, cost: 30 },
+        { id: "three-night-long", label: "3 zoner · 90 min", englishLabel: "3 zones · 90 min", zones: [1, 2, 3], validityMinutes: 90, cost: 39 },
+        { id: "night-day", label: "Døgnbillet", englishLabel: "24-hour ticket", zones: [1, 2, 3], validityMinutes: 1440, cost: 82 },
+      ],
+      solutionRoute: ["line12", "metro", "nightbus", "hospital"],
+      solutionTicketId: "three-night",
+    },
+    {
+      id: "oefaergen",
+      engine: "route-planner",
+      title: "Bussen før ø-færgen",
+      englishTitle: "The bus before the island ferry",
+      level: "B1",
+      brief: "En skolepakke skal via cykelbud, forbindelsesbus og færge. En billig billet dækker zonerne, men ikke nødvendigvis hele rejsens varighed.",
+      englishBrief: "A school parcel must travel by bicycle courier, connecting bus, and ferry. A cheap ticket may cover the zones but not the full journey time.",
+      rewardKroner: 105,
+      accent: "#3c9eaa",
+      glossary: [
+        { danish: "forbindelsesbus", english: "connecting bus", note: "A bus timed to connect with another service." },
+        { danish: "ombordstigning", english: "boarding", note: "The process of entering a ferry or aircraft." },
+        { danish: "gyldighed", english: "validity", note: "The period during which a ticket may be used." },
+      ],
+      start: { id: "island-office", label: "Ø-kontoret", englishLabel: "island service office", zone: 1, time: 870 },
+      dispatch: [
+        "Cykelbuddet ved Torvehallen tager kun imod pakken kl. 14.38–14.46. Derefter går forbindelsesbussen fra Havnegade kl. 14.55–15.00.",
+        "Færgens ombordstigning lukker kl. 15.14. Skolebussen på øen venter ved kajen mellem kl. 15.35 og 15.45.",
+        "Rejsen bruger zone 1, 2 og ø-zone 4. Billetten gælder fra afgangen ved Ø-kontoret, også mens du venter på færgen.",
+      ],
+      englishDispatch: [
+        "The bicycle courier at Market Hall only accepts the parcel from 14:38–14:46. The connecting bus then departs Harbour Street from 14:55–15:00.",
+        "Ferry boarding closes at 15:14. The school bus on the island waits at the quay from 15:35–15:45.",
+        "The trip uses zones 1, 2, and island zone 4. The ticket is valid from departure at the island office, including time spent waiting for the ferry.",
+      ],
+      stops: [
+        { id: "cycle", label: "Cykelbuddet", englishLabel: "bicycle courier", zone: 1, windowStart: 878, windowEnd: 886, serviceMinutes: 3, task: "Overdrag pakken og fragtsedlen", englishTask: "Hand over the parcel and consignment note" },
+        { id: "connector", label: "Forbindelsesbussen", englishLabel: "connecting bus", zone: 2, windowStart: 895, windowEnd: 900, serviceMinutes: 2, task: "Skift fra cykelbud til bus", englishTask: "Transfer from courier to bus" },
+        { id: "ferry", label: "Færgens ombordstigning", englishLabel: "ferry boarding", zone: 4, windowStart: 910, windowEnd: 914, serviceMinutes: 2, task: "Scan fragtsedlen før lukketid", englishTask: "Scan the consignment note before closing" },
+        { id: "schoolbus", label: "Skolebussen på øen", englishLabel: "island school bus", zone: 4, windowStart: 935, windowEnd: 945, serviceMinutes: 4, task: "Aflever pakken ved ø-kajen", englishTask: "Deliver the parcel at the island quay" },
+      ],
+      travelMinutes: {
+        [routeKey("island-office", "cycle")]: 8, [routeKey("island-office", "connector")]: 25, [routeKey("island-office", "ferry")]: 39, [routeKey("island-office", "schoolbus")]: 64,
+        [routeKey("cycle", "connector")]: 10, [routeKey("cycle", "ferry")]: 25, [routeKey("cycle", "schoolbus")]: 52,
+        [routeKey("connector", "cycle")]: 11, [routeKey("connector", "ferry")]: 10, [routeKey("connector", "schoolbus")]: 36,
+        [routeKey("ferry", "cycle")]: 25, [routeKey("ferry", "connector")]: 10, [routeKey("ferry", "schoolbus")]: 20,
+        [routeKey("schoolbus", "cycle")]: 52, [routeKey("schoolbus", "connector")]: 36, [routeKey("schoolbus", "ferry")]: 20,
+      },
+      tickets: [
+        { id: "mainland", label: "Zone 1–2 · 90 min", englishLabel: "zones 1–2 · 90 min", zones: [1, 2], validityMinutes: 90, cost: 32 },
+        { id: "island-short", label: "Zone 1, 2 og 4 · 60 min", englishLabel: "zones 1, 2, and 4 · 60 min", zones: [1, 2, 4], validityMinutes: 60, cost: 35 },
+        { id: "island-long", label: "Zone 1, 2 og 4 · 90 min", englishLabel: "zones 1, 2, and 4 · 90 min", zones: [1, 2, 4], validityMinutes: 90, cost: 45 },
+        { id: "island-day", label: "Ø-dagsbillet", englishLabel: "island day ticket", zones: [1, 2, 4], validityMinutes: 1440, cost: 92 },
+      ],
+      solutionRoute: ["cycle", "connector", "ferry", "schoolbus"],
+      solutionTicketId: "island-long",
     },
   ],
 };

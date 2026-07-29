@@ -2,12 +2,17 @@ export type LogicScenarioId =
   | "night-dispatch"
   | "bridge-crews"
   | "radio-allocation"
+  | "lock-windows"
+  | "watch-rotation"
   | "sluice-warning"
   | "water-notice"
-  | "platform-change";
+  | "platform-change"
+  | "quay-permits"
+  | "medicine-recall";
 
 export type LogicScenarioLevel = "B1" | "B2";
 export type LogicScenarioEngine = "constraint-grid" | "meaning-editor";
+export const LOGIC_SUBMISSION_MAX_CHARS = 4000;
 
 export interface LogicEvaluationRequest {
   scenarioId: LogicScenarioId;
@@ -60,12 +65,15 @@ export type ConstraintRule =
   | { type: "not"; subject: string; slot: string }
   | { type: "before"; subject: string; other: string }
   | { type: "after"; subject: string; other: string }
-  | { type: "adjacent"; subject: string; other: string };
+  | { type: "adjacent"; subject: string; other: string }
+  | { type: "not-adjacent"; subject: string; other: string }
+  | { type: "immediately-before"; subject: string; other: string }
+  | { type: "between"; subject: string; before: string; after: string };
 
 export interface ConstraintClue {
   id: string;
   text: string;
-  focus: "før" | "efter" | "hverken" | "fast" | "ved siden af";
+  focus: "før" | "efter" | "hverken" | "fast" | "ved siden af" | "mellem";
 }
 
 export interface LogicReportTask {
@@ -142,10 +150,17 @@ export function satisfiesConstraintRules(
     if (current < 0) return false;
     if (rule.type === "fixed") return assignment[rule.subject] === rule.slot;
     if (rule.type === "not") return assignment[rule.subject] !== rule.slot;
+    if (rule.type === "between") {
+      const before = positionOf(assignment, rule.before, scenario.slots);
+      const after = positionOf(assignment, rule.after, scenario.slots);
+      return before >= 0 && after >= 0 && before < current && current < after;
+    }
     const other = positionOf(assignment, rule.other, scenario.slots);
     if (other < 0) return false;
     if (rule.type === "before") return current < other;
     if (rule.type === "after") return current > other;
+    if (rule.type === "immediately-before") return current + 1 === other;
+    if (rule.type === "not-adjacent") return Math.abs(current - other) !== 1;
     return Math.abs(current - other) === 1;
   });
 }
@@ -224,7 +239,7 @@ export function createLogicEvaluationRequest(scenario: LogicScenario, submission
   return {
     scenarioId: scenario.id,
     task: scenario.report.task,
-    submission,
+    submission: submission.slice(0, LOGIC_SUBMISSION_MAX_CHARS),
     requiredFacts: [...scenario.report.requiredFacts],
     level: scenario.level,
   };
@@ -254,10 +269,8 @@ const gridScenarios: ConstraintGridScenario[] = [
       { id: "nb-3", text: "Nordbussen kører hverken først eller efter Sydbussen.", focus: "hverken" },
     ],
     rules: [
-      { type: "adjacent", subject: "nord", other: "syd" },
-      { type: "before", subject: "nord", other: "syd" },
+      { type: "immediately-before", subject: "nord", other: "syd" },
       { type: "before", subject: "oest", other: "nord" },
-      { type: "not", subject: "nord", slot: "2210" },
     ],
     solution: { oest: "2210", nord: "2225", syd: "2240" },
     glossary: [
@@ -304,7 +317,6 @@ const gridScenarios: ConstraintGridScenario[] = [
     rules: [
       { type: "fixed", subject: "gamma", slot: "fag3" },
       { type: "before", subject: "alfa", other: "beta" },
-      { type: "adjacent", subject: "alfa", other: "beta" },
     ],
     solution: { alfa: "fag1", beta: "fag2", gamma: "fag3" },
     glossary: [
@@ -351,7 +363,6 @@ const gridScenarios: ConstraintGridScenario[] = [
     rules: [
       { type: "fixed", subject: "sael", slot: "k5" },
       { type: "after", subject: "ravn", other: "sael" },
-      { type: "not", subject: "fyr", slot: "k8" },
     ],
     solution: { ravn: "k8", sael: "k5", fyr: "k2" },
     glossary: [
@@ -371,6 +382,112 @@ const gridScenarios: ConstraintGridScenario[] = [
         { id: "compare", label: "Ravn ligger højere end Sæl", alternatives: [["ravn", "højere", "sæl"]] },
       ],
       canonicalSubmission: "Fyr kaldes på kanal 2, Sæl på kanal 5 og Ravn på kanal 8. Ravns kanal er dermed højere end Sæls, og alle tre fartøjer har hver sin forbindelse.",
+    },
+  },
+  {
+    id: "lock-windows",
+    engine: "constraint-grid",
+    title: "Slusens fire vinduer",
+    translation: "The lock's four windows",
+    level: "B2",
+    eyebrow: "SLUSELEDELSE · AFSTAND",
+    description: "Planlæg fire gennemsejlinger, hvor et redningsfartøj kræver plads på begge sider af sin tidskorridor.",
+    accent: "#ef7d68",
+    estimatedMinutes: 10,
+    brief: "Fire fartøjer skal gennem slusen. En forkert nabo kan forsinke redningsberedskabet.",
+    subjects: [
+      { id: "fragt", label: "Fragt 12", detail: "tungt lastfartøj" },
+      { id: "redning", label: "Redning 4", detail: "akut beredskab" },
+      { id: "tur", label: "Turisten", detail: "passagerbåd" },
+      { id: "service", label: "Service 2", detail: "vedligeholdelse" },
+    ],
+    slots: [
+      { id: "0640", label: "06.40" },
+      { id: "0700", label: "07.00" },
+      { id: "0720", label: "07.20" },
+      { id: "0740", label: "07.40" },
+    ],
+    clues: [
+      { id: "lw-1", text: "Fragt 12 sejler umiddelbart før Redning 4.", focus: "før" },
+      { id: "lw-2", text: "Turisten kommer senere end Redning 4.", focus: "efter" },
+      { id: "lw-3", text: "Service 2 må ikke ligge ved siden af Turisten i tidsplanen.", focus: "hverken" },
+    ],
+    rules: [
+      { type: "immediately-before", subject: "fragt", other: "redning" },
+      { type: "after", subject: "tur", other: "redning" },
+      { type: "not-adjacent", subject: "service", other: "tur" },
+    ],
+    solution: { fragt: "0700", redning: "0720", tur: "0740", service: "0640" },
+    glossary: [
+      { danish: "gennemsejling", english: "passage through a lock" },
+      { danish: "umiddelbart", english: "immediately" },
+      { danish: "ligge ved siden af", english: "be in the adjacent slot" },
+    ],
+    report: {
+      task: "operational-note",
+      prompt: "Bekræft alle fire tider, og forklar hvorfor Service 2 ikke kan ligge ved siden af Turisten.",
+      minimumWords: 34,
+      requiredFacts: ["Service 2 kl. 06.40", "Fragt 12 kl. 07.00", "Redning 4 kl. 07.20", "Turisten kl. 07.40"],
+      criteria: [
+        { id: "service", label: "Service 2 kl. 06.40", alternatives: [["service", "06", "40"]] },
+        { id: "cargo", label: "Fragt 12 kl. 07.00", alternatives: [["fragt", "07", "00"]] },
+        { id: "rescue", label: "Redning 4 kl. 07.20", alternatives: [["redning", "07", "20"]] },
+        { id: "tour", label: "Turisten kl. 07.40", alternatives: [["turisten", "07", "40"], ["turist", "07", "40"]] },
+      ],
+      canonicalSubmission: "Service 2 sejler kl. 06.40. Fragt 12 følger kl. 07.00 umiddelbart før Redning 4 kl. 07.20. Turisten sejler sidst kl. 07.40, så Service 2 ikke ligger ved siden af Turisten i tidsplanen.",
+    },
+  },
+  {
+    id: "watch-rotation",
+    engine: "constraint-grid",
+    title: "Nattevagtens rotation",
+    translation: "The night watch rotation",
+    level: "B2",
+    eyebrow: "VAGTPLAN · MELLEMLED",
+    description: "Byg en rotation med fire vagter, hvor mellem betyder en streng orden og ikke blot en løs placering.",
+    accent: "#75c990",
+    estimatedMinutes: 10,
+    brief: "Fire vagter overtager kontrollen én ad gangen. Den samme person må ikke få to vagter.",
+    subjects: [
+      { id: "omar", label: "Omar", detail: "radar" },
+      { id: "liv", label: "Liv", detail: "kajkameraer" },
+      { id: "signe", label: "Signe", detail: "adgangskontrol" },
+      { id: "tobias", label: "Tobias", detail: "nødradio" },
+    ],
+    slots: [
+      { id: "v1", label: "Vagt 1" },
+      { id: "v2", label: "Vagt 2" },
+      { id: "v3", label: "Vagt 3" },
+      { id: "v4", label: "Vagt 4" },
+    ],
+    clues: [
+      { id: "wr-1", text: "Liv har en vagt mellem Omars og Signes vagter.", focus: "mellem" },
+      { id: "wr-2", text: "Tobias må ikke overtage umiddelbart før eller efter Liv.", focus: "hverken" },
+      { id: "wr-3", text: "Signe afslutter rotationen på nattens fjerde vagt.", focus: "fast" },
+    ],
+    rules: [
+      { type: "between", subject: "liv", before: "omar", after: "signe" },
+      { type: "not-adjacent", subject: "tobias", other: "liv" },
+      { type: "fixed", subject: "signe", slot: "v4" },
+    ],
+    solution: { omar: "v2", liv: "v3", signe: "v4", tobias: "v1" },
+    glossary: [
+      { danish: "mellem", english: "between" },
+      { danish: "overtage", english: "take over" },
+      { danish: "umiddelbart efter", english: "immediately after" },
+    ],
+    report: {
+      task: "operational-note",
+      prompt: "Skriv vagtskiftet til logbogen med alle fire positioner og den strenge rækkefølge Omar–Liv–Signe.",
+      minimumWords: 32,
+      requiredFacts: ["Tobias vagt 1", "Omar vagt 2", "Liv vagt 3", "Signe vagt 4"],
+      criteria: [
+        { id: "tobias", label: "Tobias tager vagt 1", alternatives: [["tobias", "vagt", "1"]] },
+        { id: "omar", label: "Omar tager vagt 2", alternatives: [["omar", "vagt", "2"]] },
+        { id: "liv", label: "Liv tager vagt 3", alternatives: [["liv", "vagt", "3"]] },
+        { id: "signe", label: "Signe tager vagt 4", alternatives: [["signe", "vagt", "4"]] },
+      ],
+      canonicalSubmission: "Tobias tager nattens vagt 1, og Omar overtager vagt 2. Liv følger på vagt 3 mellem Omar og Signe. Signe afslutter rotationen på vagt 4, så Tobias ikke står umiddelbart ved siden af Liv.",
     },
   },
 ];
@@ -509,6 +626,96 @@ const editorScenarios: MeaningEditorScenario[] = [
         { id: "rear", label: "Bageste del til Aarhus bliver i spor 6", alternatives: [["bageste", "aarhus", "spor", "6"], ["bageste", "århus", "spor", "6"]] },
       ],
       canonicalSubmission: "Toget mod Aalborg afgår som udgangspunkt fra spor 6. Hvis signalfejlen varer efter kl. 17.20, flyttes kun den forreste del mod Aalborg til spor 4. Den bageste del mod Aarhus bliver i spor 6.",
+    },
+  },
+  {
+    id: "quay-permits",
+    engine: "meaning-editor",
+    title: "Porten på kaj 9",
+    translation: "The gate at quay 9",
+    level: "B1",
+    eyebrow: "ADGANG · UNDTAGELSE",
+    description: "Omsæt en adgangsregel, hvor alle, bortset fra og medmindre danner et hierarki af undtagelser.",
+    accent: "#dfa556",
+    estimatedMinutes: 8,
+    sourceLabel: "Instruks fra havnevagten",
+    sourceMessage: "Alle leverandører skal registreres ved porten. Chauffører med et gyldigt årskort skal dog ikke registreres igen, medmindre kortet er udløbet. Ingen må køre ind, før vagten har bekræftet registreringen eller årskortet.",
+    assignment: "Gør instruksen kortere uden at gøre undtagelsen bredere end den er.",
+    traps: ["alle omfatter også faste chauffører før undtagelsen", "medmindre genaktiverer kravet ved udløb", "før gør bekræftelsen til en forudsætning"],
+    slots: [
+      { id: "main", label: "Hovedregel", question: "Hvem skal som udgangspunkt registreres?", correctChoiceId: "all", choices: [
+        { id: "all", text: "Alle leverandører skal registreres ved porten.", explanation: "Bevarer hovedreglens universelle omfang." },
+        { id: "new", text: "Kun nye leverandører skal registreres ved porten.", explanation: "Indsnævrer gruppen uden belæg." },
+        { id: "drivers", text: "Alle chauffører er allerede registreret ved porten.", explanation: "Vender pligten til en påstand om status." },
+      ] },
+      { id: "exception", label: "Undtagelsen", question: "Hvem slipper for en ny registrering?", correctChoiceId: "valid", choices: [
+        { id: "any", text: "Enhver chauffør med et årskort slipper altid for registrering.", explanation: "Ignorerer både gyldighed og udløb." },
+        { id: "valid", text: "Chauffører med et gyldigt årskort skal ikke registreres igen.", explanation: "Afgrænser undtagelsen til gyldige kort." },
+        { id: "expired", text: "Kun chauffører med et udløbet årskort slipper for registrering.", explanation: "Vender undtagelsens betingelse om." },
+      ] },
+      { id: "gate", label: "Forudsætning", question: "Hvornår må køretøjet passere?", correctChoiceId: "confirmed", choices: [
+        { id: "arrival", text: "Køretøjet må passere, så snart det ankommer til porten.", explanation: "Fjerner vagtens kontrolpunkt." },
+        { id: "registered", text: "Køretøjet må passere før vagten kontrollerer oplysningerne.", explanation: "Vender rækkefølgen om." },
+        { id: "confirmed", text: "Køretøjet må først passere, når vagten har bekræftet registrering eller årskort.", explanation: "Bevarer kontrollen som nødvendig forudsætning." },
+      ] },
+    ],
+    assembledSolution: "Alle leverandører skal registreres ved porten. Chauffører med et gyldigt årskort skal ikke registreres igen. Køretøjet må først passere, når vagten har bekræftet registrering eller årskort.",
+    glossary: [{ danish: "bortset fra", english: "except for" }, { danish: "udløbet", english: "expired" }, { danish: "forudsætning", english: "precondition" }],
+    report: {
+      task: "public-notice", prompt: "Skriv portens adgangsregel til chaufførerne. Bevar hovedregel, årskortets gyldighed og vagtens bekræftelse.", minimumWords: 38,
+      requiredFacts: ["alle leverandører registreres", "gyldigt årskort er undtaget", "udløbet kort kræver registrering", "vagten bekræfter før passage"],
+      criteria: [
+        { id: "all", label: "Alle leverandører skal registreres", alternatives: [["alle", "leverandører", "registreres"], ["alle", "leverandører", "registrering"]] },
+        { id: "valid", label: "Gyldigt årskort giver undtagelse", alternatives: [["gyldigt", "årskort", "ikke"], ["gyldige", "årskort", "undtaget"], ["gyldigt", "årskort", "undtager"]] },
+        { id: "expired", label: "Udløbet kort kræver registrering", alternatives: [["udløbet", "registreres"], ["udløbet", "registrering"]] },
+        { id: "confirm", label: "Vagten bekræfter før passage", alternatives: [["vagten", "bekræftet", "passere"], ["vagten", "bekræfter", "køre"]] },
+      ],
+      canonicalSubmission: "Alle leverandører skal registreres ved porten. Et gyldigt årskort undtager chaufføren fra ny registrering, men et udløbet kort kræver registrering. Køretøjet må først passere, når vagten har bekræftet registreringen eller årskortet.",
+    },
+  },
+  {
+    id: "medicine-recall",
+    engine: "meaning-editor",
+    title: "Den smalle tilbagekaldelse",
+    translation: "The narrow product recall",
+    level: "B2",
+    eyebrow: "SUNDHED · KVANTORER",
+    description: "Skeln mellem ikke alle og ingen, mens to egenskaber afgrænser hvilke pakker der faktisk berøres.",
+    accent: "#e37589",
+    estimatedMinutes: 10,
+    sourceLabel: "Foreløbig besked fra apoteket",
+    sourceMessage: "Ikke alle pakker i serie K17 tilbagekaldes. Tilbagekaldelsen gælder kun pakker, der både har blåt segl og en dato før 14. maj. Pakker uden blåt segl skal ikke returneres, medmindre seglets farve ikke kan aflæses.",
+    assignment: "Skriv et sikkert opslag uden at få ikke alle til at betyde ingen eller alle.",
+    traps: ["ikke alle betyder at nogle, men ikke samtlige, berøres", "både … og kræver to samtidige egenskaber", "medmindre skaber en særregel for ulæselige segl"],
+    slots: [
+      { id: "scope", label: "Omfang", question: "Hvor bred er tilbagekaldelsen?", correctChoiceId: "some", choices: [
+        { id: "none", text: "Ingen pakker i serie K17 bliver tilbagekaldt.", explanation: "Gør ikke alle til ingen." },
+        { id: "all", text: "Alle pakker i serie K17 bliver tilbagekaldt.", explanation: "Fjerner kildens begrænsning." },
+        { id: "some", text: "Tilbagekaldelsen omfatter nogle, men ikke alle, pakker i serie K17.", explanation: "Bevarer den negative kvantors omfang." },
+      ] },
+      { id: "criteria", label: "Kriterier", question: "Hvilke pakker skal returneres?", correctChoiceId: "both", choices: [
+        { id: "either", text: "Pakker returneres, hvis seglet er blåt eller datoen er før 14. maj.", explanation: "Eller gør ét kriterium tilstrækkeligt." },
+        { id: "both", text: "Kun pakker med både blåt segl og dato før 14. maj skal returneres.", explanation: "Kræver de to egenskaber samtidigt." },
+        { id: "date", text: "Alle pakker med en dato før 14. maj skal returneres uanset seglets farve.", explanation: "Fjerner seglet som kriterium." },
+      ] },
+      { id: "unknown", label: "Ulæseligt segl", question: "Hvad gør kunden ved ukendt farve?", correctChoiceId: "contact", choices: [
+        { id: "keep", text: "Pakker med ulæseligt segl skal altid beholdes derhjemme.", explanation: "Overser den udtrykkelige særregel." },
+        { id: "return", text: "Pakker med ulæseligt segl skal automatisk returneres som blå.", explanation: "Gør usikkerhed til et positivt fund." },
+        { id: "contact", text: "Hvis seglets farve ikke kan aflæses, skal kunden kontakte apoteket.", explanation: "Bevarer særreglen uden at gætte farven." },
+      ] },
+    ],
+    assembledSolution: "Tilbagekaldelsen omfatter nogle, men ikke alle, pakker i serie K17. Kun pakker med både blåt segl og dato før 14. maj skal returneres. Hvis seglets farve ikke kan aflæses, skal kunden kontakte apoteket.",
+    glossary: [{ danish: "ikke alle", english: "not all" }, { danish: "både … og", english: "both ... and" }, { danish: "aflæses", english: "be read" }],
+    report: {
+      task: "public-notice", prompt: "Skriv apotekets endelige opslag. Afgræns omfanget, brug begge produktkriterier, og giv en sikker handling ved ulæseligt segl.", minimumWords: 42,
+      requiredFacts: ["ikke alle K17-pakker", "blåt segl og dato før 14. maj", "begge kriterier kræves", "ulæseligt segl kontaktes apoteket"],
+      criteria: [
+        { id: "scope", label: "Nogle, men ikke alle K17-pakker", alternatives: [["nogle", "ikke", "alle", "k17"], ["ikke", "alle", "k17"]] },
+        { id: "blue", label: "Blåt segl er nødvendigt", alternatives: [["blåt", "segl"]] },
+        { id: "date", label: "Datoen skal være før 14. maj", alternatives: [["dato", "før", "14", "maj"]] },
+        { id: "unknown", label: "Ulæseligt segl kræver kontakt", alternatives: [["ulæseligt", "segl", "kontakte"], ["aflæses", "kontakte", "apoteket"]] },
+      ],
+      canonicalSubmission: "Tilbagekaldelsen gælder nogle, men ikke alle, K17-pakker. Kun pakker med både blåt segl og en dato før 14. maj skal returneres. Hvis et ulæseligt segl ikke kan aflæses, skal kunden kontakte apoteket i stedet for at gætte.",
     },
   },
 ];

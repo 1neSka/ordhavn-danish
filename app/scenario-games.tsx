@@ -252,6 +252,71 @@ function LevelBadge({ level }: { level: string }) {
   return <span className={`scenario-level level-${level.toLowerCase().replace("–", "-")}`}>{level}</span>;
 }
 
+function ScenarioCardVisual({ kind }: { kind: ScenarioKind }) {
+  if (kind === "harbor") return (
+    <div className="scenario-card-visual visual-harbor" aria-hidden="true">
+      <span className="mini-harbor-house house-one" /><span className="mini-harbor-house house-two" />
+      <span className="mini-harbor-quay" /><span className="mini-harbor-water"><i /><i /></span>
+      <span className="mini-harbor-boat"><b>Ø</b></span>
+    </div>
+  );
+  if (kind === "phone") return (
+    <div className="scenario-card-visual visual-phone" aria-hidden="true">
+      <span className="mini-phone"><i /><Settings size={19} /><b /><b /><b /></span>
+      <span className="mini-signal"><Signal size={17} /><em>5G</em></span>
+    </div>
+  );
+  if (kind === "dialogue") return (
+    <div className="scenario-card-visual visual-dialogue" aria-hidden="true">
+      <span className="mini-avatar"><Eye size={23} /></span>
+      <span className="mini-bubble bubble-one">…</span><span className="mini-bubble bubble-two">?</span>
+      <span className="mini-dialogue-meter"><i /></span>
+    </div>
+  );
+  if (kind === "post") return (
+    <div className="scenario-card-visual visual-post" aria-hidden="true">
+      <span className="mini-envelope"><i /><MailWarning size={22} /></span>
+      <span className="mini-post-clue clue-one" /><span className="mini-post-clue clue-two" /><span className="mini-post-stamp">!</span>
+    </div>
+  );
+  if (kind === "metro") return (
+    <div className="scenario-card-visual visual-metro" aria-hidden="true">
+      <span className="mini-metro-line"><i /><i /><i /><i /></span>
+      <span className="mini-train"><TrainFront size={21} /></span><span className="mini-metro-time">08.21</span>
+    </div>
+  );
+  if (kind === "safety-console") return (
+    <div className="scenario-card-visual visual-console" aria-hidden="true">
+      <span className="mini-console-screen"><ShieldCheck size={20} /><b>42—7</b></span>
+      <span className="mini-console-keys">{Array.from({ length: 8 }, (_, index) => <i key={index} />)}</span>
+    </div>
+  );
+  if (kind === "cargo-routing") return (
+    <div className="scenario-card-visual visual-cargo" aria-hidden="true">
+      <span className="mini-crate crate-one" /><span className="mini-crate crate-two" /><span className="mini-crate crate-three" />
+      <span className="mini-tide"><i /><i /><i /></span><PackageCheck size={21} />
+    </div>
+  );
+  if (kind === "advanced") return (
+    <div className="scenario-card-visual visual-investigation" aria-hidden="true">
+      <span className="mini-evidence evidence-one" /><span className="mini-evidence evidence-two" /><span className="mini-evidence evidence-three" />
+      <span className="mini-evidence-lines"><i /><i /></span><Brain size={24} />
+    </div>
+  );
+  if (kind === "logic") return (
+    <div className="scenario-card-visual visual-logic" aria-hidden="true">
+      <span className="mini-logic-grid">{Array.from({ length: 9 }, (_, index) => <i className={index === 1 || index === 5 || index === 6 ? "active" : ""} key={index} />)}</span>
+      <span className="mini-logic-rule">hvis → kun hvis</span>
+    </div>
+  );
+  return (
+    <div className="scenario-card-visual visual-city" aria-hidden="true">
+      <span className="mini-city-buildings"><i /><i /><i /><i /></span>
+      <span className="mini-city-route"><i /><i /><i /></span><Building2 size={22} />
+    </div>
+  );
+}
+
 function ScenarioHeader({ title, subtitle, onBack }: { title: string; subtitle: string; onBack: () => void }) {
   return (
     <header className="scenario-play-header">
@@ -395,11 +460,12 @@ export default function ScenarioHub({ runs, kroner, unlockedScenarioIds, attempt
           const Icon = game.icon;
           const completed = runs.filter((run) => run.kind === game.kind && run.success).length;
           return (
-            <button key={game.kind} className={`scenario-card ${game.tone}`} onClick={() => setActiveGame(game.kind)}>
+            <button type="button" key={game.kind} className={`scenario-card has-scene kind-${game.kind} ${game.tone}`} onClick={() => setActiveGame(game.kind)}>
               <div className="scenario-card-top">
                 <span className="scenario-card-icon"><Icon size={25} /></span>
                 <LevelBadge level={game.level} />
               </div>
+              <ScenarioCardVisual kind={game.kind} />
               <p className="eyebrow">{game.eyebrow}</p>
               <h2>{game.title}</h2>
               <p>{game.description}</p>
