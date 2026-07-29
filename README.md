@@ -23,7 +23,7 @@ engelsk.
 - `Havnefogedens sag` kombinerer V2-afhøring, evidentialitet, en entydig tidslinje
   og et formelt rapportskift. `Stormvagten` og `Færgens reserveplan` kombinerer
   dansk manualforståelse, beregninger og en kodevalideret kontrolsekvens;
-- et lokalt miniordbogskort ved markering af præcis ét dansk ord;
+- et lokalt miniordbogskort med 693 artikler, 3.295 indeksformer, bøjninger og alternative betydninger ved markering af præcis ét dansk ord;
 - **Ordle** som dagligt fem-bogstavsspil, fri træning og fire valgfrie
   checkpoints på læringsstien. Svarbanken har 500 hyppige ord, mens 6.071
   danske gæt accepteres;

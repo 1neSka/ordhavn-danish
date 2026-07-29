@@ -94,6 +94,32 @@
   line-height: 1.45;
 }
 
+.alternatives {
+  display: grid;
+  gap: 5px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid #ece8f1;
+}
+
+.alternatives > span {
+  color: #8a8495;
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.alternatives > div {
+  display: grid;
+  grid-template-columns: 74px 1fr;
+  gap: 6px;
+  align-items: baseline;
+}
+
+.alternatives b { color: #82778f; font-size: 8px; font-weight: 650; }
+.alternatives strong { font-size: 10px; line-height: 1.3; }
+
 :global(html[data-theme="dark"]) .popover,
 :global(.app-shell.dark) .popover {
   color: #f3effa;
@@ -109,13 +135,17 @@
 
 :global(html[data-theme="dark"]) .heading small,
 :global(html[data-theme="dark"]) .form,
-:global(html[data-theme="dark"]) .note {
+:global(html[data-theme="dark"]) .note,
+:global(html[data-theme="dark"]) .alternatives b,
+:global(html[data-theme="dark"]) .alternatives > span {
   color: #b9b1c4;
 }
 
 :global(html[data-theme="dark"]) .note {
   border-color: #45404e;
 }
+
+:global(html[data-theme="dark"]) .alternatives { border-color: #45404e; }
 
 @keyframes dictionary-in {
   from { opacity: 0; transform: translateY(3px) scale(0.985); }

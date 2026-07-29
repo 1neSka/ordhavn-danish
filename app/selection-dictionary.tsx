@@ -22,6 +22,7 @@ const partLabels: Readonly<Record<DanishPartOfSpeech, string>> = {
   conjunction: "conjunction",
   determiner: "article / determiner",
   number: "number",
+  interjection: "interjection",
   "proper noun": "proper noun",
   "noun / verb": "noun / verb",
 };
@@ -128,7 +129,7 @@ export default function SelectionDictionary() {
   }, [popover]);
 
   if (!popover) return null;
-  const { entry, normalized } = popover.lookup;
+  const { entry, alternatives, normalized } = popover.lookup;
   return (
     <div className={styles.popover} ref={popoverRef} role="status" aria-live="polite">
       <div className={styles.heading}>
@@ -148,6 +149,17 @@ export default function SelectionDictionary() {
         </div>
       )}
       {entry.note && <p className={styles.note}>{entry.note}</p>}
+      {alternatives.length > 0 && (
+        <div className={styles.alternatives}>
+          <span>also</span>
+          {alternatives.slice(0, 2).map((alternative) => (
+            <div key={`${alternative.headword}-${alternative.partOfSpeech}`}>
+              <b>{partLabels[alternative.partOfSpeech]}</b>
+              <strong>{alternative.english}</strong>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

@@ -8,6 +8,7 @@ export type DanishPartOfSpeech =
   | "conjunction"
   | "determiner"
   | "number"
+  | "interjection"
   | "proper noun"
   | "noun / verb";
 
@@ -23,6 +24,7 @@ export interface DictionaryEntry {
 
 export interface DictionaryLookup {
   entry: DictionaryEntry;
+  alternatives: readonly DictionaryEntry[];
   selectedForm: string;
   normalized: string;
 }
@@ -59,6 +61,385 @@ const word = (
   note: string,
   aliases: readonly string[] = [],
 ): DictionaryEntry => ({ headword, english, partOfSpeech, note, aliases });
+
+/** B1-B2 vocabulary shared by the operational, logic and public-message scenarios. */
+export const scenarioDictionaryEntries: readonly DictionaryEntry[] = [
+  noun("adgang", "access; entry", "en", "adgangen · adgange", ["adgangen", "adgange", "adgangene"]),
+  noun("afgang", "departure", "en", "afgangen · afgange", ["afgangen", "afgange", "afgangene"]),
+  noun("alarm", "alarm", "en", "alarmen · alarmer", ["alarmen", "alarmer", "alarmerne"]),
+  noun("ankomst", "arrival", "en", "ankomsten · ankomster", ["ankomsten", "ankomster", "ankomsterne"]),
+  noun("ansvar", "responsibility", "et", "ansvaret", ["ansvaret"]),
+  noun("apotek", "pharmacy", "et", "apoteket · apoteker", ["apoteket", "apoteker", "apotekerne"]),
+  noun("beredskab", "emergency readiness", "et", "beredskabet", ["beredskabet"]),
+  noun("bekræftelse", "confirmation", "en", "bekræftelsen · bekræftelser", ["bekræftelsen", "bekræftelser", "bekræftelserne"]),
+  noun("betingelse", "condition", "en", "betingelsen · betingelser", ["betingelsen", "betingelser", "betingelserne"]),
+  noun("betydning", "meaning; significance", "en", "betydningen · betydninger", ["betydningen", "betydninger", "betydningerne"]),
+  noun("bevis", "evidence; proof", "et", "beviset · beviser", ["beviset", "beviser", "beviserne"]),
+  noun("beslutning", "decision", "en", "beslutningen · beslutninger", ["beslutningen", "beslutninger", "beslutningerne"]),
+  noun("borger", "citizen", "en", "borgeren · borgere", ["borgeren", "borgere", "borgerne"]),
+  noun("bro", "bridge", "en", "broen · broer", ["broen", "broer", "broerne"]),
+  noun("brofag", "bridge span", "et", "brofaget · brofag", ["brofaget", "brofagene"]),
+  noun("chauffør", "driver", "en", "chaufføren · chauffører", ["chaufføren", "chauffører", "chaufførerne"]),
+  noun("dato", "date", "en", "datoen · datoer", ["datoen", "datoer", "datoerne"]),
+  noun("del", "part; section", "en", "delen · dele", ["delen", "dele", "delene"]),
+  noun("drift", "operation; running", "en", "driften", ["driften"]),
+  noun("fartøj", "vessel", "et", "fartøjet · fartøjer", ["fartøjet", "fartøjer", "fartøjerne"]),
+  noun("forbindelse", "connection", "en", "forbindelsen · forbindelser", ["forbindelsen", "forbindelser", "forbindelserne"]),
+  noun("forbehold", "reservation; caveat", "et", "forbeholdet · forbehold", ["forbeholdet", "forbeholdene"]),
+  noun("fordeling", "distribution; allocation", "en", "fordelingen · fordelinger", ["fordelingen", "fordelinger", "fordelingerne"]),
+  noun("fordel", "advantage", "en", "fordelen · fordele", ["fordelen", "fordele", "fordelene"]),
+  noun("forslag", "proposal; suggestion", "et", "forslaget · forslag", ["forslaget", "forslagene"]),
+  noun("forhold", "condition; relationship", "et", "forholdet · forhold", ["forholdet", "forholdene"]),
+  noun("fragt", "freight; cargo", "en", "fragten", ["fragten"]),
+  noun("handling", "action", "en", "handlingen · handlinger", ["handlingen", "handlinger", "handlingerne"]),
+  noun("havnevagt", "harbor guard", "en", "havnevagten · havnevagter", ["havnevagten", "havnevagter", "havnevagterne"]),
+  noun("holdning", "opinion; attitude", "en", "holdningen · holdninger", ["holdningen", "holdninger", "holdningerne"]),
+  noun("instruktion", "instruction", "en", "instruktionen · instruktioner", ["instruktionen", "instruktioner", "instruktionerne"]),
+  noun("kaj", "quay", "en", "kajen · kajer", ["kajen", "kajer", "kajerne"]),
+  noun("kanal", "channel", "en", "kanalen · kanaler", ["kanalen", "kanaler", "kanalerne"]),
+  noun("kontrol", "check; control", "en", "kontrollen · kontroller", ["kontrollen", "kontroller", "kontrollerne"]),
+  noun("kort", "card; map", "et", "kortet · kort", ["kortet", "kortene"]),
+  noun("kunde", "customer", "en", "kunden · kunder", ["kunden", "kunder", "kunderne"]),
+  noun("køretøj", "vehicle", "et", "køretøjet · køretøjer", ["køretøjet", "køretøjer", "køretøjerne"]),
+  noun("laboratorium", "laboratory", "et", "laboratoriet · laboratorier", ["laboratoriet", "laboratorier", "laboratorierne"]),
+  noun("leverandør", "supplier", "en", "leverandøren · leverandører", ["leverandøren", "leverandører", "leverandørerne"]),
+  noun("logbog", "logbook", "en", "logbogen · logbøger", ["logbogen", "logbøger", "logbøgerne"]),
+  noun("løsning", "solution", "en", "løsningen · løsninger", ["løsningen", "løsninger", "løsningerne"]),
+  noun("myndighed", "authority", "en", "myndigheden · myndigheder", ["myndigheden", "myndigheder", "myndighederne"]),
+  noun("område", "area", "et", "området · områder", ["området", "områder", "områderne"]),
+  noun("pakke", "package", "en", "pakken · pakker", ["pakken", "pakker", "pakkerne"]),
+  noun("passage", "passage; access", "en", "passagen · passager", ["passagen", "passager", "passagerne"]),
+  noun("perron", "platform", "en", "perronen · perroner", ["perronen", "perroner", "perronerne"]),
+  noun("regel", "rule", "en", "reglen · regler", ["reglen", "regler", "reglerne"]),
+  noun("rækkefølge", "sequence; order", "en", "rækkefølgen · rækkefølger", ["rækkefølgen", "rækkefølger", "rækkefølgerne"]),
+  noun("registrering", "registration", "en", "registreringen · registreringer", ["registreringen", "registreringer", "registreringerne"]),
+  noun("rengøring", "cleaning", "en", "rengøringen", ["rengøringen"]),
+  noun("risiko", "risk", "en", "risikoen · risici", ["risikoen", "risici", "risiciene"]),
+  noun("rotation", "rotation", "en", "rotationen · rotationer", ["rotationen", "rotationer", "rotationerne"]),
+  noun("segl", "seal", "et", "seglet · segl", ["seglet", "seglene"]),
+  noun("serie", "series; batch", "en", "serien · serier", ["serien", "serier", "serierne"]),
+  noun("signal", "signal", "et", "signalet · signaler", ["signalet", "signaler", "signalerne"]),
+  noun("signalfejl", "signal fault", "en", "signalfejlen · signalfejl", ["signalfejlen", "signalfejlene"]),
+  noun("sikkerhed", "safety; security", "en", "sikkerheden", ["sikkerheden"]),
+  noun("situation", "situation", "en", "situationen · situationer", ["situationen", "situationer", "situationerne"]),
+  noun("skib", "ship", "et", "skibet · skibe", ["skibet", "skibe", "skibene"]),
+  noun("sluse", "lock; sluice", "en", "slusen · sluser", ["slusen", "sluser", "sluserne"]),
+  noun("spor", "track; trace", "et", "sporet · spor", ["sporet", "sporene"]),
+  noun("status", "status", "en", "statussen · statusser", ["statussen", "statusser", "statusserne"]),
+  noun("tandbørstning", "tooth brushing", "en", "tandbørstningen", ["tandbørstningen"]),
+  noun("tidspunkt", "point in time", "et", "tidspunktet · tidspunkter", ["tidspunktet", "tidspunkter", "tidspunkterne"]),
+  noun("trafik", "traffic", "en", "trafikken", ["trafikken"]),
+  noun("tilladelse", "permission", "en", "tilladelsen · tilladelser", ["tilladelsen", "tilladelser", "tilladelserne"]),
+  noun("ulempe", "disadvantage", "en", "ulempen · ulemper", ["ulempen", "ulemper", "ulemperne"]),
+  noun("undtagelse", "exception", "en", "undtagelsen · undtagelser", ["undtagelsen", "undtagelser", "undtagelserne"]),
+  noun("udvikling", "development", "en", "udviklingen · udviklinger", ["udviklingen", "udviklinger", "udviklingerne"]),
+  noun("vagt", "guard; shift", "en", "vagten · vagter", ["vagten", "vagter", "vagterne"]),
+  noun("varsel", "warning; notice", "et", "varslet · varsler", ["varslet", "varsler", "varslerne"]),
+  noun("virkning", "effect", "en", "virkningen · virkninger", ["virkningen", "virkninger", "virkningerne"]),
+  noun("årskort", "annual pass", "et", "årskortet · årskort", ["årskortet", "årskortene"]),
+  noun("afvigelse", "deviation", "en", "afvigelsen · afvigelser", ["afvigelsen", "afvigelser", "afvigelserne"]),
+  noun("anker", "anchor", "et", "ankeret · ankre", ["ankeret", "ankre", "ankrene"]),
+  noun("anlæg", "installation; facility", "et", "anlægget · anlæg", ["anlægget", "anlæggene"]),
+  noun("antagelse", "assumption", "en", "antagelsen · antagelser", ["antagelsen", "antagelser", "antagelserne"]),
+  noun("assistance", "assistance", "en", "assistancen", ["assistancen"]),
+  noun("beregning", "calculation", "en", "beregningen · beregninger", ["beregningen", "beregninger", "beregningerne"]),
+  noun("bølge", "wave", "en", "bølgen · bølger", ["bølgen", "bølger", "bølgerne"]),
+  noun("ciffer", "digit", "et", "cifret · cifre", ["cifret", "cifre", "cifrene"]),
+  noun("cyklist", "cyclist", "en", "cyklisten · cyklister", ["cyklisten", "cyklister", "cyklisterne"]),
+  noun("destination", "destination", "en", "destinationen · destinationer", ["destinationen", "destinationer", "destinationerne"]),
+  noun("dokument", "document", "et", "dokumentet · dokumenter", ["dokumentet", "dokumenter", "dokumenterne"]),
+  noun("færge", "ferry", "en", "færgen · færger", ["færgen", "færger", "færgerne"]),
+  noun("gruppe", "group", "en", "gruppen · grupper", ["gruppen", "grupper", "grupperne"]),
+  noun("hændelse", "incident; event", "en", "hændelsen · hændelser", ["hændelsen", "hændelser", "hændelserne"]),
+  noun("indikator", "indicator", "en", "indikatoren · indikatorer", ["indikatoren", "indikatorer", "indikatorerne"]),
+  noun("inspektør", "inspector", "en", "inspektøren · inspektører", ["inspektøren", "inspektører", "inspektørerne"]),
+  noun("kabel", "cable", "et", "kablet · kabler", ["kablet", "kabler", "kablerne"]),
+  noun("kapacitet", "capacity", "en", "kapaciteten · kapaciteter", ["kapaciteten", "kapaciteter", "kapaciteterne"]),
+  noun("kommando", "command", "en", "kommandoen · kommandoer", ["kommandoen", "kommandoer", "kommandoerne"]),
+  noun("kompas", "compass", "et", "kompasset · kompasser", ["kompasset", "kompasser", "kompasserne"]),
+  noun("kran", "crane", "en", "kranen · kraner", ["kranen", "kraner", "kranerne"]),
+  noun("last", "load; cargo", "en", "lasten · laster", ["lasten", "laster", "lasterne"]),
+  noun("manifest", "manifest", "et", "manifestet · manifester", ["manifestet", "manifester", "manifesterne"]),
+  noun("mole", "mole; breakwater", "en", "molen · moler", ["molen", "moler", "molerne"]),
+  noun("observation", "observation", "en", "observationen · observationer", ["observationen", "observationer", "observationerne"]),
+  noun("patient", "patient", "en", "patienten · patienter", ["patienten", "patienter", "patienterne"]),
+  noun("plads", "place; seat", "en", "pladsen · pladser", ["pladsen", "pladser", "pladserne"]),
+  noun("port", "gate", "en", "porten · porte", ["porten", "porte", "portene"]),
+  noun("prioritet", "priority", "en", "prioriteten · prioriteter", ["prioriteten", "prioriteter", "prioriteterne"]),
+  noun("rapport", "report", "en", "rapporten · rapporter", ["rapporten", "rapporter", "rapporterne"]),
+  noun("reference", "reference", "en", "referencen · referencer", ["referencen", "referencer", "referencerne"]),
+  noun("reserve", "reserve; backup", "en", "reserven · reserver", ["reserven", "reserver", "reserverne"]),
+  noun("sensor", "sensor", "en", "sensoren · sensorer", ["sensoren", "sensorer", "sensorerne"]),
+  noun("skranke", "counter; desk", "en", "skranken · skranker", ["skranken", "skranker", "skrankerne"]),
+  noun("skoleelev", "school pupil", "en", "skoleeleven · skoleelever", ["skoleeleven", "skoleelever", "skoleeleverne"]),
+  noun("symbol", "symbol", "et", "symbolet · symboler", ["symbolet", "symboler", "symbolerne"]),
+  noun("tærskel", "threshold", "en", "tærsklen · tærskler", ["tærsklen", "tærskler", "tærsklerne"]),
+  noun("vandstand", "water level", "en", "vandstanden · vandstande", ["vandstanden", "vandstande", "vandstandene"]),
+  noun("vestenvind", "westerly wind", "en", "vestenvinden · vestenvinde", ["vestenvinden", "vestenvinde", "vestenvindene"]),
+
+  verb("afgå", "to depart", "afgår · afgik · er afgået", ["afgår", "afgik", "afgået"]),
+  verb("afbryde", "to interrupt; disconnect", "afbryder · afbrød · har afbrudt", ["afbryder", "afbrød", "afbrudt"]),
+  verb("afspærre", "to cordon off", "afspærrer · afspærrede · har afspærret", ["afspærrer", "afspærrede", "afspærret"]),
+  verb("afgrænse", "to delimit; narrow", "afgrænser · afgrænsede · har afgrænset", ["afgrænser", "afgrænsede", "afgrænset"]),
+  verb("aflæse", "to read; take a reading", "aflæser · aflæste · har aflæst", ["aflæser", "aflæste", "aflæst"]),
+  verb("ankomme", "to arrive", "ankommer · ankom · er ankommet", ["ankommer", "ankom", "ankommet"]),
+  verb("anvende", "to use; apply", "anvender · anvendte · har anvendt", ["anvender", "anvendte", "anvendt"]),
+  verb("bekræfte", "to confirm", "bekræfter · bekræftede · har bekræftet", ["bekræfter", "bekræftede", "bekræftet"]),
+  verb("bevare", "to preserve; retain", "bevarer · bevarede · har bevaret", ["bevarer", "bevarede", "bevaret"]),
+  verb("berøre", "to affect; touch", "berører · berørte · har berørt", ["berører", "berørte", "berørt"]),
+  verb("betyde", "to mean", "betyder · betød · har betydet", ["betyder", "betød", "betydet"]),
+  verb("beregne", "to calculate", "beregner · beregnede · har beregnet", ["beregner", "beregnede", "beregnet"]),
+  verb("blinke", "to flash; blink", "blinker · blinkede · har blinket", ["blinker", "blinkede", "blinket"]),
+  verb("flytte", "to move", "flytter · flyttede · har flyttet", ["flytter", "flyttede", "flyttet"]),
+  verb("følge", "to follow", "følger · fulgte · har fulgt", ["følger", "fulgte", "fulgt"]),
+  verb("forhindre", "to prevent", "forhindrer · forhindrede · har forhindret", ["forhindrer", "forhindrede", "forhindret"]),
+  verb("fortsætte", "to continue", "fortsætter · fortsatte · har fortsat", ["fortsætter", "fortsatte", "fortsat"]),
+  verb("gælde", "to apply; be valid", "gælder · gjaldt · har gjaldt", ["gælder", "gjaldt"]),
+  verb("godkende", "to approve", "godkender · godkendte · har godkendt", ["godkender", "godkendte", "godkendt", "godkendes"]),
+  verb("henvende", "to approach; contact", "henvender · henvendte · har henvendt", ["henvender", "henvendte", "henvendt"], "Usually reflexive: henvende sig."),
+  verb("konstatere", "to establish; ascertain", "konstaterer · konstaterede · har konstateret", ["konstaterer", "konstaterede", "konstateret"]),
+  verb("kontakte", "to contact", "kontakter · kontaktede · har kontaktet", ["kontakter", "kontaktede", "kontaktet"]),
+  verb("kontrollere", "to check; inspect", "kontrollerer · kontrollerede · har kontrolleret", ["kontrollerer", "kontrollerede", "kontrolleret"]),
+  verb("kræve", "to require; demand", "kræver · krævede · har krævet", ["kræver", "krævede", "krævet"]),
+  verb("levere", "to deliver", "leverer · leverede · har leveret", ["leverer", "leverede", "leveret"]),
+  verb("låse", "to lock", "låser · låste · har låst", ["låser", "låste", "låst"]),
+  verb("markere", "to mark", "markerer · markerede · har markeret", ["markerer", "markerede", "markeret"]),
+  verb("melde", "to report; announce", "melder · meldte · har meldt", ["melder", "meldte", "meldt"]),
+  verb("opdage", "to discover; detect", "opdager · opdagede · har opdaget", ["opdager", "opdagede", "opdaget"]),
+  verb("oplyse", "to inform; state", "oplyser · oplyste · har oplyst", ["oplyser", "oplyste", "oplyst"]),
+  verb("observere", "to observe", "observerer · observerede · har observeret", ["observerer", "observerede", "observeret"]),
+  verb("offentliggøre", "to publish", "offentliggør · offentliggjorde · har offentliggjort", ["offentliggør", "offentliggjorde", "offentliggjort"]),
+  verb("overtage", "to take over", "overtager · overtog · har overtaget", ["overtager", "overtog", "overtaget"]),
+  verb("overskride", "to exceed; cross", "overskrider · overskred · har overskredet", ["overskrider", "overskred", "overskredet"]),
+  verb("overstige", "to exceed", "overstiger · oversteg · har oversteget", ["overstiger", "oversteg", "oversteget"]),
+  verb("passere", "to pass", "passerer · passerede · har passeret", ["passerer", "passerede", "passeret"]),
+  verb("planlægge", "to plan", "planlægger · planlagde · har planlagt", ["planlægger", "planlagde", "planlagt"]),
+  verb("registrere", "to register", "registrerer · registrerede · har registreret", ["registrerer", "registrerede", "registreret"]),
+  verb("returnere", "to return", "returnerer · returnerede · har returneret", ["returnerer", "returnerede", "returneret"]),
+  verb("rekvirere", "to request; requisition", "rekvirerer · rekvirerede · har rekvireret", ["rekvirerer", "rekvirerede", "rekvireret"]),
+  verb("risikere", "to risk", "risikerer · risikerede · har risikeret", ["risikerer", "risikerede", "risikeret"]),
+  verb("rumme", "to contain; accommodate", "rummer · rummede · har rummet", ["rummer", "rummede", "rummet"]),
+  verb("sejle", "to sail", "sejler · sejlede · har sejlet", ["sejler", "sejlede", "sejlet"]),
+  verb("ske", "to happen", "sker · skete · er sket", ["sker", "skete", "sket"]),
+  verb("slutte", "to end", "slutter · sluttede · er sluttet", ["slutter", "sluttede", "sluttet"]),
+  verb("sikre", "to secure; ensure", "sikrer · sikrede · har sikret", ["sikrer", "sikrede", "sikret"]),
+  verb("standse", "to stop", "standser · standsede · er standset", ["standser", "standsede", "standset"]),
+  verb("stige", "to rise", "stiger · steg · er steget", ["stiger", "steg", "steget"]),
+  verb("tillade", "to allow", "tillader · tillod · har tilladt", ["tillader", "tillod", "tilladt"]),
+  verb("tilkalde", "to summon", "tilkalder · tilkaldte · har tilkaldt", ["tilkalder", "tilkaldte", "tilkaldt"]),
+  verb("tilbagekalde", "to recall", "tilbagekalder · tilbagekaldte · har tilbagekaldt", ["tilbagekalder", "tilbagekaldte", "tilbagekaldt", "tilbagekaldes"]),
+  verb("undersøge", "to examine; investigate", "undersøger · undersøgte · har undersøgt", ["undersøger", "undersøgte", "undersøgt"]),
+  verb("undgå", "to avoid", "undgår · undgik · har undgået", ["undgår", "undgik", "undgået"]),
+  verb("udelukke", "to rule out; exclude", "udelukker · udelukkede · har udelukket", ["udelukker", "udelukkede", "udelukket", "udelukkes"]),
+  verb("udløbe", "to expire", "udløber · udløb · er udløbet", ["udløber", "udløb", "udløbet"]),
+  verb("vare", "to last", "varer · varede · har varet", ["varer", "varede", "varet"]),
+  verb("varsle", "to warn; notify", "varsler · varslede · har varslet", ["varsler", "varslede", "varslet"]),
+  verb("virke", "to work; seem", "virker · virkede · har virket", ["virker", "virkede", "virket"]),
+  verb("vise", "to show", "viser · viste · har vist", ["viser", "viste", "vist"]),
+  verb("trykke", "to press", "trykker · trykkede · har trykket", ["trykker", "trykkede", "trykket"]),
+  verb("trække", "to pull; subtract", "trækker · trak · har trukket", ["trækker", "trak", "trukket"]),
+
+  adjective("akut", "acute; urgent", "akut · akut · akutte", ["akutte"]),
+  adjective("aktuel", "current", "aktuel · aktuelt · aktuelle", ["aktuelt", "aktuelle"]),
+  adjective("bageste", "rear; rearmost", "bageste · bageste · bageste"),
+  adjective("blå", "blue", "blå · blåt · blå", ["blåt"]),
+  adjective("entydig", "unambiguous", "entydig · entydigt · entydige", ["entydigt", "entydige"]),
+  adjective("foreløbig", "preliminary; provisional", "foreløbig · foreløbigt · foreløbige", ["foreløbigt", "foreløbige"]),
+  adjective("fysisk", "physical", "fysisk · fysisk · fysiske", ["fysiske"]),
+  adjective("forbudt", "forbidden", "forbudt · forbudt · forbudte", ["forbudte"]),
+  adjective("forreste", "front; foremost", "forreste · forreste · forreste"),
+  adjective("gyldig", "valid", "gyldig · gyldigt · gyldige", ["gyldigt", "gyldige"]),
+  adjective("høj", "high", "høj · højt · høje", ["højt", "høje", "højere", "højest"]),
+  adjective("kendt", "known", "kendt · kendt · kendte", ["kendte"]),
+  adjective("langvarig", "long-lasting", "langvarig · langvarigt · langvarige", ["langvarigt", "langvarige"]),
+  adjective("lav", "low", "lav · lavt · lave", ["lavt", "lave", "lavere", "lavest"]),
+  adjective("lokal", "local", "lokal · lokalt · lokale", ["lokalt", "lokale"]),
+  adjective("løs", "loose", "løs · løst · løse", ["løst", "løse"]),
+  adjective("nødvendig", "necessary", "nødvendig · nødvendigt · nødvendige", ["nødvendigt", "nødvendige"]),
+  adjective("offentlig", "public", "offentlig · offentligt · offentlige", ["offentligt", "offentlige"]),
+  adjective("planlagt", "planned", "planlagt · planlagt · planlagte", ["planlagte"]),
+  adjective("reserveret", "reserved", "reserveret · reserveret · reserverede", ["reserverede"]),
+  adjective("præcis", "precise", "præcis · præcist · præcise", ["præcist", "præcise"]),
+  adjective("tilladt", "permitted", "tilladt · tilladt · tilladte", ["tilladte"]),
+  adjective("tung", "heavy", "tung · tungt · tunge", ["tungt", "tunge", "tungere", "tungest"]),
+  adjective("udløbet", "expired", "udløbet · udløbet · udløbne", ["udløbne"]),
+  adjective("ukendt", "unknown", "ukendt · ukendt · ukendte", ["ukendte"]),
+  adjective("ulæselig", "illegible", "ulæselig · ulæseligt · ulæselige", ["ulæseligt", "ulæselige"]),
+  adjective("synlig", "visible", "synlig · synligt · synlige", ["synligt", "synlige"]),
+  adjective("østlig", "eastern; easterly", "østlig · østligt · østlige", ["østligt", "østlige"]),
+  adjective("vestlig", "western; westerly", "vestlig · vestligt · vestlige", ["vestligt", "vestlige"]),
+
+  word("alle", "all; everyone", "determiner", "A universal quantifier; context determines whether people or things are meant."),
+  word("begge", "both", "determiner", "Refers to exactly two people or things."),
+  word("enhver", "every; any", "determiner", "Distributive singular quantifier."),
+  word("ingen", "no; nobody", "determiner", "Negative quantifier; ingen is common gender, intet is neuter.", ["intet"]),
+  word("kun", "only", "adverb", "Its position determines which part of the sentence is restricted."),
+  word("dog", "however", "adverb", "Introduces a contrast or qualification."),
+  word("endnu", "yet; still", "adverb", "Often marks that a situation may change later."),
+  word("først", "first; not until", "adverb", "Can mark order or a later-than-expected time."),
+  word("direkte", "directly", "adverb", "Without an intermediate step or place."),
+  word("straks", "immediately", "adverb", "Without delay."),
+  word("samtidig", "simultaneously", "adverb", "At the same time."),
+  word("mindst", "at least; least", "adverb", "Marks a lower boundary."),
+  word("højst", "at most", "adverb", "Marks an upper boundary."),
+  word("tilbage", "back; remaining", "adverb", "Movement back or something left over."),
+  word("igen", "again", "adverb", "Repetition or return to an earlier state."),
+  word("bagefter", "afterwards", "adverb", "At a later point after the event."),
+  word("derefter", "after that", "adverb", "Marks the next step in a sequence."),
+  word("ellers", "otherwise", "adverb", "Introduces the alternative result if a condition is not met."),
+  word("medmindre", "unless", "conjunction", "Introduces an exception to a condition."),
+  word("hvorefter", "after which", "conjunction", "Connects an event to the next event in formal writing."),
+  word("såfremt", "provided that; if", "conjunction", "Formal conditional conjunction."),
+  word("både", "both", "conjunction", "Used in the pair både ... og; both conditions apply."),
+  word("inden", "before; within", "preposition", "A time boundary viewed from the present or another event."),
+  word("af", "of; by; off", "preposition", "Source, agent, material or separation."),
+  word("uanset", "regardless of", "preposition", "The result does not change with the following condition."),
+
+  word("enogtyve", "twenty-one", "number", "21"),
+  word("femogtredive", "thirty-five", "number", "35"),
+  word("syvoghalvtreds", "fifty-seven", "number", "57; 7 + 2½ × 20"),
+  word("nioghalvfjerds", "seventy-nine", "number", "79; 9 + 3½ × 20"),
+] as const;
+
+/** High-frequency words from the course UI, learning path and recurring instructions. */
+export const coreGameDictionaryEntries: readonly DictionaryEntry[] = [
+  noun("forsøg", "attempt; experiment", "et", "forsøget · forsøg", ["forsøget", "forsøgene"]),
+  noun("sag", "case; matter", "en", "sagen · sager", ["sagen", "sager", "sagerne"]),
+  noun("opgave", "task; exercise", "en", "opgaven · opgaver", ["opgaven", "opgaver", "opgaverne"]),
+  noun("bank", "bank", "en", "banken · banker", ["banken", "banker", "bankerne"]),
+  noun("rav", "amber", "et", "ravet", ["ravet"], "The rare currency in Ordhavn is named after Danish amber."),
+  noun("post", "mail; post", "en", "posten", ["posten"]),
+  noun("rute", "route", "en", "ruten · ruter", ["ruten", "ruter", "ruterne"]),
+  noun("samtale", "conversation", "en", "samtalen · samtaler", ["samtalen", "samtaler", "samtalerne"]),
+  noun("formulering", "wording; formulation", "en", "formuleringen · formuleringer", ["formuleringen", "formuleringer", "formuleringerne"]),
+  noun("mission", "mission", "en", "missionen · missioner", ["missionen", "missioner", "missionerne"]),
+  noun("mål", "goal; target", "et", "målet · mål", ["målet", "målene"]),
+  noun("scenarie", "scenario", "et", "scenariet · scenarier", ["scenariet", "scenarier", "scenarierne"]),
+  noun("sætning", "sentence", "en", "sætningen · sætninger", ["sætningen", "sætninger", "sætningerne"]),
+  noun("tema", "theme; topic", "et", "temaet · temaer", ["temaet", "temaer", "temaerne"]),
+  noun("trin", "step; stage", "et", "trinnet · trin", ["trinnet", "trinene"]),
+  noun("træning", "training; practice", "en", "træningen", ["træningen"]),
+  noun("verbum", "verb", "et", "verbet · verber", ["verbet", "verber", "verberne"]),
+  noun("subjekt", "subject", "et", "subjektet · subjekter", ["subjektet", "subjekter", "subjekterne"]),
+  noun("objekt", "object", "et", "objektet · objekter", ["objektet", "objekter", "objekterne"]),
+  noun("ledsætning", "subordinate clause", "en", "ledsætningen · ledsætninger", ["ledsætningen", "ledsætninger", "ledsætningerne"]),
+  noun("hovedsætning", "main clause", "en", "hovedsætningen · hovedsætninger", ["hovedsætningen", "hovedsætninger", "hovedsætningerne"]),
+  noun("adjektiv", "adjective", "et", "adjektivet · adjektiver", ["adjektivet", "adjektiver", "adjektiverne"]),
+  noun("pronomen", "pronoun", "et", "pronomenet · pronomener", ["pronomenet", "pronomener", "pronomenerne"]),
+  noun("indstilling", "setting; attitude", "en", "indstillingen · indstillinger", ["indstillingen", "indstillinger", "indstillingerne"]),
+  noun("niveau", "level", "et", "niveauet · niveauer", ["niveauet", "niveauer", "niveauerne"]),
+  noun("ordforråd", "vocabulary", "et", "ordforrådet", ["ordforrådet"]),
+  noun("produktion", "production", "en", "produktionen", ["produktionen"]),
+  noun("rang", "rank", "en", "rangen · ranger", ["rangen", "ranger", "rangerne"]),
+  noun("strategi", "strategy", "en", "strategien · strategier", ["strategien", "strategier", "strategierne"]),
+  noun("tekst", "text", "en", "teksten · tekster", ["teksten", "tekster", "teksterne"]),
+  noun("tidslinje", "timeline", "en", "tidslinjen · tidslinjer", ["tidslinjen", "tidslinjer", "tidslinjerne"]),
+  noun("vurdering", "assessment; evaluation", "en", "vurderingen · vurderinger", ["vurderingen", "vurderinger", "vurderingerne"]),
+  noun("manual", "manual", "en", "manualen · manualer", ["manualen", "manualer", "manualerne"]),
+  noun("klokke", "clock; bell", "en", "klokken · klokker", ["klokken", "klokker", "klokkerne"]),
+  noun("minut", "minute", "et", "minuttet · minutter", ["minuttet", "minutter", "minutterne"]),
+  noun("ordstilling", "word order", "en", "ordstillingen", ["ordstillingen"]),
+  noun("kontrast", "contrast", "en", "kontrasten · kontraster", ["kontrasten", "kontraster", "kontrasterne"]),
+  noun("fokus", "focus", "et", "fokusset", ["fokusset"]),
+  noun("sted", "place", "et", "stedet · steder", ["stedet", "steder", "stederne"]),
+  noun("usikkerhed", "uncertainty", "en", "usikkerheden · usikkerheder", ["usikkerheden", "usikkerheder", "usikkerhederne"]),
+  noun("nummer", "number", "et", "nummeret · numre", ["nummeret", "numre", "numrene"]),
+  noun("penge", "money", "en", "pengene", ["pengene"], "Normally used in the plural."),
+  noun("register", "register; registry", "et", "registeret · registre", ["registeret", "registre", "registrene"]),
+  noun("side", "side; page", "en", "siden · sider", ["siden", "sider", "siderne"]),
+  noun("placering", "placement; position", "en", "placeringen · placeringer", ["placeringen", "placeringer", "placeringerne"]),
+  noun("led", "link; element; joint", "et", "leddet · led", ["leddet", "leddene"]),
+  noun("ting", "thing", "en", "tingen · ting", ["tingen", "tingene"]),
+  noun("bestemthed", "definiteness", "en", "bestemtheden", ["bestemtheden"]),
+  noun("køn", "gender; sex", "et", "kønnet · køn", ["kønnet", "kønnene"]),
+
+  verb("bygge", "to build", "bygger · byggede · har bygget", ["bygger", "byggede", "bygget"]),
+  verb("skifte", "to change; switch", "skifter · skiftede · har skiftet", ["skifter", "skiftede", "skiftet"]),
+  verb("holde", "to hold; keep", "holder · holdt · har holdt", ["holder", "holdt"]),
+  verb("fjerne", "to remove", "fjerner · fjernede · har fjernet", ["fjerner", "fjernede", "fjernet"]),
+  verb("træne", "to train; practise", "træner · trænede · har trænet", ["træner", "trænede", "trænet"]),
+  verb("udfylde", "to fill in", "udfylder · udfyldte · har udfyldt", ["udfylder", "udfyldte", "udfyldt"]),
+  verb("vurdere", "to assess; evaluate", "vurderer · vurderede · har vurderet", ["vurderer", "vurderede", "vurderet"]),
+  verb("løse", "to solve", "løser · løste · har løst", ["løser", "løste", "løst"]),
+  verb("klikke", "to click", "klikker · klikkede · har klikket", ["klikker", "klikkede", "klikket"]),
+  verb("kombinere", "to combine", "kombinerer · kombinerede · har kombineret", ["kombinerer", "kombinerede", "kombineret"]),
+  verb("afslutte", "to finish; conclude", "afslutter · afsluttede · har afsluttet", ["afslutter", "afsluttede", "afsluttet"]),
+  verb("sammenligne", "to compare", "sammenligner · sammenlignede · har sammenlignet", ["sammenligner", "sammenlignede", "sammenlignet"]),
+  verb("sortere", "to sort", "sorterer · sorterede · har sorteret", ["sorterer", "sorterede", "sorteret"]),
+  verb("placere", "to place", "placerer · placerede · har placeret", ["placerer", "placerede", "placeret"]),
+  verb("indtaste", "to enter; type in", "indtaster · indtastede · har indtastet", ["indtaster", "indtastede", "indtastet"]),
+  verb("burde", "ought to; should", "bør · burde · har burdet", ["bør", "burdet"], "Modal verb."),
+  verb("mangle", "to lack; be missing", "mangler · manglede · har manglet", ["mangler", "manglede", "manglet"]),
+
+  adjective("første", "first", "første · første · første"),
+  adjective("sidste", "last; final", "sidste · sidste · sidste"),
+  adjective("aktiv", "active", "aktiv · aktivt · aktive", ["aktivt", "aktive"]),
+  adjective("korrekt", "correct", "korrekt · korrekt · korrekte", ["korrekte"]),
+  adjective("mistænkelig", "suspicious", "mistænkelig · mistænkeligt · mistænkelige", ["mistænkeligt", "mistænkelige"]),
+  adjective("egen", "own", "egen · eget · egne", ["eget", "egne"]),
+  adjective("mørk", "dark", "mørk · mørkt · mørke", ["mørkt", "mørke"]),
+  adjective("personlig", "personal", "personlig · personligt · personlige", ["personligt", "personlige"]),
+  adjective("svag", "weak", "svag · svagt · svage", ["svagt", "svage", "svagere", "svagest"]),
+  adjective("tydelig", "clear; distinct", "tydelig · tydeligt · tydelige", ["tydeligt", "tydelige"]),
+  adjective("virkelig", "real; actual", "virkelig · virkeligt · virkelige", ["virkeligt", "virkelige"]),
+  adjective("digital", "digital", "digital · digitalt · digitale", ["digitalt", "digitale"]),
+  adjective("fast", "fixed; firm", "fast · fast · faste", ["faste"]),
+  adjective("normal", "normal", "normal · normalt · normale", ["normalt", "normale"]),
+  adjective("hel", "whole; entire", "hel · helt · hele", ["helt", "hele"]),
+  adjective("anden", "other; second", "anden · andet · andre", ["andet", "andre"]),
+  adjective("bestemt", "definite; specific", "bestemt · bestemt · bestemte", ["bestemte"]),
+  adjective("automatisk", "automatic", "automatisk · automatisk · automatiske", ["automatiske"]),
+  adjective("passiv", "passive", "passiv · passivt · passive", ["passivt", "passive"]),
+  adjective("konkret", "concrete; specific", "konkret · konkret · konkrete", ["konkrete"]),
+  adjective("forsinket", "delayed", "forsinket · forsinket · forsinkede", ["forsinkede"]),
+
+  word("man", "one; people in general", "pronoun", "Impersonal subject pronoun."),
+  word("sig", "oneself; himself; herself; themselves", "pronoun", "Reflexive third-person object pronoun."),
+  word("nogen", "someone; anyone; some", "pronoun", "Forms depend on gender and number.", ["noget", "nogle"]),
+  word("sådan", "such; like this", "determiner", "Points to a manner or type."),
+  word("denne", "this; these", "determiner", "Common-gender singular; dette is neuter and disse is plural.", ["dette", "disse"]),
+  word("samme", "same", "determiner", "The form is unchanged for gender and number."),
+  word("flere", "more; several", "determiner", "Plural quantity."),
+  word("mange", "many", "determiner", "Large quantity."),
+  word("hver", "each; every", "determiner", "Common-gender form; hvert is neuter.", ["hvert"]),
+  word("hele", "the whole; all of", "determiner", "Inflected form of hel used before a definite noun."),
+  word("selve", "the very; itself", "determiner", "Emphasizes the following definite noun."),
+  word("sin", "his; her; its; their own", "determiner", "Reflexive possessive referring to the subject.", ["sit", "sine"]),
+  word("hendes", "her", "determiner", "Possessive form; unchanged for gender and number."),
+  word("jeres", "your; yours", "determiner", "Second-person plural possessive."),
+  word("foran", "in front of", "preposition", "Position before or ahead of something."),
+  word("siden", "since; ago; beside", "preposition", "Time since an event or position at the side."),
+  word("indtil", "until", "preposition", "Marks an end boundary in time."),
+  word("alene", "alone; only", "adverb", "Without other people or things."),
+  word("selv", "self; even", "adverb", "Adds emphasis or indicates doing something without help."),
+  word("frem", "forward", "adverb", "Direction ahead."),
+  word("ind", "in; inward", "adverb", "Direction into a place."),
+  word("ud", "out; outward", "adverb", "Direction out of a place."),
+  word("videre", "on; further", "adverb", "Continuation to the next point."),
+  word("lige", "just; straight; equal", "adverb", "Meaning depends on position and context."),
+  word("jo", "after all; you know", "adverb", "Signals shared or obvious information."),
+  word("da", "then; since; indeed", "adverb", "Can mark past time, reason or emphasis."),
+  word("nok", "probably; enough", "adverb", "Can express probability or sufficient quantity."),
+  word("vel", "probably; well", "adverb", "Often seeks or softens confirmation."),
+  word("altså", "therefore; well then", "adverb", "Summarizes or draws a conclusion."),
+  word("nemlig", "namely; you see", "adverb", "Introduces an explanation or specification."),
+  word("gerne", "gladly; would like to", "adverb", "Common with ville to express a polite wish."),
+  word("bare", "just; only; simply", "adverb", "Often softens or limits a statement."),
+  word("senest", "at the latest; most recently", "adverb", "Marks the latest permitted time or the most recent event."),
+  word("senere", "later", "adverb", "At a time after the present or another event."),
+  word("via", "via; by way of", "preposition", "Marks an intermediate route or channel."),
+  word("tak", "thanks; thank you", "interjection", "A common expression of gratitude."),
+
+  ...[
+    ["mandag", "Monday"], ["tirsdag", "Tuesday"], ["onsdag", "Wednesday"], ["torsdag", "Thursday"],
+    ["fredag", "Friday"], ["lørdag", "Saturday"], ["søndag", "Sunday"],
+  ].map(([headword, english]) => noun(headword, english, "en", `${headword}en · ${headword}e`, [`${headword}en`, `${headword}e`])),
+  ...[
+    ["januar", "January"], ["februar", "February"], ["marts", "March"], ["april", "April"],
+    ["maj", "May"], ["juni", "June"], ["juli", "July"], ["august", "August"],
+    ["september", "September"], ["oktober", "October"], ["november", "November"], ["december", "December"],
+  ].map(([headword, english]) => noun(headword, english, "en", headword)),
+] as const;
 
 /** A compact offline lexicon covering the common vocabulary used from A0 to B2. */
 export const dictionaryEntries: readonly DictionaryEntry[] = [
@@ -214,7 +595,7 @@ export const dictionaryEntries: readonly DictionaryEntry[] = [
   verb("beslutte", "to decide", "beslutter · besluttede · har besluttet", ["beslutter", "besluttede", "besluttet"]),
   verb("huske", "to remember", "husker · huskede · har husket", ["husker", "huskede", "husket"]),
   verb("glemme", "to forget", "glemmer · glemte · har glemt", ["glemmer", "glemte", "glemt"]),
-  verb("prøve", "to try", "prøver · prøvede · har prøvet", ["prøver", "prøvede", "prøvet"]),
+  { headword: "prøve", english: "test; sample; to try", partOfSpeech: "noun / verb", gender: "en", form: "prøven · prøver / prøver · prøvede · prøvet", aliases: ["prøven", "prøver", "prøverne", "prøvede", "prøvet"] },
   verb("lykkes", "to succeed", "lykkes · lykkedes · er lykkedes", ["lykkedes"]),
   verb("behøve", "to need", "behøver · behøvede · har behøvet", ["behøver", "behøvede", "behøvet"]),
   verb("kunne", "can; to be able to", "kan · kunne · har kunnet", ["kan", "kunnet"], "Modal verb."),
@@ -356,8 +737,8 @@ export const dictionaryEntries: readonly DictionaryEntry[] = [
   word("efter", "after; for", "preposition", "Later in time or searching for something."),
   word("før", "before", "preposition", "Earlier in time."),
 
-  word("en", "a; an; one", "determiner", "Indefinite article for common-gender nouns."),
-  word("et", "a; an; one", "determiner", "Indefinite article for neuter nouns."),
+  word("en", "a; an; one", "determiner", "Indefinite article for common-gender nouns.", ["én"]),
+  word("et", "a; an; one", "determiner", "Indefinite article for neuter nouns.", ["ét"]),
   word("nul", "zero", "number", "0"),
   word("to", "two", "number", "2"),
   word("tre", "three", "number", "3"),
@@ -390,33 +771,62 @@ export const dictionaryEntries: readonly DictionaryEntry[] = [
 
   word("danmark", "Denmark", "proper noun", "Country; normally written Danmark."),
   word("københavn", "Copenhagen", "proper noun", "Capital of Denmark; normally written København."),
+  ...scenarioDictionaryEntries,
+  ...coreGameDictionaryEntries,
 ] as const;
 
 const EDGE_PUNCTUATION = /^[\p{P}\p{S}]+|[\p{P}\p{S}]+$/gu;
-const ONE_DANISH_WORD = /^[a-zæøå]+(?:[-’'][a-zæøå]+)*$/iu;
+const ONE_DANISH_WORD = /^\p{Script=Latin}+(?:[-‐‑’']\p{Script=Latin}+)*$/iu;
 
 /** Returns a lowercase NFC word, or null when the selection is not exactly one word. */
 export function normalizeSelectedDanishWord(value: string): string | null {
-  const trimmed = value.trim();
+  const trimmed = value.trim().normalize("NFC");
   if (!trimmed || /\s/u.test(trimmed)) return null;
   const withoutEdgePunctuation = trimmed.replace(EDGE_PUNCTUATION, "");
   if (!withoutEdgePunctuation || !ONE_DANISH_WORD.test(withoutEdgePunctuation)) return null;
-  return withoutEdgePunctuation.normalize("NFC").toLocaleLowerCase("da-DK").replaceAll("’", "'");
+  return withoutEdgePunctuation
+    .toLocaleLowerCase("da-DK")
+    .replaceAll("’", "'")
+    .replace(/[‐‑]/gu, "-");
 }
 
-const dictionaryIndex = new Map<string, DictionaryEntry>();
+const NON_IMPERATIVE_VERBS = new Set(["kunne", "skulle", "ville", "måtte", "lykkes", "synes", "ske"]);
+
+function inferredEntryForms(entry: DictionaryEntry): readonly string[] {
+  const inferred: string[] = [];
+  if (entry.partOfSpeech === "noun" || entry.partOfSpeech === "noun / verb") {
+    inferred.push(...[entry.headword, ...(entry.aliases ?? [])].map((form) => `${form}s`));
+  }
+  if (entry.partOfSpeech !== "verb" && entry.partOfSpeech !== "noun / verb") return inferred;
+  if (!NON_IMPERATIVE_VERBS.has(entry.headword)) inferred.push(`${entry.headword}s`);
+  if (NON_IMPERATIVE_VERBS.has(entry.headword) || entry.headword === "se" || !entry.headword.endsWith("e")) return inferred;
+  const rawImperative = entry.headword.slice(0, -1);
+  const imperative = rawImperative.at(-1) === rawImperative.at(-2) ? rawImperative.slice(0, -1) : rawImperative;
+  inferred.push(imperative);
+  if (imperative.endsWith("er")) inferred.push(`${imperative.slice(0, -2)}ér`);
+  return inferred;
+}
+
+const dictionaryIndex = new Map<string, DictionaryEntry[]>();
 for (const entry of dictionaryEntries) {
-  for (const form of [entry.headword, ...(entry.aliases ?? [])]) {
+  for (const form of [entry.headword, ...(entry.aliases ?? []), ...inferredEntryForms(entry)]) {
     const normalized = normalizeSelectedDanishWord(form);
-    if (normalized && !dictionaryIndex.has(normalized)) dictionaryIndex.set(normalized, entry);
+    if (!normalized) continue;
+    const matches = dictionaryIndex.get(normalized) ?? [];
+    if (!matches.includes(entry)) matches.push(entry);
+    dictionaryIndex.set(normalized, matches);
   }
 }
 
 export function lookupDanishWord(value: string): DictionaryLookup | null {
   const normalized = normalizeSelectedDanishWord(value);
   if (!normalized) return null;
-  const entry = dictionaryIndex.get(normalized);
-  return entry ? { entry, selectedForm: value.trim(), normalized } : null;
+  const entries = dictionaryIndex.get(normalized);
+  return entries?.length
+    ? { entry: entries[0], alternatives: entries.slice(1), selectedForm: value.trim(), normalized }
+    : null;
 }
 
 export const dictionarySize = dictionaryEntries.length;
+export const dictionaryAliasCount = dictionaryEntries.reduce((total, entry) => total + (entry.aliases?.length ?? 0), 0);
+export const dictionaryIndexedFormCount = dictionaryIndex.size;
