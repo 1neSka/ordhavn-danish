@@ -185,7 +185,12 @@ h1, h2, h3 { letter-spacing: -.035em; }
 .level-icon { width: 42px; height: 42px; border-radius: 13px; display: grid; place-items: center; color: var(--level-color); background: color-mix(in srgb, var(--level-color) 13%, white); }
 .level-heading h2 { font-size: 21px; margin: 0 0 4px; }
 .level-heading p:last-child { color: var(--muted); font-size: 11px; margin: 0; }
+.level-heading-actions { display: grid; justify-items: end; gap: 7px; }
 .level-counter { font-size: 10px; font-weight: 750; color: var(--muted); background: white; border: 1px solid var(--line); padding: 6px 9px; border-radius: 8px; }
+.developer-skip { display: inline-flex; align-items: center; gap: 5px; padding: 6px 9px; border: 1px solid #d7c985; border-radius: 8px; color: #8c6c13; background: #fff8d7; font-size: 8px; font-weight: 800; cursor: pointer; white-space: nowrap; }
+.developer-skip:hover:not(:disabled) { transform: translateY(-1px); border-color: #bca542; }
+.developer-skip.open { color: #26806c; border-color: #83c9b8; background: #e9f8f3; }
+.developer-skip:disabled { cursor: default; }
 .mission-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 13px; }
 .mission-card { min-height: 154px; border: 1px solid var(--line); border-radius: 16px; padding: 17px; background: white; text-align: left; display: grid; grid-template-columns: 32px 1fr; grid-template-rows: 1fr; gap: 11px; position: relative; cursor: pointer; box-shadow: 0 5px 16px rgba(45,39,75,.025); transition: .2s ease; }
 .mission-card:hover:not(:disabled) { transform: translateY(-3px); border-color: color-mix(in srgb, var(--level-color) 40%, var(--line)); box-shadow: var(--shadow); }
@@ -320,6 +325,14 @@ h1, h2, h3 { letter-spacing: -.035em; }
 .toggle.on { background: var(--violet); }
 .toggle.on span { transform: translateX(18px); }
 .status-tag { background: #e6f7f1; color: #248873; padding: 6px 8px; border-radius: 7px; font-size: 8px; font-weight: 750; }
+.developer-panel { margin-top: 18px; display: flex; align-items: center; justify-content: space-between; gap: 24px; border-color: #e5cf74; background: linear-gradient(120deg, #fffaf0, #fff); }
+.developer-panel > div:first-child { display: flex; align-items: center; gap: 14px; }
+.developer-panel > div:first-child > div { display: grid; gap: 3px; }
+.developer-panel h3 { margin: 0; font-size: 15px; }
+.developer-panel p { margin: 0; color: var(--muted); font-size: 9px; line-height: 1.45; }
+.developer-panel .eyebrow { color: #a77d12; font-size: 8px; }
+.developer-actions { display: flex; gap: 9px; flex: 0 0 auto; }
+.developer-actions button { min-width: 110px; }
 .about-panel { margin-top: 18px; display: flex; align-items: center; gap: 24px; }
 .about-panel .brand-lockup { padding: 0; }
 .about-panel > div:last-child { display: grid; gap: 4px; border-left: 1px solid var(--line); padding-left: 24px; }
@@ -628,6 +641,9 @@ h1, h2, h3 { letter-spacing: -.035em; }
 .app-shell.dark .retention-grid > div, .app-shell.dark .confidence-wager, .app-shell.dark .grammar-transform, .app-shell.dark .field-model { background: #2d2a39; border-color: var(--line); }
 .app-shell.dark .grammar-transform span, .app-shell.dark .completion-stats div, .app-shell.dark .gender-card { background: var(--surface); border-color: var(--line); }
 .app-shell.dark .folder-status.connected { background: #203a35; border-color: #31594f; }
+.app-shell.dark .developer-panel { background: linear-gradient(120deg, #332f24, var(--surface)); border-color: #5d512c; }
+.app-shell.dark .developer-skip { color: #e5c966; border-color: #62582e; background: #332f24; }
+.app-shell.dark .developer-skip.open { color: #74ceb8; border-color: #31594f; background: #203a35; }
 .app-shell.dark .tip-card { background: #342f25; border-color: #51472e; }
 .app-shell.dark .check-feedback { background: #3b292c; }
 .app-shell.dark .incident-banner { background: #342f25; border-color: #59492e; }.app-shell.dark .incident-banner p { color: #c7ad87; }
@@ -679,6 +695,9 @@ h1, h2, h3 { letter-spacing: -.035em; }
   .level-icon { width: 38px; height: 38px; }
   .mission-row { grid-template-columns: 1fr; }
   .practice-hero-grid, .stats-main-grid, .stats-bottom-grid, .settings-grid { grid-template-columns: 1fr; }
+  .developer-panel { align-items: stretch; flex-direction: column; }
+  .developer-actions { width: 100%; }
+  .developer-actions button { flex: 1; }
   .focus-grid { grid-template-columns: repeat(2, 1fr); }
   .metric-grid { grid-template-columns: 1fr 1fr; }
   .skill-row { grid-template-columns: 1fr 1.6fr .5fr; }

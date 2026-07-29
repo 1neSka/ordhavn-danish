@@ -14,6 +14,7 @@ engelsk.
   psykologiske dialoger, mail-efterforskning, trafik-dispatch, A1–A2-havnecases,
   en B1–B2-manualkonsol og tidevandsbaseret last-routing;
 - et lokalt miniordbogskort ved markering af præcis ét dansk ord;
+- en lokal Developer mode med testkroner og direkte adgang til senere stiniveauer;
 - tre originale animefigurer med forskellige samtaleregler og ni spilbare episoder;
 - en levende havn med købte bygninger, karakterkontrakter, relationer og tidevand;
 - tre valutaer: XP til rang, kroner til valg og rav fra holdout, Brier og
@@ -42,8 +43,10 @@ npm run dev
 
 På Windows kan `start-ordhavn.bat` bruges til en synlig, manuel start. Kør
 `install-ordhavn-autostart.ps1` én gang for at registrere den skjulte opgave
-**Ordhavn Localhost**, som starter produktionsserveren efter Windows-login uden
-at åbne browseren. Loggen skrives til `%LOCALAPPDATA%\Ordhavn\localhost.log`.
+**Ordhavn Localhost**, som starter den lokale server efter Windows-login uden
+at åbne browseren. Den skjulte lokale server bruger den interaktive dev-runtime,
+så klientfunktioner og lokal fremgang virker stabilt på Windows. Loggen skrives
+til `%LOCALAPPDATA%\Ordhavn\localhost.log`.
 
 ## Kontrol
 

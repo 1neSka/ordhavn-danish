@@ -65,6 +65,12 @@ import {
   type RankRetentionMeasurements,
 } from "../lib/gameEconomy";
 import {
+  DEVELOPER_KRONER_GRANTS,
+  grantDeveloperKroner,
+  isDeveloperLevelOpen,
+  unlockDeveloperLevel,
+} from "../lib/developerMode";
+import {
   assignHoldout,
   createFixedHoldoutSchedule,
   createHoldoutScheduledEvents,
@@ -146,6 +152,8 @@ type ProgressState = {
   genderBankRuns: Array<{ id: string; completedAt: string; stake: number; payout: number; rounds: number; meanBrier?: number | null }>;
   maritimeRankId: MaritimeRankId;
   claimedBossGates: string[];
+  developerMode: boolean;
+  developerUnlockedLevelIndex: number;
 };
 
 type DirectoryHandleLike = {
@@ -188,6 +196,8 @@ const initialProgress: ProgressState = {
   genderBankRuns: [],
   maritimeRankId: "skibsdreng",
   claimedBossGates: [],
+  developerMode: false,
+  developerUnlockedLevelIndex: 0,
 };
 
 const iconMap: Record<string, React.ComponentType<{ size?: number; strokeWidth?: number }>> = {
@@ -533,10 +543,12 @@ function PathView({
   progress,
   onStart,
   onOpenScenarios,
+  onDeveloperUnlockLevel,
 }: {
   progress: ProgressState;
   onStart: (mission: Mission, levelId: string) => void;
   onOpenScenarios: () => void;
+  onDeveloperUnlockLevel: (levelIndex: number) => void;
 }) {
   const missionCount = courseLevels.reduce((sum, level) => sum + level.missions.length, 0);
   const minuteCount = courseLevels.reduce((sum, level) => sum + level.missions.reduce((levelSum, mission) => levelSum + mission.estimatedMinutes, 0), 0);
@@ -550,7 +562,8 @@ function PathView({
         {courseLevels.map((level, levelIndex) => {
           const previousBossGate = scenarioBossGates.find((gate) => gate.afterPathLevel === levelIndex);
           const previousBossCleared = !previousBossGate || previousBossGate.scenarioIds.filter((id) => progress.scenarioRuns.some((run) => run.caseId === id && run.success)).length >= previousBossGate.requiredCompletions;
-          const previousComplete = levelIndex === 0 || (courseLevels[levelIndex - 1].missions.every((m) => progress.completedMissions.includes(m.id)) && previousBossCleared);
+          const developerOpen = isDeveloperLevelOpen(progress.developerMode, progress.developerUnlockedLevelIndex, levelIndex);
+          const previousComplete = developerOpen || levelIndex === 0 || (courseLevels[levelIndex - 1].missions.every((m) => progress.completedMissions.includes(m.id)) && previousBossCleared);
           const levelComplete = level.missions.filter((m) => progress.completedMissions.includes(m.id)).length;
           const LevelIcon = iconMap[level.missions[0]?.icon] ?? Compass;
           const bossGate = scenarioBossGates.find((gate) => gate.afterPathLevel === levelIndex + 1);
@@ -565,12 +578,17 @@ function PathView({
                 <div className="level-heading">
                   <div className="level-icon"><LevelIcon size={24} /></div>
                   <div><p className="eyebrow">{level.eyebrow}</p><h2>{level.title}</h2><p>{level.description}</p></div>
-                  <span className="level-counter">{levelComplete}/{level.missions.length}</span>
+                  <div className="level-heading-actions">
+                    <span className="level-counter">{levelComplete}/{level.missions.length}</span>
+                    {progress.developerMode && <button className={`developer-skip ${developerOpen ? "open" : ""}`} onClick={() => onDeveloperUnlockLevel(levelIndex)} disabled={developerOpen}>
+                      <Zap size={13} /> {developerOpen ? "Åbnet" : "Hop hertil"}
+                    </button>}
+                  </div>
                 </div>
                 <div className="mission-row">
                   {level.missions.map((mission, missionIndex) => {
                     const completed = progress.completedMissions.includes(mission.id);
-                    const available = previousComplete && (missionIndex === 0 || progress.completedMissions.includes(level.missions[missionIndex - 1].id));
+                    const available = developerOpen || (previousComplete && (missionIndex === 0 || progress.completedMissions.includes(level.missions[missionIndex - 1].id)));
                     return (
                       <button
                         className={`mission-card ${completed ? "completed" : ""} ${!available ? "disabled" : ""}`}
@@ -858,8 +876,15 @@ function ProfileView({ progress, setProgress }: { progress: ProgressState; setPr
           <div className="setting-row"><span className="icon-box violet"><Target size={20} /></span><div><strong>Dagligt mål</strong><p>Hvor længe vil du træne?</p></div><select value={progress.dailyGoalMinutes} onChange={(event) => setProgress((old) => ({ ...old, dailyGoalMinutes: Number(event.target.value) }))}><option value={5}>5 min.</option><option value={10}>10 min.</option><option value={15}>15 min.</option><option value={20}>20 min.</option><option value={30}>30 min.</option></select></div>
           <div className="setting-row"><span className="icon-box blue"><Moon size={20} /></span><div><strong>Mørkt tema</strong><p>Blødere farver om aftenen.</p></div><button className={`toggle ${progress.darkMode ? "on" : ""}`} onClick={() => setProgress((old) => ({ ...old, darkMode: !old.darkMode }))}><span /></button></div>
           <div className="setting-row"><span className="icon-box mint"><ShieldCheck size={20} /></span><div><strong>Privat som standard</strong><p>Dine svar bliver kun på denne enhed.</p></div><span className="status-tag">Aktiv</span></div>
+          <div className="setting-row"><span className="icon-box amber"><Code2 size={20} /></span><div><strong>Developer mode</strong><p>Test økonomien og åbn senere niveauer uden at ændre rigtige læringsresultater.</p></div><button aria-label="Developer mode" aria-pressed={progress.developerMode} className={`toggle ${progress.developerMode ? "on" : ""}`} onClick={() => setProgress((old) => ({ ...old, developerMode: !old.developerMode }))}><span /></button></div>
         </section>
       </div>
+      {progress.developerMode && <section className="panel developer-panel">
+        <div><span className="icon-box amber"><Hammer size={20} /></span><div><p className="eyebrow">DEVELOPER MODE</p><h3>Testkasse</h3><p>Kroner til køb og retries. Brug “Hop hertil” på Læringssti for at åbne et bestemt niveau.</p></div></div>
+        <div className="developer-actions">
+          {DEVELOPER_KRONER_GRANTS.map((amount) => <button className="secondary-button" key={amount} onClick={() => setProgress((old) => ({ ...old, kroner: grantDeveloperKroner(old.kroner, amount) }))}>+{amount.toLocaleString("da-DK")} kr.</button>)}
+        </div>
+      </section>}
       <section className="panel about-panel"><AppLogo /><div><strong>Ordhavn · Første udgave</strong><p>Bygget med fokus på aktive svar, tydelig statistik og små sejre. Ingen mikrofon, taleoptagelse eller stemmedata.</p></div></section>
     </div>
   );
@@ -1696,6 +1721,14 @@ export default function HomePage() {
     return true;
   };
 
+  const developerUnlockLevel = (levelIndex: number) => {
+    setProgress((old) => ({
+      ...old,
+      developerUnlockedLevelIndex: unlockDeveloperLevel(old.developerUnlockedLevelIndex, levelIndex, courseLevels.length),
+    }));
+    notify(`${courseLevels[levelIndex]?.title ?? "Niveauet"} er åbnet i Developer mode.`);
+  };
+
   const recordGenderBankOutcome = (outcome: GenderBankOutcome) => {
     setProgress((old) => {
       if (old.genderBankRuns.some((run) => run.id === outcome.id)) return old;
@@ -1756,7 +1789,7 @@ export default function HomePage() {
           onOpenGenderBank={() => setView("gender-bank")}
           onStartStorm={startWeeklyStorm}
         />}
-        {view === "path" && <PathView progress={progress} onStart={startLesson} onOpenScenarios={() => setView("scenarios")} />}
+        {view === "path" && <PathView progress={progress} onStart={startLesson} onOpenScenarios={() => setView("scenarios")} onDeveloperUnlockLevel={developerUnlockLevel} />}
         {view === "practice" && <PracticeView progress={progress} onStart={startLesson} onRerollWeakItem={rerollWeakItem} />}
         {view === "scenarios" && <ScenarioHub runs={progress.scenarioRuns} kroner={progress.kroner} unlockedScenarioIds={progress.unlockedScenarioIds} attemptedScenarioIds={progress.scenarioAttemptedIds} maritimeRankId={progress.maritimeRankId} relationships={progress.relationships} onStartAttempt={startScenarioAttempt} onComplete={completeScenario} onUnlockScenario={unlockScenario} onSpendKroner={spendKroner} onUseHint={useHintToken} />}
         {view === "stats" && <StatsView progress={progress} directoryHandle={directoryHandle} onConnectDirectory={connectDirectory} onExport={exportData} />}

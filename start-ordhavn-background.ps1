@@ -39,6 +39,6 @@ if (-not (Test-Path -LiteralPath (Join-Path $projectDirectory "node_modules"))) 
 $env:PATH = "$runtimeDirectory;$env:PATH"
 Set-Location -LiteralPath $projectDirectory
 
-"[$(Get-Date -Format o)] Starting the Ordhavn production server with Node.js $nodeVersion" | Set-Content -LiteralPath $logFile
-& $nodeExecutable $npmCli run start *>> $logFile
+"[$(Get-Date -Format o)] Starting the interactive Ordhavn local server with Node.js $nodeVersion" | Set-Content -LiteralPath $logFile
+& $nodeExecutable $npmCli run dev *>> $logFile
 exit $LASTEXITCODE
