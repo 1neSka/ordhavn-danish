@@ -48,6 +48,8 @@ import {
 } from "@/lib/scenarioData";
 import { dialogueContinuationEpisodes } from "@/lib/dialogueEpisodes";
 import { harborCharacters, harborScenarioCases, type HarborScenarioCase, type HarborRankId } from "@/lib/harborData";
+import { cargoRoutingCases, safetyConsoleCases } from "@/lib/instructionPuzzleData";
+import InstructionPuzzleHub from "./instruction-puzzle-games";
 
 type ScenarioHubProps = {
   runs: ScenarioRun[];
@@ -124,6 +126,26 @@ const gameCards: Array<{
     meta: `${metroCases.length} hændelser · flere begrænsninger`,
     icon: TrainFront,
     tone: "cyan",
+  },
+  {
+    kind: "safety-console",
+    eyebrow: "Manualprøve",
+    title: "Sikkerhedskonsollen",
+    level: "B1–B2",
+    description: "Læs en driftsmanual, kombiner serienummer, farver og symbolregler, og beregn kontroltallet før du låser rækkefølgen.",
+    meta: `${safetyConsoleCases.length} sværhedsgrader · logik + matematik`,
+    icon: ShieldCheck,
+    tone: "violet",
+  },
+  {
+    kind: "cargo-routing",
+    eyebrow: "Tidevandspuslespil",
+    title: "Tidevandscentralen",
+    level: "B1–B2",
+    description: "Før lasten gennem havnen ved at krydslæse vind, vandstand, prioritet, brokapacitet og destination.",
+    meta: `${cargoRoutingCases.length} sager · ruter + beregninger`,
+    icon: PackageCheck,
+    tone: "mint",
   },
 ];
 
@@ -206,6 +228,16 @@ export default function ScenarioHub({ runs, kroner, unlockedScenarioIds, attempt
   if (activeGame === "dialogue") return <DialogueGame onExit={() => setActiveGame(null)} {...common} />;
   if (activeGame === "post") return <PostGame onExit={() => setActiveGame(null)} {...common} />;
   if (activeGame === "metro") return <MetroGame onExit={() => setActiveGame(null)} {...common} />;
+  if (activeGame === "safety-console" || activeGame === "cargo-routing") {
+    return <InstructionPuzzleHub
+      initialMode={activeGame}
+      priorRuns={runs}
+      attemptedCaseIds={attemptedScenarioIds}
+      onStartAttempt={onStartAttempt}
+      onComplete={onComplete}
+      onExit={() => setActiveGame(null)}
+    />;
+  }
 
   return (
     <main className="scenario-hub">
@@ -215,7 +247,7 @@ export default function ScenarioHub({ runs, kroner, unlockedScenarioIds, attempt
           <h1>Dansk, når der er noget på spil.</h1>
           <p>Ikke oversæt en sætning. Forstå situationen, find signalerne og tag en beslutning, der virker i den virkelige verden.</p>
           <div className="scenario-hero-meta">
-            <span><Brain size={17} /> 5 systemer</span>
+            <span><Brain size={17} /> 7 systemer</span>
             <span><ShieldCheck size={17} /> A1 → B2</span>
             <span><Trophy size={17} /> {successful.size} løst</span>
             <span>{kroner} kr. i havnekassen</span>

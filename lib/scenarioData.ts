@@ -1,4 +1,4 @@
-export type ScenarioKind = "harbor" | "phone" | "dialogue" | "post" | "metro";
+export type ScenarioKind = "harbor" | "phone" | "dialogue" | "post" | "metro" | "safety-console" | "cargo-routing";
 export type ScenarioLevel = "A1" | "A2" | "B1" | "B2";
 
 export interface ScenarioRun {

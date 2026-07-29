@@ -49,6 +49,7 @@ import {
 } from "lucide-react";
 import { courseLevels, type Challenge, type Mission } from "../lib/courseData";
 import ScenarioHub from "./scenario-games";
+import SelectionDictionary from "./selection-dictionary";
 import { GenderBankView, HarborHome, type GenderBankOutcome } from "./harbor-game";
 import type { ScenarioRun } from "../lib/scenarioData";
 import { harborCharacters, scenarioBossGates } from "../lib/harborData";
@@ -1763,6 +1764,7 @@ export default function HomePage() {
         {view === "gender-bank" && <GenderBankView kroner={progress.kroner} playedToday={progress.genderBankRuns.some((run) => dayKey(new Date(run.completedAt)) === dayKey())} onDeductStake={(amount) => spendKroner(amount, "Kønsbanken")} onRecordOutcome={recordGenderBankOutcome} onClose={() => setView("home")} />}
       </div>
       {activeLesson && <LessonPlayer mission={activeLesson.mission} levelId={activeLesson.levelId} sessionId={activeLesson.sessionId} startedAtIso={activeLesson.startedAtIso} startedAtMs={activeLesson.startedAtMs} priorAttempts={progress.attempts} currentXp={progress.xp} mastery={progress.mastery} maritimeRankId={progress.maritimeRankId} hintTokens={progress.hintTokens} onUseHint={useHintToken} onExit={() => setActiveLesson(null)} onComplete={completeLesson} />}
+      <SelectionDictionary />
       {toast && <div className="toast"><Check size={18} /> {toast}</div>}
     </div>
   );

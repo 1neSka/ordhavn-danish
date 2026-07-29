@@ -9,8 +9,8 @@ test("course contains at least one hour of unique, audio-ready Danish content", 
   const missions = course.courseLevels.flatMap((level) => level.missions);
   const items = missions.flatMap((mission) => mission.questions);
   assert.equal(course.courseLevels.length, 10);
-  assert.equal(missions.length, 30);
-  assert.equal(items.length, 240);
+  assert.equal(missions.length, 34);
+  assert.equal(items.length, 272);
   assert.equal(new Set(items.map((item) => item.id)).size, items.length);
   assert.ok(missions.reduce((sum, mission) => sum + mission.estimatedMinutes, 0) >= 100);
   assert.ok(items.every((item) => ["read", "produce"].includes(item.modality)));

@@ -1,7 +1,7 @@
 # Ordhavn
 
 Ordhavn er et local-first læringsspil til dansk. Den nuværende udgave indeholder
-10 niveauer, 30 missioner, 240 unikke opgaver og over 100 minutters aktivt
+10 niveauer, 34 missioner, 272 unikke opgaver og 139 minutters aktivt
 kursusindhold fra A0 til B2. Brugerfladen og hjælpesproget er kun dansk og
 engelsk.
 
@@ -10,8 +10,10 @@ engelsk.
 - hele den primære brugerflade er på enkelt dansk;
 - otte opgavetyper, herunder danske tal, `en/et` med sikkerhedsindsats,
   bestemthed, adjektivkongruens, V2 og placeringen af `ikke`;
-- fem udvidelige scenariesystemer: danske telefonindstillinger, forgrenede
-  psykologiske dialoger, mail-efterforskning, trafik-dispatch og A1–A2-havnecases;
+- syv udvidelige scenariesystemer: danske telefonindstillinger, forgrenede
+  psykologiske dialoger, mail-efterforskning, trafik-dispatch, A1–A2-havnecases,
+  en B1–B2-manualkonsol og tidevandsbaseret last-routing;
+- et lokalt miniordbogskort ved markering af præcis ét dansk ord;
 - tre originale animefigurer med forskellige samtaleregler og ni spilbare episoder;
 - en levende havn med købte bygninger, karakterkontrakter, relationer og tidevand;
 - tre valutaer: XP til rang, kroner til valg og rav fra holdout, Brier og
@@ -38,6 +40,11 @@ npm run dev
 
 Åbn `http://localhost:3000`.
 
+På Windows kan `start-ordhavn.bat` bruges til en synlig, manuel start. Kør
+`install-ordhavn-autostart.ps1` én gang for at registrere den skjulte opgave
+**Ordhavn Localhost**, som starter produktionsserveren efter Windows-login uden
+at åbne browseren. Loggen skrives til `%LOCALAPPDATA%\Ordhavn\localhost.log`.
+
 ## Kontrol
 
 ```bash
@@ -59,10 +66,14 @@ Se [data-exports/README.md](data-exports/README.md) for den fulde filliste.
 ## Arkitektur
 
 - `app/page.tsx` — navigation, læringssti, træning, player og statistik
-- `app/scenario-games.tsx` — de fem interaktive scenariemotorer
+- `app/scenario-games.tsx` — indgangen til de syv interaktive scenariesystemer
+- `app/instruction-puzzle-games.tsx` — manual- og ruteopgaver med beregninger
+- `app/selection-dictionary.tsx` — miniordbog for markerede danske enkeltord
 - `app/harbor-game.tsx` — havnen, karakterkontrakter og Kønsbanken
 - `lib/courseData.ts` — typed, data-driven dansk kursusindhold
 - `lib/scenarioData.ts` — typed cases, branches, settings and route data
+- `lib/instructionPuzzleData.ts` — seks B1–B2-manualpuslespil
+- `lib/dictionaryData.ts` — lokal dansk-engelsk ordbog med bøjningsformer
 - `lib/gameEconomy.ts` — valutaer, rangporte, bygninger og ugens storm
 - `lib/harborData.ts` — karakterer, bosser og udvidelige havnecases
 - `lib/dialogueEpisodes.ts` — seks betalte, forgrenede karakterfortsættelser
