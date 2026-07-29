@@ -8,6 +8,8 @@ set "ORDHAVN_NODE_DIR=%USERPROFILE%\.cache\codex-runtimes\codex-primary-runtime\
 set "ORDHAVN_NODE=%ORDHAVN_NODE_DIR%\node.exe"
 set "ORDHAVN_NPM_CLI=%ProgramFiles%\nodejs\node_modules\npm\bin\npm-cli.js"
 
+for /f "usebackq delims=" %%K in (`powershell -NoProfile -Command "[Environment]::GetEnvironmentVariable('GEMINI_API_KEY','User')"`) do set "GEMINI_API_KEY=%%K"
+
 if not exist "%ORDHAVN_NODE%" (
   for /f "delims=" %%N in ('where node 2^>nul') do if not defined ORDHAVN_FALLBACK_NODE set "ORDHAVN_FALLBACK_NODE=%%N"
   if defined ORDHAVN_FALLBACK_NODE (

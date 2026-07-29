@@ -8,9 +8,9 @@ const scenarios = await import("../lib/scenarioData.ts");
 test("course contains at least one hour of unique, audio-ready Danish content", () => {
   const missions = course.courseLevels.flatMap((level) => level.missions);
   const items = missions.flatMap((mission) => mission.questions);
-  assert.equal(course.courseLevels.length, 10);
-  assert.equal(missions.length, 34);
-  assert.equal(items.length, 272);
+  assert.equal(course.courseLevels.length, 14);
+  assert.equal(missions.length, 50);
+  assert.equal(items.length, 400);
   assert.equal(new Set(items.map((item) => item.id)).size, items.length);
   assert.ok(missions.reduce((sum, mission) => sum + mission.estimatedMinutes, 0) >= 100);
   assert.ok(items.every((item) => ["read", "produce"].includes(item.modality)));
@@ -19,7 +19,19 @@ test("course contains at least one hour of unique, audio-ready Danish content", 
   assert.doesNotMatch(JSON.stringify(course.courseLevels), /[\u0400-\u04ff]/u);
   assert.deepEqual(
     new Set(items.map((item) => item.type)),
-    new Set(["choice", "order", "input", "gender-bet", "number-arcade", "definiteness", "agreement", "ikke-position"]),
+    new Set([
+      "choice",
+      "order",
+      "input",
+      "gender-bet",
+      "number-arcade",
+      "definiteness",
+      "agreement",
+      "ikke-position",
+      "cloze-multi",
+      "register-match",
+      "transform",
+    ]),
   );
 });
 

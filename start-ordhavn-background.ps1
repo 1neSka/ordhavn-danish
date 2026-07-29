@@ -7,6 +7,10 @@ $nodeExecutable = Join-Path $runtimeDirectory "node.exe"
 $npmCli = Join-Path $env:ProgramFiles "nodejs\node_modules\npm\bin\npm-cli.js"
 $logDirectory = Join-Path $env:LOCALAPPDATA "Ordhavn"
 $logFile = Join-Path $logDirectory "localhost.log"
+$userGeminiKey = [Environment]::GetEnvironmentVariable("GEMINI_API_KEY", "User")
+if (-not [string]::IsNullOrWhiteSpace($userGeminiKey)) {
+  $env:GEMINI_API_KEY = $userGeminiKey
+}
 
 New-Item -ItemType Directory -Path $logDirectory -Force | Out-Null
 

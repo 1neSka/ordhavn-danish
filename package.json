@@ -9,7 +9,7 @@
     "dev": "vinext dev",
     "build": "vinext build",
     "start": "node scripts/start-production.mjs",
-    "test": "npm run build && node --test tests/rendered-html.test.mjs tests/windows-static-assets.test.mjs && node --experimental-strip-types --test tests/learning-model.test.mjs tests/game-economy.test.mjs tests/harbor-data.test.mjs tests/dialogue-episodes.test.mjs tests/course-content-quality.test.mjs tests/dictionary.test.mjs tests/instruction-puzzles.test.mjs tests/developer-mode.test.mjs tests/wordle.test.mjs tests/progress-storage.test.mjs",
+    "test": "npm run build && node --test tests/rendered-html.test.mjs tests/windows-static-assets.test.mjs && node --experimental-strip-types --test tests/learning-model.test.mjs tests/game-economy.test.mjs tests/harbor-data.test.mjs tests/dialogue-episodes.test.mjs tests/course-content-quality.test.mjs tests/course-levels-11-14.test.mjs tests/course-expansion-completion.test.mjs tests/new-exercise-ui-model.test.mjs tests/dictionary.test.mjs tests/instruction-puzzles.test.mjs tests/advanced-scenarios.test.mjs tests/gemini-fallback.test.mjs tests/developer-mode.test.mjs tests/wordle.test.mjs tests/progress-storage.test.mjs",
     "check": "tsc --noEmit && eslint . --ignore-pattern dist --ignore-pattern .next --ignore-pattern .vinext && npm test",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next --ignore-pattern .vinext",
     "db:generate": "drizzle-kit generate"

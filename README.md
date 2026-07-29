@@ -1,18 +1,23 @@
 # Ordhavn
 
 Ordhavn er et local-first læringsspil til dansk. Den nuværende udgave indeholder
-10 niveauer, 34 missioner, 272 unikke opgaver og 139 minutters aktivt
+14 niveauer, 50 missioner, 400 unikke opgaver og 234 minutters aktivt
 kursusindhold fra A0 til B2. Brugerfladen og hjælpesproget er kun dansk og
 engelsk.
 
 ## Det særlige ved Ordhavn
 
 - hele den primære brugerflade er på enkelt dansk;
-- otte opgavetyper, herunder danske tal, `en/et` med sikkerhedsindsats,
-  bestemthed, adjektivkongruens, V2 og placeringen af `ikke`;
-- syv udvidelige scenariesystemer: danske telefonindstillinger, forgrenede
+- elleve opgavetyper, herunder danske tal, `en/et` med sikkerhedsindsats,
+  bestemthed, adjektivkongruens, V2, placeringen af `ikke`, flerdelte cloze-felter,
+  registermatching og fri sætningsomskrivning med delvis kredit;
+- otte udvidelige scenariesystemer: danske telefonindstillinger, forgrenede
   psykologiske dialoger, mail-efterforskning, trafik-dispatch, A1–A2-havnecases,
-  en B1–B2-manualkonsol og tidevandsbaseret last-routing;
+  en B1–B2-manualkonsol, tidevandsbaseret last-routing og Sagslaboratoriets tre
+  AI-hybride efterforskninger;
+- `Havnefogedens sag` kombinerer V2-afhøring, evidentialitet, en entydig tidslinje
+  og et formelt rapportskift. `Stormvagten` og `Færgens reserveplan` kombinerer
+  dansk manualforståelse, beregninger og en kodevalideret kontrolsekvens;
 - et lokalt miniordbogskort ved markering af præcis ét dansk ord;
 - **Ordle** som dagligt fem-bogstavsspil, fri træning og fire valgfrie
   checkpoints på læringsstien. Svarbanken har 500 hyppige ord, mens 6.071
@@ -46,6 +51,11 @@ npm run dev
 
 Åbn `http://localhost:3000`.
 
+De avancerede scenarier kan vurdere fri dansk produktion via Gemini. Sæt
+`GEMINI_API_KEY` som en server-side miljøvariabel (se `.env.example`). Nøglen må
+aldrig hedde `NEXT_PUBLIC_GEMINI_API_KEY`. Hvis alle modeller er utilgængelige,
+fortsætter spillet automatisk med sin deterministiske lokale rubric.
+
 På Windows kan `start-ordhavn.bat` bruges til en synlig, manuel start. Kør
 `install-ordhavn-autostart.ps1` én gang for at registrere den skjulte opgave
 **Ordhavn Localhost**, som starter den lokale server efter Windows-login uden
@@ -61,7 +71,8 @@ npm run check
 
 Kontrollen bygger produktionsversionen, typechecker hele projektet, kører ESLint,
 verificerer server-rendering, indholdsinvarianter, FSRS-adskillelsen og den
-deterministiske holdout-gruppe samt Ordles to ordlister og bogstavscoring.
+deterministiske holdout-gruppe, de 128 nye kursusitems, tre nye opgavetyper,
+tre avancerede scenarier, Gemini-fallback og Ordles to ordlister.
 
 Ordles datakilder, filtrering og licenser er dokumenteret i
 [WORDLE_SOURCES.md](WORDLE_SOURCES.md).
@@ -77,13 +88,18 @@ Se [data-exports/README.md](data-exports/README.md) for den fulde filliste.
 ## Arkitektur
 
 - `app/page.tsx` — navigation, læringssti, træning, player og statistik
-- `app/scenario-games.tsx` — indgangen til de syv interaktive scenariesystemer
+- `app/scenario-games.tsx` — indgangen til de otte interaktive scenariesystemer
+- `app/advanced-scenario-games.tsx` — afhøring, kodepuslespil og fri rapportproduktion
+- `app/api/gemini/evaluate/route.ts` — server-side Gemini-evaluering med model-fallback
 - `app/instruction-puzzle-games.tsx` — manual- og ruteopgaver med beregninger
 - `app/selection-dictionary.tsx` — miniordbog for markerede danske enkeltord
 - `app/wordle-game.tsx` — daglig Ordle, træningsrunder og sti-checkpoints
 - `app/harbor-game.tsx` — havnen, karakterkontrakter og Kønsbanken
 - `lib/courseData.ts` — typed, data-driven dansk kursusindhold
 - `lib/scenarioData.ts` — typed cases, branches, settings and route data
+- `lib/advancedScenarioData.ts` — tre deterministiske B1–B2-sager og offline rubric
+- `lib/geminiEvaluation.ts` — validering, struktureret output og modelstige
+- `lib/exerciseScoring.ts` — Levenshtein og delvis kredit for sammensatte svar
 - `lib/instructionPuzzleData.ts` — seks B1–B2-manualpuslespil
 - `lib/dictionaryData.ts` — lokal dansk-engelsk ordbog med bøjningsformer
 - `lib/gameEconomy.ts` — valutaer, rangporte, bygninger og ugens storm
@@ -96,5 +112,6 @@ Se [data-exports/README.md](data-exports/README.md) for den fulde filliste.
 - `lib/analytics.ts` — eventlog, aggregater og validering
 - `data-exports/schema.json` — stabilt data- og audio-ready schema
 
-Kildedata og personlige eksporter bliver på enheden. Ingen ekstern analytics-
-tjeneste er koblet på.
+Fremgang, kildedata og personlige eksporter bliver på enheden. Når Gemini er
+aktiv, sendes kun den afsluttende scenarietekst og sagens påkrævede fakta til
+Google for sproglig vurdering. Ingen ekstern analytics-tjeneste er koblet på.

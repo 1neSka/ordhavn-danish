@@ -10,10 +10,17 @@ const { d1, r2 } = hostingConfig;
 
 // macOS Seatbelt blocks FSEvents, so Codex previews need polling for HMR.
 const isCodexSeatbeltSandbox = process.env.CODEX_SANDBOX === "seatbelt";
+const localSecretBindings: Record<string, string> = {};
+if (process.env.GEMINI_API_KEY) {
+  localSecretBindings.GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+}
 
 const localBindingConfig = {
   main: "./worker/index.ts",
   compatibility_flags: ["nodejs_compat"],
+  // Workerd route handlers read secrets through `cloudflare:workers` bindings.
+  // The value stays server-side and is supplied only by the launching process.
+  vars: localSecretBindings,
   d1_databases: d1
     ? [
         {

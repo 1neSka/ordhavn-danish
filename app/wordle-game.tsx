@@ -52,13 +52,10 @@ export default function WordleGame({ launch, savedGames, runs, onSave, onComplet
     ? pathRetryKey ?? `path:${launch.checkpoint.id}`
     : practiceKey ?? `daily:${localDateKey()}`;
   const checkpointId = launch.kind === "path" ? launch.checkpoint.id : undefined;
-  const [game, setGame] = useState<WordleGameSnapshot>(() => savedGames[gameKey] ?? createWordleGame(gameKey, kind, checkpointId));
-
-  useEffect(() => {
-    setGame(savedGames[gameKey] ?? createWordleGame(gameKey, kind, checkpointId));
-    setCurrentGuess("");
-    setMessage("");
-  }, [checkpointId, gameKey, kind, savedGames]);
+  const [localGame, setLocalGame] = useState<WordleGameSnapshot>(() => savedGames[gameKey] ?? createWordleGame(gameKey, kind, checkpointId));
+  const game = localGame.key === gameKey
+    ? localGame
+    : savedGames[gameKey] ?? createWordleGame(gameKey, kind, checkpointId);
 
   const keyboardState = useMemo(() => wordleKeyboardState(game.answer, game.guesses), [game.answer, game.guesses]);
   const answerLookup = game.status === "playing" ? null : lookupDanishWord(game.answer);
@@ -82,7 +79,7 @@ export default function WordleGame({ launch, savedGames, runs, onSave, onComplet
     const status = success ? "won" : guesses.length >= 6 ? "lost" : "playing";
     const completedAt = new Date().toISOString();
     const next: WordleGameSnapshot = { ...game, guesses, status, updatedAt: completedAt };
-    setGame(next);
+    setLocalGame(next);
     onSave(next);
     setCurrentGuess("");
     setMessage(success ? "Du fandt havneordet!" : status === "lost" ? `Ordet var ${game.answer.toLocaleUpperCase("da-DK")}.` : "");
@@ -127,13 +124,21 @@ export default function WordleGame({ launch, savedGames, runs, onSave, onComplet
   }, [typeLetter]);
 
   const startPractice = () => {
-    setPracticeKey(`practice:${Date.now()}`);
+    const nextKey = `practice:${Date.now()}`;
+    setPracticeKey(nextKey);
     setPathRetryKey(null);
+    setLocalGame(savedGames[nextKey] ?? createWordleGame(nextKey, "practice"));
+    setCurrentGuess("");
+    setMessage("");
   };
 
   const retryPath = () => {
     if (launch.kind !== "path") return;
-    setPathRetryKey(`path:${launch.checkpoint.id}:retry:${Date.now()}`);
+    const nextKey = `path:${launch.checkpoint.id}:retry:${Date.now()}`;
+    setPathRetryKey(nextKey);
+    setLocalGame(savedGames[nextKey] ?? createWordleGame(nextKey, "path", launch.checkpoint.id));
+    setCurrentGuess("");
+    setMessage("");
   };
 
   const title = launch.kind === "path" ? launch.checkpoint.title : kind === "practice" ? "Fri Ordle-træning" : "Dagens Ordle";

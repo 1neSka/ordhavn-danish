@@ -50,6 +50,9 @@ import { dialogueContinuationEpisodes } from "@/lib/dialogueEpisodes";
 import { harborCharacters, harborScenarioCases, type HarborScenarioCase, type HarborRankId } from "@/lib/harborData";
 import { cargoRoutingCases, safetyConsoleCases } from "@/lib/instructionPuzzleData";
 import InstructionPuzzleHub from "./instruction-puzzle-games";
+import AdvancedScenarioHub from "./advanced-scenario-games";
+import { advancedScenarioCards } from "@/lib/advancedScenarioData";
+import { evaluateScenarioSubmission } from "@/lib/scenarioAiClient";
 
 type ScenarioHubProps = {
   runs: ScenarioRun[];
@@ -147,6 +150,16 @@ const gameCards: Array<{
     icon: PackageCheck,
     tone: "mint",
   },
+  {
+    kind: "advanced",
+    eyebrow: "AI-hybrid efterforskning",
+    title: "Sagslaboratoriet",
+    level: "B1–B2",
+    description: "Afhør vidner, læs evidentialitet, løs entydige protokoller og skriv dansk, som vurderes uden at lade AI styre selve puslespillet.",
+    meta: `${advancedScenarioCards.length} sager · kode + fri produktion`,
+    icon: Brain,
+    tone: "cyan",
+  },
 ];
 
 const dialogueEpisodeCatalog = [...dialogueCharacters, ...dialogueContinuationEpisodes];
@@ -238,6 +251,15 @@ export default function ScenarioHub({ runs, kroner, unlockedScenarioIds, attempt
       onExit={() => setActiveGame(null)}
     />;
   }
+  if (activeGame === "advanced") {
+    return <AdvancedScenarioHub
+      runs={runs}
+      onComplete={onComplete}
+      onEvaluate={evaluateScenarioSubmission}
+      onStartAttempt={onStartAttempt}
+      onExit={() => setActiveGame(null)}
+    />;
+  }
 
   return (
     <main className="scenario-hub">
@@ -247,7 +269,7 @@ export default function ScenarioHub({ runs, kroner, unlockedScenarioIds, attempt
           <h1>Dansk, når der er noget på spil.</h1>
           <p>Ikke oversæt en sætning. Forstå situationen, find signalerne og tag en beslutning, der virker i den virkelige verden.</p>
           <div className="scenario-hero-meta">
-            <span><Brain size={17} /> 7 systemer</span>
+            <span><Brain size={17} /> 8 systemer</span>
             <span><ShieldCheck size={17} /> A1 → B2</span>
             <span><Trophy size={17} /> {successful.size} løst</span>
             <span>{kroner} kr. i havnekassen</span>
