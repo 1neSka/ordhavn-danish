@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft,
   ArrowRight,
@@ -125,8 +125,15 @@ export function LogicScenarioHub({
   const [firstAttemptEligible, setFirstAttemptEligible] = useState(
     initialScenarioId ? !runs.some((run) => run.caseId === initialScenarioId) : false,
   );
+  const directAttemptClaimed = useRef(false);
   const completed = useMemo(() => new Set(runs.filter((run) => run.success).map((run) => run.caseId)), [runs]);
   const attempted = useMemo(() => new Set(runs.map((run) => run.caseId)), [runs]);
+
+  useEffect(() => {
+    if (!initialScenarioId || directAttemptClaimed.current) return;
+    directAttemptClaimed.current = true;
+    setFirstAttemptEligible(onStartAttempt?.(initialScenarioId) ?? !attempted.has(initialScenarioId));
+  }, [attempted, initialScenarioId, onStartAttempt]);
 
   if (activeId) {
     return (

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertTriangle,
   ArrowLeft,
@@ -118,11 +118,18 @@ export function AdvancedScenarioHub({
   const [activeId, setActiveId] = useState<AdvancedScenarioId | null>(initialScenarioId ?? null);
   const [english, setEnglish] = useState(false);
   const [firstAttemptEligible, setFirstAttemptEligible] = useState(false);
+  const directAttemptClaimed = useRef(false);
   const successfulIds = useMemo(
     () => new Set(runs.filter((run) => run.success).map((run) => run.caseId)),
     [runs],
   );
   const attemptedIds = useMemo(() => new Set(runs.map((run) => run.caseId)), [runs]);
+
+  useEffect(() => {
+    if (!initialScenarioId || directAttemptClaimed.current) return;
+    directAttemptClaimed.current = true;
+    setFirstAttemptEligible(onStartAttempt?.(initialScenarioId) ?? !attemptedIds.has(initialScenarioId));
+  }, [attemptedIds, initialScenarioId, onStartAttempt]);
 
   if (activeId) {
     return (

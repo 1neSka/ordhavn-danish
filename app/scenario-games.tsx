@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import {
   Accessibility,
@@ -59,9 +59,14 @@ import { LogicScenarioHub, type LogicScenarioRun } from "./logic-scenario-games"
 import { advancedScenarioCards } from "@/lib/advancedScenarioData";
 import { cityScenarioCards, getCityCase, type CityAttemptMetadata } from "@/lib/cityScenarioData";
 import { logicScenarioCards } from "@/lib/logicScenarioData";
+import type { AdvancedScenarioId } from "@/lib/advancedScenarioData";
+import type { CityCaseId } from "@/lib/cityScenarioData";
+import type { LogicScenarioId } from "@/lib/logicScenarioData";
+import { isScenarioLaunchAccessible, type ScenarioLaunch } from "@/lib/scenarioLaunch";
 import { evaluateScenarioSubmission } from "@/lib/scenarioAiClient";
 
 type ScenarioHubProps = {
+  initialLaunch?: ScenarioLaunch | null;
   runs: ScenarioRun[];
   kroner: number;
   unlockedScenarioIds: string[];
@@ -364,20 +369,25 @@ function CaseResult({
   );
 }
 
-export default function ScenarioHub({ runs, kroner, unlockedScenarioIds, attemptedScenarioIds, maritimeRankId, relationships, onStartAttempt, onComplete, onUnlockScenario, onSpendKroner, onUseHint }: ScenarioHubProps) {
-  const [activeGame, setActiveGame] = useState<ActiveGame>(null);
-  const [levelFilter, setLevelFilter] = useState<"alle" | ScenarioLevel>("alle");
+export default function ScenarioHub({ initialLaunch = null, runs, kroner, unlockedScenarioIds, attemptedScenarioIds, maritimeRankId, relationships, onStartAttempt, onComplete, onUnlockScenario, onSpendKroner, onUseHint }: ScenarioHubProps) {
   const successful = useMemo(() => new Set(runs.filter((run) => run.success).map((run) => run.caseId)), [runs]);
+  const directLaunch = initialLaunch
+    && isScenarioLaunchAccessible(initialLaunch, successful, unlockedScenarioIds)
+    && !(initialLaunch.kind === "harbor" && attemptedScenarioIds.includes(initialLaunch.caseId) && !successful.has(initialLaunch.caseId))
+      ? initialLaunch
+      : null;
+  const [activeGame, setActiveGame] = useState<ActiveGame>(initialLaunch?.kind ?? null);
+  const [levelFilter, setLevelFilter] = useState<"alle" | ScenarioLevel>("alle");
   const visibleGames = levelFilter === "alle"
     ? gameCards
     : gameCards.filter((game) => game.levels.includes(levelFilter));
 
   const common = { onComplete, successful, unlockedScenarioIds, attemptedScenarioIds, maritimeRankId, relationships, onStartAttempt, onUnlockScenario, onSpendKroner, onUseHint };
-  if (activeGame === "harbor") return <HarborCaseGame onExit={() => setActiveGame(null)} {...common} />;
-  if (activeGame === "phone") return <PhoneGame onExit={() => setActiveGame(null)} {...common} />;
-  if (activeGame === "dialogue") return <DialogueGame onExit={() => setActiveGame(null)} {...common} />;
-  if (activeGame === "post") return <PostGame onExit={() => setActiveGame(null)} {...common} />;
-  if (activeGame === "metro") return <MetroGame onExit={() => setActiveGame(null)} {...common} />;
+  if (activeGame === "harbor") return <HarborCaseGame initialCaseId={directLaunch?.kind === "harbor" ? directLaunch.caseId : undefined} onExit={() => setActiveGame(null)} {...common} />;
+  if (activeGame === "phone") return <PhoneGame initialCaseId={directLaunch?.kind === "phone" ? directLaunch.caseId : undefined} onExit={() => setActiveGame(null)} {...common} />;
+  if (activeGame === "dialogue") return <DialogueGame initialCaseId={directLaunch?.kind === "dialogue" ? directLaunch.caseId : undefined} onExit={() => setActiveGame(null)} {...common} />;
+  if (activeGame === "post") return <PostGame initialCaseId={directLaunch?.kind === "post" ? directLaunch.caseId : undefined} onExit={() => setActiveGame(null)} {...common} />;
+  if (activeGame === "metro") return <MetroGame initialCaseId={directLaunch?.kind === "metro" ? directLaunch.caseId : undefined} onExit={() => setActiveGame(null)} {...common} />;
   if (activeGame === "safety-console" || activeGame === "cargo-routing") {
     return <InstructionPuzzleHub
       initialMode={activeGame}
@@ -390,6 +400,7 @@ export default function ScenarioHub({ runs, kroner, unlockedScenarioIds, attempt
   }
   if (activeGame === "advanced") {
     return <AdvancedScenarioHub
+      initialScenarioId={directLaunch?.kind === "advanced" ? directLaunch.caseId as AdvancedScenarioId : undefined}
       runs={runs}
       onComplete={onComplete}
       onEvaluate={evaluateScenarioSubmission}
@@ -399,6 +410,7 @@ export default function ScenarioHub({ runs, kroner, unlockedScenarioIds, attempt
   }
   if (activeGame === "logic") {
     return <LogicScenarioHub
+      initialScenarioId={directLaunch?.kind === "logic" ? directLaunch.caseId as LogicScenarioId : undefined}
       runs={runs.filter((run) => run.kind === "logic") as LogicScenarioRun[]}
       onComplete={onComplete}
       onEvaluate={evaluateScenarioSubmission}
@@ -408,6 +420,8 @@ export default function ScenarioHub({ runs, kroner, unlockedScenarioIds, attempt
   }
   if (activeGame === "city") {
     return <CityScenarioHub
+      initialScenarioId={directLaunch?.kind === "city" ? directLaunch.cityScenarioId : null}
+      initialCaseId={directLaunch?.kind === "city" ? directLaunch.caseId as CityCaseId : undefined}
       onExit={() => setActiveGame(null)}
       onStartAttempt={onStartAttempt}
       onComplete={(metadata) => onComplete(cityRunFromMetadata(metadata))}
@@ -481,15 +495,23 @@ export default function ScenarioHub({ runs, kroner, unlockedScenarioIds, attempt
   );
 }
 
-function HarborCaseGame({ onExit, onComplete, successful, unlockedScenarioIds, attemptedScenarioIds, onStartAttempt, onUnlockScenario, onSpendKroner }: GameCommonProps) {
-  const [currentCase, setCurrentCase] = useState<HarborScenarioCase | null>(null);
-  const [nodeId, setNodeId] = useState("");
-  const [startedAt, setStartedAt] = useState("");
-  const [path, setPath] = useState<string[]>([]);
+function HarborCaseGame({ initialCaseId, onExit, onComplete, successful, unlockedScenarioIds, attemptedScenarioIds, onStartAttempt, onUnlockScenario, onSpendKroner }: GameCommonProps) {
+  const directCase = initialCaseId ? harborScenarioCases.find((item) => item.id === initialCaseId) ?? null : null;
+  const [currentCase, setCurrentCase] = useState<HarborScenarioCase | null>(directCase);
+  const [nodeId, setNodeId] = useState(directCase?.startNode ?? "");
+  const [startedAt, setStartedAt] = useState(directCase ? new Date().toISOString() : "");
+  const [path, setPath] = useState<string[]>(directCase ? [directCase.startNode] : []);
   const [decisions, setDecisions] = useState<ScenarioRun["decisions"]>([]);
   const [feedback, setFeedback] = useState("");
   const [result, setResult] = useState<{ success: boolean; score: number; text: string } | null>(null);
   const [firstAttemptEligible, setFirstAttemptEligible] = useState(false);
+  const directAttemptClaimed = useRef(false);
+
+  useEffect(() => {
+    if (!directCase || directAttemptClaimed.current) return;
+    directAttemptClaimed.current = true;
+    setFirstAttemptEligible(onStartAttempt(directCase.id));
+  }, [directCase, onStartAttempt]);
 
   const start = (item: HarborScenarioCase) => {
     setFirstAttemptEligible(onStartAttempt(item.id));
@@ -546,6 +568,7 @@ function HarborCaseGame({ onExit, onComplete, successful, unlockedScenarioIds, a
 }
 
 type GameCommonProps = {
+  initialCaseId?: string;
   onExit: () => void;
   onComplete: (run: ScenarioRun) => void;
   successful: Set<string>;
@@ -602,30 +625,43 @@ function CasePicker<T extends { id: string; title: string; level: string }>({
   );
 }
 
-function PhoneGame({ onExit, onComplete, successful, unlockedScenarioIds, onStartAttempt, onUnlockScenario, onSpendKroner, onUseHint }: GameCommonProps) {
-  const [mission, setMission] = useState<PhoneMission | null>(null);
-  const [startedAt, setStartedAt] = useState("");
+function phoneMissionDefaults(mission: PhoneMission | null): Record<string, PhoneValue> {
+  if (!mission) return {};
+  const defaults = Object.fromEntries(Object.values(phoneSettings).map((setting) => {
+    if (setting.type === "toggle") return [setting.id, false];
+    if (setting.type === "slider") return [setting.id, setting.min ?? 1];
+    return [setting.id, setting.options?.[0]?.value ?? ""];
+  }));
+  return { ...defaults, ...mission.initialState };
+}
+
+function PhoneGame({ initialCaseId, onExit, onComplete, successful, unlockedScenarioIds, onStartAttempt, onUnlockScenario, onSpendKroner, onUseHint }: GameCommonProps) {
+  const directMission = initialCaseId ? phoneMissions.find((item) => item.id === initialCaseId) ?? null : null;
+  const [mission, setMission] = useState<PhoneMission | null>(directMission);
+  const [startedAt, setStartedAt] = useState(directMission ? new Date().toISOString() : "");
   const [page, setPage] = useState("root");
-  const [values, setValues] = useState<Record<string, PhoneValue>>({});
-  const [path, setPath] = useState<string[]>([]);
+  const [values, setValues] = useState<Record<string, PhoneValue>>(() => phoneMissionDefaults(directMission));
+  const [path, setPath] = useState<string[]>(directMission ? ["root"] : []);
   const [decisions, setDecisions] = useState<ScenarioRun["decisions"]>([]);
   const [checks, setChecks] = useState(0);
   const [hint, setHint] = useState(false);
   const [missing, setMissing] = useState<string[]>([]);
   const [result, setResult] = useState<{ score: number } | null>(null);
   const [firstAttemptEligible, setFirstAttemptEligible] = useState(false);
+  const directAttemptClaimed = useRef(false);
+
+  useEffect(() => {
+    if (!directMission || directAttemptClaimed.current) return;
+    directAttemptClaimed.current = true;
+    setFirstAttemptEligible(onStartAttempt(directMission.id));
+  }, [directMission, onStartAttempt]);
 
   const startMission = (next: PhoneMission) => {
     setFirstAttemptEligible(onStartAttempt(next.id));
-    const defaults = Object.fromEntries(Object.values(phoneSettings).map((setting) => {
-      if (setting.type === "toggle") return [setting.id, false];
-      if (setting.type === "slider") return [setting.id, setting.min ?? 1];
-      return [setting.id, setting.options?.[0]?.value ?? ""];
-    }));
     setMission(next);
     setStartedAt(new Date().toISOString());
     setPage("root");
-    setValues({ ...defaults, ...next.initialState });
+    setValues(phoneMissionDefaults(next));
     setPath(["root"]);
     setDecisions([]);
     setChecks(0);
@@ -735,17 +771,25 @@ function PhoneGame({ onExit, onComplete, successful, unlockedScenarioIds, onStar
   );
 }
 
-function DialogueGame({ onExit, onComplete, successful, unlockedScenarioIds, maritimeRankId, relationships, onStartAttempt, onUnlockScenario }: GameCommonProps) {
-  const [character, setCharacter] = useState<DialogueCharacter | null>(null);
-  const [startedAt, setStartedAt] = useState("");
-  const [nodeId, setNodeId] = useState("");
+function DialogueGame({ initialCaseId, onExit, onComplete, successful, unlockedScenarioIds, maritimeRankId, relationships, onStartAttempt, onUnlockScenario }: GameCommonProps) {
+  const directCharacter = initialCaseId ? dialogueEpisodeCatalog.find((item) => item.case.id === initialCaseId) ?? null : null;
+  const [character, setCharacter] = useState<DialogueCharacter | null>(directCharacter);
+  const [startedAt, setStartedAt] = useState(directCharacter ? new Date().toISOString() : "");
+  const [nodeId, setNodeId] = useState(directCharacter?.case.startNode ?? "");
   const [trust, setTrust] = useState(50);
   const [tension, setTension] = useState(25);
-  const [path, setPath] = useState<string[]>([]);
+  const [path, setPath] = useState<string[]>(directCharacter ? [directCharacter.case.startNode] : []);
   const [decisions, setDecisions] = useState<ScenarioRun["decisions"]>([]);
   const [feedback, setFeedback] = useState<{ insight: string; principle: string; next: string | null; trust: number; tension: number } | null>(null);
   const [result, setResult] = useState<{ success: boolean; score: number; text: string } | null>(null);
   const [firstAttemptEligible, setFirstAttemptEligible] = useState(false);
+  const directAttemptClaimed = useRef(false);
+
+  useEffect(() => {
+    if (!directCharacter || directAttemptClaimed.current) return;
+    directAttemptClaimed.current = true;
+    setFirstAttemptEligible(onStartAttempt(directCharacter.case.id));
+  }, [directCharacter, onStartAttempt]);
 
   const start = (next: DialogueCharacter) => {
     setFirstAttemptEligible(onStartAttempt(next.case.id));
@@ -864,13 +908,21 @@ function DialogueGame({ onExit, onComplete, successful, unlockedScenarioIds, mar
   );
 }
 
-function PostGame({ onExit, onComplete, successful, unlockedScenarioIds, onStartAttempt, onUnlockScenario }: GameCommonProps) {
-  const [currentCase, setCurrentCase] = useState<PostCase | null>(null);
-  const [startedAt, setStartedAt] = useState("");
+function PostGame({ initialCaseId, onExit, onComplete, successful, unlockedScenarioIds, onStartAttempt, onUnlockScenario }: GameCommonProps) {
+  const directCase = initialCaseId ? postCases.find((item) => item.id === initialCaseId) ?? null : null;
+  const [currentCase, setCurrentCase] = useState<PostCase | null>(directCase);
+  const [startedAt, setStartedAt] = useState(directCase ? new Date().toISOString() : "");
   const [clues, setClues] = useState<string[]>([]);
   const [action, setAction] = useState("");
   const [result, setResult] = useState<{ success: boolean; score: number } | null>(null);
   const [firstAttemptEligible, setFirstAttemptEligible] = useState(false);
+  const directAttemptClaimed = useRef(false);
+
+  useEffect(() => {
+    if (!directCase || directAttemptClaimed.current) return;
+    directAttemptClaimed.current = true;
+    setFirstAttemptEligible(onStartAttempt(directCase.id));
+  }, [directCase, onStartAttempt]);
 
   const start = (item: PostCase) => { setFirstAttemptEligible(onStartAttempt(item.id)); setCurrentCase(item); setStartedAt(new Date().toISOString()); setClues([]); setAction(""); setResult(null); };
   const inspect = () => {
@@ -920,12 +972,20 @@ function PostGame({ onExit, onComplete, successful, unlockedScenarioIds, onStart
   );
 }
 
-function MetroGame({ onExit, onComplete, successful, unlockedScenarioIds, onStartAttempt, onUnlockScenario }: GameCommonProps) {
-  const [currentCase, setCurrentCase] = useState<MetroCase | null>(null);
-  const [startedAt, setStartedAt] = useState("");
+function MetroGame({ initialCaseId, onExit, onComplete, successful, unlockedScenarioIds, onStartAttempt, onUnlockScenario }: GameCommonProps) {
+  const directCase = initialCaseId ? metroCases.find((item) => item.id === initialCaseId) ?? null : null;
+  const [currentCase, setCurrentCase] = useState<MetroCase | null>(directCase);
+  const [startedAt, setStartedAt] = useState(directCase ? new Date().toISOString() : "");
   const [route, setRoute] = useState("");
   const [result, setResult] = useState<{ success: boolean; score: number; explanation: string } | null>(null);
   const [firstAttemptEligible, setFirstAttemptEligible] = useState(false);
+  const directAttemptClaimed = useRef(false);
+
+  useEffect(() => {
+    if (!directCase || directAttemptClaimed.current) return;
+    directAttemptClaimed.current = true;
+    setFirstAttemptEligible(onStartAttempt(directCase.id));
+  }, [directCase, onStartAttempt]);
   const start = (item: MetroCase) => { setFirstAttemptEligible(onStartAttempt(item.id)); setCurrentCase(item); setStartedAt(new Date().toISOString()); setRoute(""); setResult(null); };
   const dispatch = () => {
     if (!currentCase || !route || result) return;

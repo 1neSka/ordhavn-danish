@@ -92,6 +92,7 @@ import {
   type WordleRun,
 } from "../lib/wordle";
 import { prepareProgressWrite, readProgressWithBackup } from "../lib/progressStorage";
+import { nextBossScenarioLaunch, type ScenarioLaunch } from "../lib/scenarioLaunch";
 import {
   clozeBlanks,
   normalizeExerciseAnswer,
@@ -547,7 +548,7 @@ function PathView({
 }: {
   progress: ProgressState;
   onStart: (mission: Mission, levelId: string) => void;
-  onOpenScenarios: () => void;
+  onOpenScenarios: (scenarioIds: readonly string[]) => void;
   onOpenWordleCheckpoint: (checkpoint: WordlePathCheckpoint) => void;
   onDeveloperUnlockLevel: (levelIndex: number) => void;
 }) {
@@ -607,7 +608,7 @@ function PathView({
                     );
                   })}
                 </div>
-                {bossGate && <button disabled={levelComplete < level.missions.length} className={`path-boss-card ${bossProgress >= bossGate.requiredCompletions ? "cleared" : ""} ${levelComplete < level.missions.length ? "locked" : ""}`} onClick={onOpenScenarios}>
+                {bossGate && <button disabled={levelComplete < level.missions.length} className={`path-boss-card ${bossProgress >= bossGate.requiredCompletions ? "cleared" : ""} ${levelComplete < level.missions.length ? "locked" : ""}`} onClick={() => onOpenScenarios(bossGate.scenarioIds)}>
                   <span className="boss-seal">{bossProgress >= bossGate.requiredCompletions ? <Check size={20} /> : <Anchor size={20} />}</span>
                   <div><p className="eyebrow">HAVNEPRØVE · BOSS</p><h3>{bossGate.title}</h3><span>{bossGate.description}</span></div>
                   <strong>{bossProgress}/{bossGate.requiredCompletions}</strong><ChevronRight size={19} />
@@ -1355,6 +1356,7 @@ function LessonPlayer({
 export default function HomePage() {
   const [view, setView] = useState<View>("home");
   const [wordleCheckpoint, setWordleCheckpoint] = useState<WordlePathCheckpoint | null>(null);
+  const [scenarioLaunch, setScenarioLaunch] = useState<ScenarioLaunch | null>(null);
   const [progress, setProgress] = useState<ProgressState>(initialProgress);
   const [hydrated, setHydrated] = useState(false);
   const [activeLesson, setActiveLesson] = useState<{ mission: Mission; levelId: string; sessionId: string; startedAtIso: string; startedAtMs: number } | null>(null);
@@ -1905,7 +1907,15 @@ export default function HomePage() {
 
   const navigate = (nextView: View) => {
     setWordleCheckpoint(null);
+    setScenarioLaunch(null);
     setView(nextView);
+  };
+
+  const openBossScenario = (scenarioIds: readonly string[]) => {
+    const successfulCaseIds = new Set(progress.scenarioRuns.filter((run) => run.success).map((run) => run.caseId));
+    setScenarioLaunch(nextBossScenarioLaunch(scenarioIds, successfulCaseIds, progress.unlockedScenarioIds));
+    setWordleCheckpoint(null);
+    setView("scenarios");
   };
 
   const openWordleCheckpoint = (checkpoint: WordlePathCheckpoint) => {
@@ -1988,7 +1998,7 @@ export default function HomePage() {
           onOpenGenderBank={() => navigate("gender-bank")}
           onStartStorm={startWeeklyStorm}
         />}
-        {view === "path" && <PathView progress={progress} onStart={startLesson} onOpenScenarios={() => navigate("scenarios")} onOpenWordleCheckpoint={openWordleCheckpoint} onDeveloperUnlockLevel={developerUnlockLevel} />}
+        {view === "path" && <PathView progress={progress} onStart={startLesson} onOpenScenarios={openBossScenario} onOpenWordleCheckpoint={openWordleCheckpoint} onDeveloperUnlockLevel={developerUnlockLevel} />}
         {view === "practice" && <PracticeView progress={progress} onStart={startLesson} onRerollWeakItem={rerollWeakItem} />}
         {view === "wordle" && <WordleGame
           launch={wordleCheckpoint ? { kind: "path", checkpoint: wordleCheckpoint } : { kind: "daily" }}
@@ -1998,7 +2008,7 @@ export default function HomePage() {
           onComplete={completeWordleRun}
           onExitPath={() => navigate("path")}
         />}
-        {view === "scenarios" && <ScenarioHub runs={progress.scenarioRuns} kroner={progress.kroner} unlockedScenarioIds={progress.unlockedScenarioIds} attemptedScenarioIds={progress.scenarioAttemptedIds} maritimeRankId={progress.maritimeRankId} relationships={progress.relationships} onStartAttempt={startScenarioAttempt} onComplete={completeScenario} onUnlockScenario={unlockScenario} onSpendKroner={spendKroner} onUseHint={useHintToken} />}
+        {view === "scenarios" && <ScenarioHub initialLaunch={scenarioLaunch} runs={progress.scenarioRuns} kroner={progress.kroner} unlockedScenarioIds={progress.unlockedScenarioIds} attemptedScenarioIds={progress.scenarioAttemptedIds} maritimeRankId={progress.maritimeRankId} relationships={progress.relationships} onStartAttempt={startScenarioAttempt} onComplete={completeScenario} onUnlockScenario={unlockScenario} onSpendKroner={spendKroner} onUseHint={useHintToken} />}
         {view === "stats" && <StatsView progress={progress} directoryHandle={directoryHandle} onConnectDirectory={connectDirectory} onExport={exportData} />}
         {view === "profile" && <ProfileView progress={progress} setProgress={setProgress} />}
         {view === "gender-bank" && <GenderBankView kroner={progress.kroner} playedToday={progress.genderBankRuns.some((run) => dayKey(new Date(run.completedAt)) === dayKey())} onDeductStake={(amount) => spendKroner(amount, "Kønsbanken")} onRecordOutcome={recordGenderBankOutcome} onClose={() => navigate("home")} />}
