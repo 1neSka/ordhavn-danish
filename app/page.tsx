@@ -103,6 +103,7 @@ import {
   serializeClozeSelections,
   serializeRegisterMatches,
 } from "../lib/exerciseScoring";
+import { orderThreeChoiceOptions } from "../lib/optionOrder";
 
 type View = "home" | "path" | "practice" | "wordle" | "scenarios" | "stats" | "profile" | "gender-bank";
 
@@ -957,6 +958,9 @@ function LessonPlayer({
   const questionStartedAt = useRef(startedAtMs);
   const question = mission.questions[index];
   const tokens = question?.tokens ?? [];
+  const displayOptions = question?.options
+    ? orderThreeChoiceOptions(question.options, question.answer, `${sessionId}:${question.id}`)
+    : [];
   const clozeSegments = question?.type === "cloze-multi" ? question.segments : [];
   const currentClozeBlanks = clozeBlanks(clozeSegments);
   const registerPairs = question?.type === "register-match" ? question.pairs : [];
@@ -989,7 +993,7 @@ function LessonPlayer({
         else if (checked) nextQuestion();
       }
       if (question && ["choice", "number-arcade", "definiteness", "agreement"].includes(question.type) && !checked && /^[1-9]$/.test(event.key)) {
-        const option = question.options?.[Number(event.key) - 1];
+        const option = displayOptions[Number(event.key) - 1];
         if (option) setSelected(option);
       }
       if (question && ["gender-bet"].includes(question.type) && !checked && /^[12]$/.test(event.key)) {
@@ -1007,7 +1011,10 @@ function LessonPlayer({
       }
       if (question?.type === "cloze-multi" && !checked && /^[1-9]$/.test(event.key)) {
         const activeBlank = currentClozeBlanks.find((blank) => blank.blankId === focusedClozeBlankId);
-        const option = activeBlank?.options[Number(event.key) - 1];
+        const activeBlankOptions = activeBlank
+          ? orderThreeChoiceOptions(activeBlank.options, activeBlank.answer, `${sessionId}:${question.id}:${activeBlank.blankId}`)
+          : [];
+        const option = activeBlankOptions[Number(event.key) - 1];
         if (activeBlank && option) {
           event.preventDefault();
           setClozeSelections((old) => ({ ...old, [activeBlank.blankId]: option }));
@@ -1223,7 +1230,7 @@ function LessonPlayer({
                 <section className={focusedClozeBlankId === blank.blankId ? "active" : ""} key={blank.blankId} onClick={() => !checked && setActiveClozeBlankId(blank.blankId)}>
                   <div><strong>Felt {blankIndex + 1}</strong><span>{clozeSelections[blank.blankId] || "Vælg en form"}</span></div>
                   <div>
-                    {blank.options.map((option, optionIndex) => <button
+                    {orderThreeChoiceOptions(blank.options, blank.answer, `${sessionId}:${question.id}:${blank.blankId}`).map((option, optionIndex) => <button
                       type="button"
                       key={option}
                       disabled={checked}
@@ -1273,7 +1280,7 @@ function LessonPlayer({
 
         {(question.type === "choice" || question.type === "number-arcade" || question.type === "definiteness" || question.type === "agreement") && (
           <div className="option-list">
-            {question.options?.map((option, optionIndex) => (
+            {displayOptions.map((option, optionIndex) => (
               <button
                 className={`answer-option ${selected === option ? "selected" : ""} ${checked && option === question.answer ? "answer-correct" : ""} ${checked && selected === option && !correct ? "answer-wrong" : ""}`}
                 key={option}
