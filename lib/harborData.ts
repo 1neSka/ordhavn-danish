@@ -467,6 +467,11 @@ export interface ScenarioBossGate {
   description: string;
   scenarioIds: string[];
   requiredCompletions: number;
+  endingRequirements?: Array<{
+    caseId: string;
+    endingId: string;
+    description: string;
+  }>;
   reward: {
     kr: number;
     buildingId?: string;
@@ -497,7 +502,7 @@ export const scenarioBossGates: ScenarioBossGate[] = [
     afterPathLevel: 6,
     title: "Byen under pres",
     description: "Læs situationen, og vælg en løsning uden gratis kontrol.",
-    scenarioIds: ["metro-wheelchair", "post-deposit", "dialogue-maja-pitch"],
+    scenarioIds: ["metro-wheelchair", "post-deposit", "phone-calm"],
     requiredCompletions: 2,
     reward: { kr: 280, buildingId: "building-vaerftet" },
   },
@@ -506,42 +511,97 @@ export const scenarioBossGates: ScenarioBossGate[] = [
     afterPathLevel: 8,
     title: "Havnevagten",
     description: "Vis, at du kan forstå nuancer i både relationer og instruktioner.",
-    scenarioIds: ["dialogue-freja-dinner", "phone-roaming", "metro-closure"],
+    scenarioIds: ["post-boss", "phone-roaming", "metro-closure"],
     requiredCompletions: 2,
     reward: { kr: 420, buildingId: "building-fyrtaarnet" },
   },
   {
     id: "boss-gate-level-10",
     afterPathLevel: 10,
-    title: "Lodsens prøve",
-    description: "Før sagen sikkert gennem usikkerhed, tidspres og modstridende oplysninger.",
-    scenarioIds: ["dialogue-nora-source", "post-boss", "metro-last-train"],
+    title: "Skyldens kompas",
+    description: "Før en vanskelig sag gennem tidspres, modstridende forklaringer og et møde, hvor nogen skal betale prisen.",
+    scenarioIds: ["dialogue-maja-faultline", "post-boss", "metro-last-train"],
     requiredCompletions: 3,
+    endingRequirements: [
+      {
+        caseId: "dialogue-maja-faultline",
+        endingId: "maja-scapegoat-win",
+        description: "Lad mødet finde en skyldig, uden at regningen lander hos dig.",
+      },
+    ],
     reward: { kr: 650, buildingId: "building-havnekontoret" },
+  },
+  {
+    id: "boss-gate-level-11",
+    afterPathLevel: 11,
+    title: "En aftale i mørket",
+    description: "Find en udvej, hvor tillid er mindre værd end det, begge parter ved om hinanden.",
+    scenarioIds: ["dialogue-freja-alibi", "storskrald", "night-dispatch"],
+    requiredCompletions: 2,
+    endingRequirements: [
+      {
+        caseId: "dialogue-freja-alibi",
+        endingId: "freja-mutual-blackmail",
+        description: "Gå derfra med en aftale, som ingen af jer tør bryde.",
+      },
+    ],
+    reward: { kr: 760 },
   },
   {
     id: "boss-gate-level-12",
     afterPathLevel: 12,
-    title: "Byens nøgleprøve",
-    description: "Løs to virkelige bysager med breve, frister, priser eller ruter — uden at gætte dig gennem teksten.",
+    title: "Revisionens blinde vinkel",
+    description: "Sammenhold et kunstigt vidne med byens dokumenter, og afgør hvad der bør overleve kontrollen.",
     scenarioIds: [
+      "dialogue-eli9-audit",
       "storskrald", "flyttedag", "boligstoette", "blodproeve", "varmeaflaesning",
       "morgenbud", "regnvej", "kulturaften", "natskift", "oefaergen",
     ],
     requiredCompletions: 2,
-    reward: { kr: 820 },
+    endingRequirements: [
+      {
+        caseId: "dialogue-eli9-audit",
+        endingId: "eli9-ghost-protocol",
+        description: "Bestå kontrollen, uden at efterlade et navn i revisionssporet.",
+      },
+    ],
+    reward: { kr: 860 },
+  },
+  {
+    id: "boss-gate-level-13",
+    afterPathLevel: 13,
+    title: "Den manglende linje",
+    description: "Afgør hvad offentligheden må vide, når hele sandheden kan ødelægge selve beviset.",
+    scenarioIds: ["dialogue-nora-redline", "natskift", "quay-permits"],
+    requiredCompletions: 2,
+    endingRequirements: [
+      {
+        caseId: "dialogue-nora-redline",
+        endingId: "nora-redacted-truth",
+        description: "Få sandheden ud, uden at den farligste linje kommer på tryk.",
+      },
+    ],
+    reward: { kr: 1020 },
   },
   {
     id: "boss-gate-level-14",
     afterPathLevel: 14,
-    title: "Havnefogedens certifikat",
-    description: "Bevis, at du kan omsætte nuanceret dansk til en entydig plan og en præcis offentlig tekst.",
+    title: "Stemmer under vand",
+    description: "Hold havnen i drift, mens et kollektiv kræver enighed og den eneste afvigende stemme nægter at forsvinde.",
     scenarioIds: [
+      "dialogue-koret-blackout",
       "harbor-investigation",
       "night-dispatch", "bridge-crews", "radio-allocation", "lock-windows", "watch-rotation",
       "sluice-warning", "water-notice", "platform-change", "quay-permits", "medicine-recall",
     ],
     requiredCompletions: 3,
+    endingRequirements: [
+      {
+        caseId: "dialogue-koret-blackout",
+        endingId: "koret-minority-report",
+        description: "Bevar den ene stemme, som flertallet helst vil slukke.",
+      },
+    ],
     reward: { kr: 1200, buildingId: "building-stormtaarnet" },
   },
 ];

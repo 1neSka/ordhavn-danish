@@ -3,11 +3,10 @@ import {
   cityScenarioRegistry,
   type CityScenarioId,
 } from "./cityScenarioData.ts";
-import { dialogueContinuationEpisodes } from "./dialogueEpisodes.ts";
+import { dialogueCampaignCharacters } from "./dialogueCampaignData.ts";
 import { harborScenarioCases } from "./harborData.ts";
 import { logicScenarioCards } from "./logicScenarioData.ts";
 import {
-  dialogueCharacters,
   metroCases,
   phoneMissions,
   postCases,
@@ -18,12 +17,13 @@ export type ScenarioLaunch = {
   kind: ScenarioKind;
   caseId: string;
   cityScenarioId?: CityScenarioId;
+  forceDirect?: boolean;
 };
 
 const directCollections = [
   { kind: "harbor" as const, cases: harborScenarioCases },
   { kind: "phone" as const, cases: phoneMissions },
-  { kind: "dialogue" as const, cases: [...dialogueCharacters, ...dialogueContinuationEpisodes].map((item) => item.case) },
+  { kind: "dialogue" as const, cases: dialogueCampaignCharacters.map((item) => item.case) },
   { kind: "post" as const, cases: postCases },
   { kind: "metro" as const, cases: metroCases },
 ];
@@ -48,7 +48,7 @@ export function isScenarioLaunchAccessible(
   if (successfulCaseIds.has(launch.caseId) || unlockedScenarioIds.includes(launch.caseId)) return true;
   if (["advanced", "logic", "city"].includes(launch.kind)) return true;
   if (launch.kind === "dialogue") {
-    return dialogueCharacters.some((item) => item.case.id === launch.caseId);
+    return dialogueCampaignCharacters.some((item) => item.case.id === launch.caseId);
   }
   const collection = directCollections.find((item) => item.kind === launch.kind);
   return collection?.cases[0]?.id === launch.caseId;
@@ -66,7 +66,8 @@ export function nextBossScenarioLaunch(
   const fallback = launches.length > 0
     ? launches
     : caseIds.map(resolveScenarioLaunch).filter((launch): launch is ScenarioLaunch => Boolean(launch));
-  return fallback.find((launch) => isScenarioLaunchAccessible(launch, successfulCaseIds, unlockedScenarioIds))
+  const launch = fallback.find((candidate) => isScenarioLaunchAccessible(candidate, successfulCaseIds, unlockedScenarioIds))
     ?? fallback[0]
     ?? null;
+  return launch ? { ...launch, forceDirect: true } : null;
 }

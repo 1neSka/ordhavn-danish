@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import Image from "next/image";
 import {
   Accessibility,
   ArrowLeft,
@@ -34,13 +33,11 @@ import {
   X,
 } from "lucide-react";
 import {
-  dialogueCharacters,
   metroCases,
   phoneMissions,
   phonePages,
   phoneSettings,
   postCases,
-  type DialogueCharacter,
   type MetroCase,
   type PhoneMission,
   type PhoneValue,
@@ -49,8 +46,7 @@ import {
   type ScenarioLevel,
   type ScenarioRun,
 } from "@/lib/scenarioData";
-import { dialogueContinuationEpisodes } from "@/lib/dialogueEpisodes";
-import { harborCharacters, harborScenarioCases, type HarborScenarioCase, type HarborRankId } from "@/lib/harborData";
+import { harborScenarioCases, type HarborScenarioCase, type HarborRankId } from "@/lib/harborData";
 import { cargoRoutingCases, safetyConsoleCases } from "@/lib/instructionPuzzleData";
 import InstructionPuzzleHub from "./instruction-puzzle-games";
 import AdvancedScenarioHub from "./advanced-scenario-games";
@@ -64,6 +60,9 @@ import type { CityCaseId } from "@/lib/cityScenarioData";
 import type { LogicScenarioId } from "@/lib/logicScenarioData";
 import { isScenarioLaunchAccessible, type ScenarioLaunch } from "@/lib/scenarioLaunch";
 import { evaluateScenarioSubmission } from "@/lib/scenarioAiClient";
+import { dialogueCampaignCharacters } from "@/lib/dialogueCampaignData";
+import DialogueGame from "./dialogue-game";
+import { evaluateDialogueTurn } from "@/lib/dialogueAiClient";
 
 type ScenarioHubProps = {
   initialLaunch?: ScenarioLaunch | null;
@@ -78,6 +77,7 @@ type ScenarioHubProps = {
   onUnlockScenario: (caseId: string, cost: number, ravCost?: number) => boolean;
   onSpendKroner: (amount: number, reason: string) => boolean;
   onUseHint: () => boolean;
+  onExitDirectLaunch?: () => void;
 };
 
 type ActiveGame = ScenarioKind | null;
@@ -117,12 +117,12 @@ const gameCards: Array<{
   },
   {
     kind: "dialogue",
-    eyebrow: "Social strategi",
+    eyebrow: "Psykologisk thriller",
     title: "Mellem linjerne",
     level: "B1–B2",
     levels: ["B1", "B2"],
-    description: "Læs personen, vælg svar og balancér tillid, spænding, grænser og skjulte psykologiske behov.",
-    meta: `${dialogueCharacters.length + dialogueContinuationEpisodes.length} episoder · 3 psykologier`,
+    description: "Læs dossieret, husk detaljerne og vælg den pris, du vil betale. Sandhed, loyalitet og et godt udfald er ikke altid det samme.",
+    meta: `${dialogueCampaignCharacters.length} store sager · skjulte udfald`,
     icon: MessageCircleMore,
     tone: "rose",
   },
@@ -204,18 +204,6 @@ const gameCards: Array<{
     tone: "amber",
   },
 ];
-
-const dialogueEpisodeCatalog = [...dialogueCharacters, ...dialogueContinuationEpisodes];
-const maritimeRankOrder: HarborRankId[] = ["skibsdreng", "letmatros", "matros", "baadsmand", "styrmand", "skipper", "lods", "havnefoged"];
-
-function dialogueEpisodeGate(item: DialogueCharacter) {
-  const owner = harborCharacters.find((character) => character.id === item.id);
-  const episode = owner?.episodes.find((candidate) => candidate.scenarioId === item.case.id);
-  const previousScenarioId = episode?.unlock.completedEpisodeId
-    ? owner?.episodes.find((candidate) => candidate.id === episode.unlock.completedEpisodeId)?.scenarioId
-    : undefined;
-  return { owner, episode, previousScenarioId };
-}
 
 function runId() {
   return typeof crypto !== "undefined" && "randomUUID" in crypto
@@ -369,11 +357,13 @@ function CaseResult({
   );
 }
 
-export default function ScenarioHub({ initialLaunch = null, runs, kroner, unlockedScenarioIds, attemptedScenarioIds, maritimeRankId, relationships, onStartAttempt, onComplete, onUnlockScenario, onSpendKroner, onUseHint }: ScenarioHubProps) {
+export default function ScenarioHub({ initialLaunch = null, runs, kroner, unlockedScenarioIds, attemptedScenarioIds, maritimeRankId, relationships, onStartAttempt, onComplete, onUnlockScenario, onSpendKroner, onUseHint, onExitDirectLaunch }: ScenarioHubProps) {
   const successful = useMemo(() => new Set(runs.filter((run) => run.success).map((run) => run.caseId)), [runs]);
   const directLaunch = initialLaunch
-    && isScenarioLaunchAccessible(initialLaunch, successful, unlockedScenarioIds)
-    && !(initialLaunch.kind === "harbor" && attemptedScenarioIds.includes(initialLaunch.caseId) && !successful.has(initialLaunch.caseId))
+    && (initialLaunch.forceDirect || (
+      isScenarioLaunchAccessible(initialLaunch, successful, unlockedScenarioIds)
+      && !(initialLaunch.kind === "harbor" && attemptedScenarioIds.includes(initialLaunch.caseId) && !successful.has(initialLaunch.caseId))
+    ))
       ? initialLaunch
       : null;
   const [activeGame, setActiveGame] = useState<ActiveGame>(initialLaunch?.kind ?? null);
@@ -382,12 +372,19 @@ export default function ScenarioHub({ initialLaunch = null, runs, kroner, unlock
     ? gameCards
     : gameCards.filter((game) => game.levels.includes(levelFilter));
 
+  const exitActiveGame = () => {
+    if (directLaunch?.forceDirect && onExitDirectLaunch) {
+      onExitDirectLaunch();
+      return;
+    }
+    setActiveGame(null);
+  };
   const common = { onComplete, successful, unlockedScenarioIds, attemptedScenarioIds, maritimeRankId, relationships, onStartAttempt, onUnlockScenario, onSpendKroner, onUseHint };
-  if (activeGame === "harbor") return <HarborCaseGame initialCaseId={directLaunch?.kind === "harbor" ? directLaunch.caseId : undefined} onExit={() => setActiveGame(null)} {...common} />;
-  if (activeGame === "phone") return <PhoneGame initialCaseId={directLaunch?.kind === "phone" ? directLaunch.caseId : undefined} onExit={() => setActiveGame(null)} {...common} />;
-  if (activeGame === "dialogue") return <DialogueGame initialCaseId={directLaunch?.kind === "dialogue" ? directLaunch.caseId : undefined} onExit={() => setActiveGame(null)} {...common} />;
-  if (activeGame === "post") return <PostGame initialCaseId={directLaunch?.kind === "post" ? directLaunch.caseId : undefined} onExit={() => setActiveGame(null)} {...common} />;
-  if (activeGame === "metro") return <MetroGame initialCaseId={directLaunch?.kind === "metro" ? directLaunch.caseId : undefined} onExit={() => setActiveGame(null)} {...common} />;
+  if (activeGame === "harbor") return <HarborCaseGame initialCaseId={directLaunch?.kind === "harbor" ? directLaunch.caseId : undefined} onExit={exitActiveGame} {...common} />;
+  if (activeGame === "phone") return <PhoneGame initialCaseId={directLaunch?.kind === "phone" ? directLaunch.caseId : undefined} onExit={exitActiveGame} {...common} />;
+  if (activeGame === "dialogue") return <DialogueGame runs={runs} initialCaseId={directLaunch?.kind === "dialogue" ? directLaunch.caseId : undefined} onExit={exitActiveGame} onStartAttempt={onStartAttempt} onComplete={onComplete} onEvaluateTurn={evaluateDialogueTurn} />;
+  if (activeGame === "post") return <PostGame initialCaseId={directLaunch?.kind === "post" ? directLaunch.caseId : undefined} onExit={exitActiveGame} {...common} />;
+  if (activeGame === "metro") return <MetroGame initialCaseId={directLaunch?.kind === "metro" ? directLaunch.caseId : undefined} onExit={exitActiveGame} {...common} />;
   if (activeGame === "safety-console" || activeGame === "cargo-routing") {
     return <InstructionPuzzleHub
       initialMode={activeGame}
@@ -395,7 +392,7 @@ export default function ScenarioHub({ initialLaunch = null, runs, kroner, unlock
       attemptedCaseIds={attemptedScenarioIds}
       onStartAttempt={onStartAttempt}
       onComplete={onComplete}
-      onExit={() => setActiveGame(null)}
+      onExit={exitActiveGame}
     />;
   }
   if (activeGame === "advanced") {
@@ -405,7 +402,7 @@ export default function ScenarioHub({ initialLaunch = null, runs, kroner, unlock
       onComplete={onComplete}
       onEvaluate={evaluateScenarioSubmission}
       onStartAttempt={onStartAttempt}
-      onExit={() => setActiveGame(null)}
+      onExit={exitActiveGame}
     />;
   }
   if (activeGame === "logic") {
@@ -415,14 +412,14 @@ export default function ScenarioHub({ initialLaunch = null, runs, kroner, unlock
       onComplete={onComplete}
       onEvaluate={evaluateScenarioSubmission}
       onStartAttempt={onStartAttempt}
-      onExit={() => setActiveGame(null)}
+      onExit={exitActiveGame}
     />;
   }
   if (activeGame === "city") {
     return <CityScenarioHub
       initialScenarioId={directLaunch?.kind === "city" ? directLaunch.cityScenarioId : null}
       initialCaseId={directLaunch?.kind === "city" ? directLaunch.caseId as CityCaseId : undefined}
-      onExit={() => setActiveGame(null)}
+      onExit={exitActiveGame}
       onStartAttempt={onStartAttempt}
       onComplete={(metadata) => onComplete(cityRunFromMetadata(metadata))}
     />;
@@ -765,143 +762,6 @@ function PhoneGame({ initialCaseId, onExit, onComplete, successful, unlockedScen
             </div>
           </div>
           <div className="phone-home-bar" />
-        </div>
-      </div>
-    </main>
-  );
-}
-
-function DialogueGame({ initialCaseId, onExit, onComplete, successful, unlockedScenarioIds, maritimeRankId, relationships, onStartAttempt, onUnlockScenario }: GameCommonProps) {
-  const directCharacter = initialCaseId ? dialogueEpisodeCatalog.find((item) => item.case.id === initialCaseId) ?? null : null;
-  const [character, setCharacter] = useState<DialogueCharacter | null>(directCharacter);
-  const [startedAt, setStartedAt] = useState(directCharacter ? new Date().toISOString() : "");
-  const [nodeId, setNodeId] = useState(directCharacter?.case.startNode ?? "");
-  const [trust, setTrust] = useState(50);
-  const [tension, setTension] = useState(25);
-  const [path, setPath] = useState<string[]>(directCharacter ? [directCharacter.case.startNode] : []);
-  const [decisions, setDecisions] = useState<ScenarioRun["decisions"]>([]);
-  const [feedback, setFeedback] = useState<{ insight: string; principle: string; next: string | null; trust: number; tension: number } | null>(null);
-  const [result, setResult] = useState<{ success: boolean; score: number; text: string } | null>(null);
-  const [firstAttemptEligible, setFirstAttemptEligible] = useState(false);
-  const directAttemptClaimed = useRef(false);
-
-  useEffect(() => {
-    if (!directCharacter || directAttemptClaimed.current) return;
-    directAttemptClaimed.current = true;
-    setFirstAttemptEligible(onStartAttempt(directCharacter.case.id));
-  }, [directCharacter, onStartAttempt]);
-
-  const start = (next: DialogueCharacter) => {
-    setFirstAttemptEligible(onStartAttempt(next.case.id));
-    setCharacter(next);
-    setStartedAt(new Date().toISOString());
-    setNodeId(next.case.startNode);
-    setTrust(50); setTension(25); setPath([next.case.startNode]); setDecisions([]); setFeedback(null); setResult(null);
-  };
-
-  const choose = (choiceId: string) => {
-    if (!character || feedback) return;
-    const node = character.case.nodes[nodeId];
-    const choice = node.choices.find((item) => item.id === choiceId)!;
-    const nextTrust = Math.max(0, Math.min(100, trust + choice.trust));
-    const nextTension = Math.max(0, Math.min(100, tension + choice.tension));
-    setTrust(nextTrust); setTension(nextTension);
-    setDecisions((current) => [...current, { stepId: node.id, answerId: choice.id, answerText: choice.text, correct: choice.trust > 0 && choice.tension <= 0, delta: { trust: choice.trust, tension: choice.tension } }]);
-    setFeedback({ insight: choice.insight, principle: choice.principle, next: choice.next, trust: nextTrust, tension: nextTension });
-  };
-
-  const continueDialogue = () => {
-    if (!character || !feedback) return;
-    const danger = feedback.tension >= character.case.dangerLimit;
-    if (feedback.next && !danger) {
-      setNodeId(feedback.next);
-      setPath((current) => [...current, feedback.next!]);
-      setFeedback(null);
-      return;
-    }
-    const success = !danger && feedback.trust >= character.case.successTrust;
-    const score = Math.min(500, Math.max(80, Math.round(220 + feedback.trust * 3 - feedback.tension * 2)));
-    const text = success
-      ? `Du læste ${character.name}s behov uden at opgive dine egne grænser. Samtalen endte med en konkret vej videre.`
-      : danger
-        ? "Spændingen blev for høj. Du afsluttede samtalen og forlod situationen; prøv en roligere, tydeligere strategi næste gang."
-        : "Samtalen sluttede uden en stabil aftale. Se især på forskellen mellem kortvarig beroligelse og langsigtet tillid.";
-    setResult({ success, score, text });
-    onComplete({
-      id: runId(), kind: "dialogue", caseId: character.case.id, title: character.case.title, level: character.case.level,
-      startedAt, endedAt: new Date().toISOString(), success, score, maxScore: 500,
-      path, decisions: [...decisions], metadata: { character: character.name, firstAttemptEligible, finalTrust: feedback.trust, finalTension: feedback.tension, dangerLimit: character.case.dangerLimit },
-    });
-  };
-
-  if (!character) {
-    return (
-      <main className="scenario-play-page">
-        <ScenarioHeader title="Mellem linjerne" subtitle="Tre personer. Tre helt forskellige psykologiske regler." onBack={onExit} />
-        <div className="character-grid">
-          {dialogueEpisodeCatalog.map((item) => {
-            const { episode, previousScenarioId } = dialogueEpisodeGate(item);
-            const rankLocked = Boolean(episode) && maritimeRankOrder.indexOf(maritimeRankId) < maritimeRankOrder.indexOf(episode!.unlock.rank);
-            const relationshipLocked = Boolean(episode) && (relationships[item.id] ?? 0) < episode!.unlock.relationship;
-            const previousLocked = Boolean(previousScenarioId) && !successful.has(previousScenarioId!);
-            const progressionLocked = rankLocked || relationshipLocked || previousLocked;
-            const purchase = episode?.unlock.purchase;
-            const purchaseLocked = Boolean(purchase) && !unlockedScenarioIds.includes(item.case.id);
-            const price = purchase ? `${purchase.kr} kr.${purchase.rav ? ` + ${purchase.rav} rav` : ""}` : "";
-            const lockLabel = rankLocked ? episode?.unlock.rank : relationshipLocked ? `forhold ${relationships[item.id] ?? 0}/${episode?.unlock.relationship}` : previousLocked ? "forrige episode" : "";
-            return (
-            <button key={item.case.id} className={`character-card ${progressionLocked || purchaseLocked ? "case-locked" : ""}`} onClick={() => {
-              if (progressionLocked) return;
-              if (purchaseLocked && purchase && !onUnlockScenario(item.case.id, purchase.kr, purchase.rav ?? 0)) return;
-              start(item);
-            }} style={{ "--character-color": item.color } as React.CSSProperties}>
-              <div className="character-portrait"><Image unoptimized src={item.portrait} alt={`${item.name}, animeportræt`} width={640} height={900} sizes="(max-width: 760px) 100vw, 33vw" /></div>
-              <div className="character-card-copy">
-                <div className="case-title-row"><h3>{item.name}, {item.age}</h3><LevelBadge level={item.case.level} /></div>
-                <p className="character-type">{item.archetype}</p>
-                <p><strong>{item.case.title}</strong> · {item.case.premise}</p>
-                <span className="character-rule"><Eye size={15} /> {item.rule}</span>
-                <span className={`case-status ${successful.has(item.case.id) ? "done" : purchaseLocked ? "priced" : ""}`}>{successful.has(item.case.id) ? <Check size={18} /> : progressionLocked ? <><LockKeyhole size={13} />{lockLabel}</> : purchaseLocked ? price : <ChevronRight size={18} />}</span>
-              </div>
-            </button>
-          )})}
-        </div>
-      </main>
-    );
-  }
-
-  if (result) {
-    return <main className="scenario-play-page"><ScenarioHeader title="Mellem linjerne" subtitle={`${character.name} · ${character.case.title}`} onBack={() => setCharacter(null)} /><CaseResult {...result} title={result.success ? "Du fandt balancen" : "Samtalen gled af sporet"} onReplay={() => start(character)} onCases={() => setCharacter(null)} /></main>;
-  }
-
-  const node = character.case.nodes[nodeId];
-  return (
-    <main className="dialogue-stage" style={{ "--character-color": character.color } as React.CSSProperties}>
-      <div className="dialogue-topbar">
-        <button className="icon-button" onClick={() => setCharacter(null)} aria-label="Tilbage"><ArrowLeft size={20} /></button>
-        <div><strong>{character.case.title}</strong><span>{character.case.location}</span></div>
-        <LevelBadge level={character.case.level} />
-      </div>
-      <div className="dialogue-scene">
-        <Image unoptimized src={character.portrait} alt={`${character.name} i scenariet`} fill priority sizes="(max-width: 760px) 100vw, 1080px" />
-        <div className="scene-gradient" />
-        <div className="dialogue-objective"><span>DIT MÅL</span>{character.case.objective}</div>
-        <div className="dialogue-meters">
-          <label>Tillid <span>{trust}</span><i><b style={{ width: `${trust}%` }} /></i></label>
-          <label>Spænding <span>{tension}</span><i className="tension"><b style={{ width: `${tension}%` }} /></i></label>
-        </div>
-        <div className="dialogue-box">
-          <p className="dialogue-stage-note">{node.stage}</p>
-          <h3>{node.speaker}</h3>
-          <blockquote>“{node.line}”</blockquote>
-          {!feedback ? (
-            <div className="dialogue-choices">{node.choices.map((choice, index) => <button key={choice.id} onClick={() => choose(choice.id)}><span>{String.fromCharCode(65 + index)}</span>{choice.text}</button>)}</div>
-          ) : (
-            <div className="dialogue-feedback">
-              <div><Lightbulb size={18} /><p><strong>{feedback.principle}</strong>{feedback.insight}</p></div>
-              <button className="primary-button" onClick={continueDialogue}>{feedback.next && feedback.tension < character.case.dangerLimit ? "Fortsæt samtalen" : "Se udfald"}<ChevronRight size={17} /></button>
-            </div>
-          )}
         </div>
       </div>
     </main>

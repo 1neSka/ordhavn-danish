@@ -53,7 +53,7 @@ import SelectionDictionary from "./selection-dictionary";
 import WordleGame from "./wordle-game";
 import { GenderBankView, HarborHome, type GenderBankOutcome } from "./harbor-game";
 import type { ScenarioRun } from "../lib/scenarioData";
-import { harborCharacters, scenarioBossGates } from "../lib/harborData";
+import { harborCharacters, scenarioBossGates, type ScenarioBossGate } from "../lib/harborData";
 import {
   applyDailyHarborFee,
   createWeeklyStorm,
@@ -93,6 +93,7 @@ import {
 } from "../lib/wordle";
 import { prepareProgressWrite, readProgressWithBackup } from "../lib/progressStorage";
 import { nextBossScenarioLaunch, type ScenarioLaunch } from "../lib/scenarioLaunch";
+import { getBossGateProgress } from "../lib/bossProgress";
 import {
   clozeBlanks,
   normalizeExerciseAnswer,
@@ -207,7 +208,7 @@ const initialProgress: ProgressState = {
   scenarioAttemptedIds: [],
   purchasedBuildings: [],
   unlockedScenarioIds: [],
-  relationships: { freja: 0, maja: 0, nora: 0 },
+  relationships: { freja: 0, maja: 0, nora: 0, eli9: 0, koret: 0 },
   repliedCharacterIds: [],
   ravClaims: [],
   hintTokens: 2,
@@ -548,7 +549,7 @@ function PathView({
 }: {
   progress: ProgressState;
   onStart: (mission: Mission, levelId: string) => void;
-  onOpenScenarios: (scenarioIds: readonly string[]) => void;
+  onOpenScenarios: (gate: ScenarioBossGate) => void;
   onOpenWordleCheckpoint: (checkpoint: WordlePathCheckpoint) => void;
   onDeveloperUnlockLevel: (levelIndex: number) => void;
 }) {
@@ -563,13 +564,13 @@ function PathView({
       <div className="level-list">
         {courseLevels.map((level, levelIndex) => {
           const previousBossGate = scenarioBossGates.find((gate) => gate.afterPathLevel === levelIndex);
-          const previousBossCleared = !previousBossGate || previousBossGate.scenarioIds.filter((id) => progress.scenarioRuns.some((run) => run.caseId === id && run.success)).length >= previousBossGate.requiredCompletions;
+          const previousBossCleared = !previousBossGate || getBossGateProgress(previousBossGate, progress.scenarioRuns).cleared;
           const developerOpen = isDeveloperLevelOpen(progress.developerMode, progress.developerUnlockedLevelIndex, levelIndex);
           const previousComplete = developerOpen || levelIndex === 0 || (courseLevels[levelIndex - 1].missions.every((m) => progress.completedMissions.includes(m.id)) && previousBossCleared);
           const levelComplete = level.missions.filter((m) => progress.completedMissions.includes(m.id)).length;
           const LevelIcon = iconMap[level.missions[0]?.icon] ?? Compass;
           const bossGate = scenarioBossGates.find((gate) => gate.afterPathLevel === levelIndex + 1);
-          const bossProgress = bossGate ? bossGate.scenarioIds.filter((id) => progress.scenarioRuns.some((run) => run.caseId === id && run.success)).length : 0;
+          const bossProgress = bossGate ? getBossGateProgress(bossGate, progress.scenarioRuns) : null;
           const wordleCheckpoint = WORDLE_PATH_CHECKPOINTS.find((checkpoint) => checkpoint.afterLevelIndex === levelIndex);
           const wordleComplete = wordleCheckpoint ? progress.completedWordleCheckpoints.includes(wordleCheckpoint.id) : false;
           const wordleAvailable = developerOpen || (previousComplete && levelComplete === level.missions.length);
@@ -608,10 +609,10 @@ function PathView({
                     );
                   })}
                 </div>
-                {bossGate && <button disabled={levelComplete < level.missions.length} className={`path-boss-card ${bossProgress >= bossGate.requiredCompletions ? "cleared" : ""} ${levelComplete < level.missions.length ? "locked" : ""}`} onClick={() => onOpenScenarios(bossGate.scenarioIds)}>
-                  <span className="boss-seal">{bossProgress >= bossGate.requiredCompletions ? <Check size={20} /> : <Anchor size={20} />}</span>
-                  <div><p className="eyebrow">HAVNEPRØVE · BOSS</p><h3>{bossGate.title}</h3><span>{bossGate.description}</span></div>
-                  <strong>{bossProgress}/{bossGate.requiredCompletions}</strong><ChevronRight size={19} />
+                {bossGate && bossProgress && <button disabled={levelComplete < level.missions.length} className={`path-boss-card ${bossProgress.cleared ? "cleared" : ""} ${levelComplete < level.missions.length ? "locked" : ""}`} onClick={() => onOpenScenarios(bossGate)}>
+                  <span className="boss-seal">{bossProgress.cleared ? <Check size={20} /> : <Anchor size={20} />}</span>
+                  <div><p className="eyebrow">HAVNEPRØVE · BOSS</p><h3>{bossGate.title}</h3><span>{bossGate.description}</span>{bossProgress.unmetEndingRequirements[0] && <small className="boss-ending-clue">Skjult udfald · {bossProgress.unmetEndingRequirements[0].description}</small>}</div>
+                  <strong>{bossProgress.completed}/{bossProgress.required}{bossProgress.endingsRequired > 0 ? ` · ${bossProgress.endingsMet}/${bossProgress.endingsRequired} ◆` : ""}</strong><ChevronRight size={19} />
                 </button>}
                 {wordleCheckpoint && <button
                   className={`path-wordle-card ${wordleComplete ? "completed" : ""} ${!wordleAvailable ? "locked" : ""}`}
@@ -1707,12 +1708,11 @@ export default function HomePage() {
         previouslySeenItems.add(attempt.questionId);
       }
       const completedMissions = firstCompletion ? [...old.completedMissions, session.missionId] : old.completedMissions;
-      const successfulScenarioIds = new Set(old.scenarioRuns.filter((run) => run.success).map((run) => run.caseId));
       const newlyClearedBosses = scenarioBossGates.filter((gate) => {
         const pathLevel = courseLevels[gate.afterPathLevel - 1];
         return pathLevel?.missions.every((mission) => completedMissions.includes(mission.id))
           && !old.claimedBossGates.includes(gate.id)
-          && gate.scenarioIds.filter((id) => successfulScenarioIds.has(id)).length >= gate.requiredCompletions;
+          && getBossGateProgress(gate, old.scenarioRuns).cleared;
       });
       const bossKroner = newlyClearedBosses.reduce((sum, gate) => sum + gate.reward.kr, 0);
       const next: ProgressState = {
@@ -1763,13 +1763,13 @@ export default function HomePage() {
       const firstTryMastery = run.metadata.firstAttemptEligible === true && run.success && checksUsed === 1 && hintsUsed === 0;
       const earnsRav = firstTryMastery && !old.ravClaims.includes(rareClaim);
       const relationshipId = run.kind === "dialogue"
-        ? String(run.metadata.character ?? "").toLocaleLowerCase("da-DK")
+        ? String(run.metadata.characterId ?? run.metadata.character ?? "").toLocaleLowerCase("da-DK")
         : contractOwner?.id ?? "";
-      const successfulCaseIds = new Set([...old.scenarioRuns.filter((item) => item.success).map((item) => item.caseId), ...(run.success ? [run.caseId] : [])]);
       const newlyClearedBosses = scenarioBossGates.filter((gate) => {
         const pathLevel = courseLevels[gate.afterPathLevel - 1];
         const pathReady = Boolean(pathLevel) && pathLevel.missions.every((mission) => old.completedMissions.includes(mission.id));
-        return pathReady && !old.claimedBossGates.includes(gate.id) && gate.scenarioIds.filter((id) => successfulCaseIds.has(id)).length >= gate.requiredCompletions;
+        const candidateRuns = [...old.scenarioRuns, run];
+        return pathReady && !old.claimedBossGates.includes(gate.id) && getBossGateProgress(gate, candidateRuns).cleared;
       });
       const bossKroner = newlyClearedBosses.reduce((sum, gate) => sum + gate.reward.kr, 0);
       const next: ProgressState = {
@@ -1911,9 +1911,11 @@ export default function HomePage() {
     setView(nextView);
   };
 
-  const openBossScenario = (scenarioIds: readonly string[]) => {
+  const openBossScenario = (gate: ScenarioBossGate) => {
     const successfulCaseIds = new Set(progress.scenarioRuns.filter((run) => run.success).map((run) => run.caseId));
-    setScenarioLaunch(nextBossScenarioLaunch(scenarioIds, successfulCaseIds, progress.unlockedScenarioIds));
+    const bossProgress = getBossGateProgress(gate, progress.scenarioRuns);
+    bossProgress.unmetEndingRequirements.forEach((requirement) => successfulCaseIds.delete(requirement.caseId));
+    setScenarioLaunch(nextBossScenarioLaunch(bossProgress.nextScenarioIds, successfulCaseIds, progress.unlockedScenarioIds));
     setWordleCheckpoint(null);
     setView("scenarios");
   };
@@ -2008,7 +2010,7 @@ export default function HomePage() {
           onComplete={completeWordleRun}
           onExitPath={() => navigate("path")}
         />}
-        {view === "scenarios" && <ScenarioHub initialLaunch={scenarioLaunch} runs={progress.scenarioRuns} kroner={progress.kroner} unlockedScenarioIds={progress.unlockedScenarioIds} attemptedScenarioIds={progress.scenarioAttemptedIds} maritimeRankId={progress.maritimeRankId} relationships={progress.relationships} onStartAttempt={startScenarioAttempt} onComplete={completeScenario} onUnlockScenario={unlockScenario} onSpendKroner={spendKroner} onUseHint={useHintToken} />}
+        {view === "scenarios" && <ScenarioHub initialLaunch={scenarioLaunch} runs={progress.scenarioRuns} kroner={progress.kroner} unlockedScenarioIds={progress.unlockedScenarioIds} attemptedScenarioIds={progress.scenarioAttemptedIds} maritimeRankId={progress.maritimeRankId} relationships={progress.relationships} onStartAttempt={startScenarioAttempt} onComplete={completeScenario} onUnlockScenario={unlockScenario} onSpendKroner={spendKroner} onUseHint={useHintToken} onExitDirectLaunch={() => navigate("path")} />}
         {view === "stats" && <StatsView progress={progress} directoryHandle={directoryHandle} onConnectDirectory={connectDirectory} onExport={exportData} />}
         {view === "profile" && <ProfileView progress={progress} setProgress={setProgress} />}
         {view === "gender-bank" && <GenderBankView kroner={progress.kroner} playedToday={progress.genderBankRuns.some((run) => dayKey(new Date(run.completedAt)) === dayKey())} onDeductStake={(amount) => spendKroner(amount, "Kønsbanken")} onRecordOutcome={recordGenderBankOutcome} onClose={() => navigate("home")} />}
