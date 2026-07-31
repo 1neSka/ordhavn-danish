@@ -320,10 +320,12 @@ export default function DialogueGame({ runs, initialCaseId, onExit, onComplete, 
   );
   const [phase, setPhase] = useState<Phase>(directCharacter ? "briefing" : "catalog");
   const [character, setCharacter] = useState<DialogueCampaignCharacter | null>(directCharacter);
-  const [nodeId, setNodeId] = useState("");
-  const [meters, setMeters] = useState<MeterState>({});
+  const [nodeId, setNodeId] = useState(() => directCharacter?.case.startNode ?? "");
+  const [meters, setMeters] = useState<MeterState>(() => directCharacter
+    ? Object.fromEntries(directCharacter.case.meters.map((meter) => [meter.id, meter.start]))
+    : {});
   const [flags, setFlags] = useState<string[]>([]);
-  const [path, setPath] = useState<string[]>([]);
+  const [path, setPath] = useState<string[]>(() => directCharacter ? [directCharacter.case.startNode] : []);
   const [choiceIds, setChoiceIds] = useState<string[]>([]);
   const [decisions, setDecisions] = useState<ScenarioRun["decisions"]>([]);
   const [debrief, setDebrief] = useState<DecisionDebrief[]>([]);
@@ -367,11 +369,12 @@ export default function DialogueGame({ runs, initialCaseId, onExit, onComplete, 
 
   const start = useCallback(() => {
     if (!character || attemptClaimed.current) return;
+    if (!nodeId || !character.case.nodes[nodeId]) resetRunState(character);
     attemptClaimed.current = true;
     setFirstAttemptEligible(onStartAttempt(character.case.id));
     setStartedAt(new Date().toISOString());
     setPhase("playing");
-  }, [character, onStartAttempt]);
+  }, [character, nodeId, onStartAttempt, resetRunState]);
 
   const returnToCatalog = useCallback(() => {
     setMapCharacter(null);

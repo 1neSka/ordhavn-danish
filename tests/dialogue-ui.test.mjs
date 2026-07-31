@@ -19,6 +19,12 @@ test("the UI requires a dossier and records named endings", () => {
   assert.match(source, /Dine valg, uden facitstempel/u);
 });
 
+test("a directly launched boss initializes its first scene before the dossier starts", () => {
+  assert.match(source, /useState\(\(\) => directCharacter\?\.case\.startNode \?\? ""\)/u);
+  assert.match(source, /directCharacter \? \[directCharacter\.case\.startNode\] : \[\]/u);
+  assert.match(source, /if \(!nodeId \|\| !character\.case\.nodes\[nodeId\]\) resetRunState\(character\)/u);
+});
+
 test("the branch map hides unseen content and reveals only played routes", () => {
   assert.match(source, /knownNodes\.has/u);
   assert.match(source, /knownChoices\.has/u);
@@ -35,4 +41,3 @@ test("ELI-9 free text uses Gemini routing with a local fallback", () => {
   assert.match(source, /freeTextTurns/u);
   assert.match(source, /aiRouteIds/u);
 });
-
