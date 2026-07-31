@@ -1172,6 +1172,7 @@ function LessonPlayer({
         ? `Næsten — ${Math.round(latestAttempt.score * registerPairs.length)} af ${registerPairs.length} forbindelser er rigtige`
         : `Næsten — ${Math.round(latestAttempt.score * 100)}% match`
     : "";
+  const showsSentenceCorrection = !correct && ["order", "ikke-position", "transform", "cloze-multi"].includes(question.type);
 
   return (
     <div className="lesson-overlay">
@@ -1342,7 +1343,11 @@ function LessonPlayer({
         {checked ? (
           <div className="feedback-content">
             <div className="feedback-icon">{correct ? <Check size={24} /> : <Lightbulb size={24} />}</div>
-            <div className="feedback-copy"><strong>{correct ? "Præcis!" : latestAttempt?.result === "partial" ? partialFeedback : `Det rigtige svar er “${expectedAnswerLabel}”`}</strong><p>{question.explanation}</p></div>
+            <div className="feedback-copy">
+              <strong>{correct ? "Præcis!" : latestAttempt?.result === "partial" ? partialFeedback : showsSentenceCorrection ? "Ikke helt endnu" : `Det rigtige svar er “${expectedAnswerLabel}”`}</strong>
+              {showsSentenceCorrection && <div className="correct-sentence" role="status"><span>Korrekt sætning</span><b lang="da">{expectedAnswerLabel}</b></div>}
+              <p>{question.explanation}</p>
+            </div>
             <div className="confidence-picker">{question.type === "gender-bet" ? <><span>Kalibrering</span><strong>Brier {Math.round(Math.pow(genderConfidence / 100 - (correct ? 1 : 0), 2) * 100) / 100}</strong></> : <><span>Hukommelsesspor</span><strong>{question.modality === "produce" ? "Produktion" : question.modality === "listen" ? "Lytning" : "Læsning"}</strong></>}</div>
             <button className="primary-button next" onClick={nextQuestion}>Fortsæt <ArrowRight size={18} /></button>
           </div>
