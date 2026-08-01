@@ -175,6 +175,157 @@ function LevelBadge({ level }: { level: CampaignCase["level"] }) {
   return <span className={styles.levelBadge}>{level}</span>;
 }
 
+type BranchGraphItem = {
+  key: string;
+  id: string;
+  kind: "scene" | "ending";
+  depth: number;
+  x: number;
+  y: number;
+  index: number;
+};
+
+type BranchGraphEdge = {
+  id: string;
+  sourceKey: string;
+  targetKey: string;
+  label: string;
+  freeText: boolean;
+};
+
+type BranchGraphLayout = {
+  items: BranchGraphItem[];
+  edges: BranchGraphEdge[];
+  width: number;
+  height: number;
+  nodeWidth: number;
+  nodeHeight: number;
+};
+
+function branchRoutes(node: CampaignNode) {
+  return [
+    ...node.choices.map((choice) => ({
+      id: choice.id,
+      label: choice.text,
+      next: choice.next,
+      endingId: choice.endingId,
+      freeText: false,
+    })),
+    ...(node.aiInput?.routes.map((route) => ({
+      id: route.id,
+      label: route.label,
+      next: route.next,
+      endingId: route.endingId,
+      freeText: true,
+    })) ?? []),
+  ];
+}
+
+function buildBranchGraph(character: DialogueCampaignCharacter): BranchGraphLayout {
+  const nodes = Object.values(character.case.nodes);
+  const nodeWidth = 196;
+  const nodeHeight = 108;
+  const columnGap = 112;
+  const rowGap = 30;
+  const paddingX = 42;
+  const paddingY = 34;
+  const indegree = new Map(nodes.map((node) => [node.id, 0]));
+  const outgoing = new Map(nodes.map((node) => [node.id, [] as string[]]));
+  const depth = new Map<string, number>([[character.case.startNode, 0]]);
+
+  nodes.forEach((node) => {
+    branchRoutes(node).forEach((route) => {
+      if (!route.next || !indegree.has(route.next)) return;
+      outgoing.get(node.id)?.push(route.next);
+      indegree.set(route.next, (indegree.get(route.next) ?? 0) + 1);
+    });
+  });
+
+  const queue = nodes.filter((node) => (indegree.get(node.id) ?? 0) === 0).map((node) => node.id);
+  while (queue.length) {
+    const sourceId = queue.shift()!;
+    const sourceDepth = depth.get(sourceId) ?? 0;
+    (outgoing.get(sourceId) ?? []).forEach((targetId) => {
+      depth.set(targetId, Math.max(depth.get(targetId) ?? 0, sourceDepth + 1));
+      indegree.set(targetId, (indegree.get(targetId) ?? 1) - 1);
+      if (indegree.get(targetId) === 0) queue.push(targetId);
+    });
+  }
+
+  const endingDepth = new Map<string, number>();
+  nodes.forEach((node) => {
+    branchRoutes(node).forEach((route) => {
+      if (!route.endingId) return;
+      endingDepth.set(route.endingId, Math.max(endingDepth.get(route.endingId) ?? 0, (depth.get(node.id) ?? 0) + 1));
+    });
+  });
+
+  const rawItems: Array<Omit<BranchGraphItem, "x" | "y">> = [
+    ...nodes.map((node, index) => ({
+      key: `scene:${node.id}`,
+      id: node.id,
+      kind: "scene" as const,
+      depth: depth.get(node.id) ?? 0,
+      index,
+    })),
+    ...endingEntries(character).map(([id], index) => ({
+      key: `ending:${id}`,
+      id,
+      kind: "ending" as const,
+      depth: endingDepth.get(id) ?? Math.max(1, ...depth.values()) + 1,
+      index,
+    })),
+  ];
+  const graphEdges: BranchGraphEdge[] = nodes.flatMap((node) => branchRoutes(node).flatMap((route) => {
+    const targetKey = route.next ? `scene:${route.next}` : route.endingId ? `ending:${route.endingId}` : "";
+    return targetKey ? [{ id: route.id, sourceKey: `scene:${node.id}`, targetKey, label: route.label, freeText: route.freeText }] : [];
+  }));
+
+  const predecessors = new Map(rawItems.map((item) => [item.key, [] as string[]]));
+  graphEdges.forEach((edge) => predecessors.get(edge.targetKey)?.push(edge.sourceKey));
+  const layers = new Map<number, typeof rawItems>();
+  rawItems.forEach((item) => layers.set(item.depth, [...(layers.get(item.depth) ?? []), item]));
+  const placedOrder = new Map<string, number>();
+  const orderedDepths = [...layers.keys()].sort((left, right) => left - right);
+  orderedDepths.forEach((layerDepth) => {
+    const layer = layers.get(layerDepth) ?? [];
+    layer.sort((left, right) => {
+      const leftParents = predecessors.get(left.key) ?? [];
+      const rightParents = predecessors.get(right.key) ?? [];
+      const leftBias = leftParents.length
+        ? leftParents.reduce((sum, key) => sum + (placedOrder.get(key) ?? left.index), 0) / leftParents.length
+        : left.index;
+      const rightBias = rightParents.length
+        ? rightParents.reduce((sum, key) => sum + (placedOrder.get(key) ?? right.index), 0) / rightParents.length
+        : right.index;
+      return leftBias - rightBias || left.index - right.index;
+    });
+    layer.forEach((item, index) => placedOrder.set(item.key, index));
+  });
+
+  const maxRows = Math.max(1, ...[...layers.values()].map((layer) => layer.length));
+  const maxDepth = Math.max(0, ...orderedDepths);
+  const canvasHeight = paddingY * 2 + maxRows * nodeHeight + Math.max(0, maxRows - 1) * rowGap;
+  const canvasWidth = paddingX * 2 + (maxDepth + 1) * nodeWidth + maxDepth * columnGap;
+  const items: BranchGraphItem[] = orderedDepths.flatMap((layerDepth) => {
+    const layer = layers.get(layerDepth) ?? [];
+    const layerHeight = layer.length * nodeHeight + Math.max(0, layer.length - 1) * rowGap;
+    const startY = Math.max(paddingY, (canvasHeight - layerHeight) / 2);
+    return layer.map((item, row) => ({
+      ...item,
+      x: paddingX + layerDepth * (nodeWidth + columnGap),
+      y: startY + row * (nodeHeight + rowGap),
+    }));
+  });
+
+  return { items, edges: graphEdges, width: canvasWidth, height: canvasHeight, nodeWidth, nodeHeight };
+}
+
+function compactRouteLabel(label: string) {
+  const normalized = label.replace(/\s+/gu, " ").trim();
+  return normalized.length > 34 ? `${normalized.slice(0, 33).trimEnd()}…` : normalized;
+}
+
 function BranchMap({
   character,
   runs,
@@ -207,7 +358,12 @@ function BranchMap({
   ]);
   const knownEndings = openedEndingIds(runs, character.case.id);
   if (currentEndingId) knownEndings.add(currentEndingId);
-  const nodes = Object.values(character.case.nodes);
+  const graph = useMemo(() => buildBranchGraph(character), [character]);
+  const itemByKey = useMemo(() => new Map(graph.items.map((item) => [item.key, item])), [graph.items]);
+  const currentNodeId = currentEndingId ? undefined : currentNodeIds.at(-1);
+  const knownRouteIds = new Set([...knownChoices, ...knownAiRoutes]);
+  const currentKey = currentEndingId ? `ending:${currentEndingId}` : currentNodeId ? `scene:${currentNodeId}` : "";
+  const knownEdgeCount = graph.edges.filter((edge) => knownRouteIds.has(edge.id)).length;
 
   useEffect(() => {
     const closeOnEscape = (event: KeyboardEvent) => {
@@ -234,77 +390,93 @@ function BranchMap({
         </div>
 
         <div className={styles.branchLegend}>
-          <span><i className={styles.seenDot} /> Set</span>
+          <span><i className={styles.currentDot} /> Aktuel</span>
+          <span><i className={styles.seenDot} /> Besøgt</span>
           <span><i className={styles.unknownDot} /> Ukendt</span>
-          <strong>{knownEndings.size}/{endingEntries(character).length} udfald</strong>
+          <strong>{knownEdgeCount}/{graph.edges.length} forbindelser · {knownEndings.size}/{endingEntries(character).length} udfald</strong>
         </div>
 
         <div className={styles.branchScroller}>
-          <div className={styles.branchNodes}>
-            {nodes.map((node, index) => {
-              const seen = knownNodes.has(node.id);
-              const followedChoices = node.choices.filter((choice) => knownChoices.has(choice.id));
-              const followedAiRoutes = node.aiInput?.routes.filter((route) => knownAiRoutes.has(route.id)) ?? [];
-              return (
-                <article className={`${styles.branchNode} ${seen ? styles.branchNodeSeen : styles.branchNodeUnknown}`} key={node.id}>
-                  <span className={styles.branchIndex}>{String(index + 1).padStart(2, "0")}</span>
-                  <small>{seen ? node.speaker : "Ukendt scene"}</small>
-                  <strong>{seen ? node.stage : "???"}</strong>
-                  {seen && (followedChoices.length > 0 || followedAiRoutes.length > 0) ? (
-                    <div className={styles.branchEdges}>
-                      {followedChoices.map((choice) => {
-                        const targetIndex = choice.next ? nodes.findIndex((candidate) => candidate.id === choice.next) : -1;
-                        const targetEnding = choice.endingId ? character.case.endings[choice.endingId] : null;
-                        const targetSeen = choice.next ? knownNodes.has(choice.next) : Boolean(choice.endingId && knownEndings.has(choice.endingId));
-                        const targetLabel = !targetSeen
-                          ? "???"
-                          : targetIndex >= 0
-                            ? `Scene ${String(targetIndex + 1).padStart(2, "0")}`
-                            : targetEnding?.title ?? "Udfald";
-                        return (
-                          <span key={choice.id}>
-                            <ChevronRight size={12} />
-                            <span>{choice.text}<em>→ {targetLabel}</em></span>
-                          </span>
-                        );
-                      })}
-                      {followedAiRoutes.map((route) => {
-                        const targetIndex = route.next ? nodes.findIndex((candidate) => candidate.id === route.next) : -1;
-                        const targetEnding = route.endingId ? character.case.endings[route.endingId] : null;
-                        const targetSeen = route.next ? knownNodes.has(route.next) : Boolean(route.endingId && knownEndings.has(route.endingId));
-                        const targetLabel = !targetSeen
-                          ? "???"
-                          : targetIndex >= 0
-                            ? `Scene ${String(targetIndex + 1).padStart(2, "0")}`
-                            : targetEnding?.title ?? "Udfald";
-                        return (
-                          <span key={route.id}>
-                            <ChevronRight size={12} />
-                            <span>Frit svar · {route.label}<em>→ {targetLabel}</em></span>
-                          </span>
-                        );
-                      })}
-                    </div>
-                  ) : (
-                    <span className={styles.hiddenEdge}>···</span>
-                  )}
-                </article>
-              );
-            })}
-          </div>
+          <div
+            className={styles.branchGraph}
+            style={{ width: graph.width, height: graph.height, "--graph-node-width": `${graph.nodeWidth}px`, "--graph-node-height": `${graph.nodeHeight}px` } as CSSProperties}
+            role="img"
+            aria-label={`Forløb med ${graph.items.length} scener og udfald. ${knownEdgeCount} forbindelser er opdaget.`}
+          >
+            <div className={styles.graphDepthGuides} aria-hidden="true">
+              {Array.from(new Set(graph.items.map((item) => item.depth))).map((depth) => {
+                const x = 42 + depth * (graph.nodeWidth + 112);
+                return <span key={depth} style={{ left: x }}><i>{depth === 0 ? "Start" : `Led ${depth}`}</i></span>;
+              })}
+            </div>
 
-          <div className={styles.endingLane}>
-            {endingEntries(character).map(([id, ending]) => {
-              const seen = knownEndings.has(id);
+            <div className={styles.graphEdges} aria-label="Forbindelser">
+              {graph.edges.map((edge) => {
+                const source = itemByKey.get(edge.sourceKey);
+                const target = itemByKey.get(edge.targetKey);
+                if (!source || !target) return null;
+                const sourceY = source.y + graph.nodeHeight / 2;
+                const targetY = target.y + graph.nodeHeight / 2;
+                const top = Math.min(sourceY, targetY);
+                const edgeKnown = knownRouteIds.has(edge.id);
+                const targetCurrent = edge.targetKey === currentKey;
+                const edgeStyle = {
+                  left: source.x + graph.nodeWidth,
+                  top,
+                  width: Math.max(20, target.x - source.x - graph.nodeWidth),
+                  height: Math.max(1, Math.abs(targetY - sourceY)),
+                  "--edge-source-y": `${sourceY - top}px`,
+                  "--edge-target-y": `${targetY - top}px`,
+                } as CSSProperties;
+                return (
+                  <div
+                    className={`${styles.graphEdge} ${edgeKnown ? styles.graphEdgeKnown : styles.graphEdgeUnknown} ${targetCurrent ? styles.graphEdgeCurrent : ""}`}
+                    style={edgeStyle}
+                    key={edge.id}
+                    role="img"
+                    aria-label={edgeKnown ? `${edge.freeText ? "Frit svar" : "Valg"}: ${edge.label}` : "Ukendt forbindelse"}
+                  >
+                    <i className={styles.edgeLead} />
+                    <i className={styles.edgeDrop} />
+                    <i className={styles.edgeTail} />
+                    <i className={styles.edgeArrow} />
+                    <span className={styles.graphEdgeLabel} title={edgeKnown ? edge.label : undefined}>
+                      {edgeKnown ? compactRouteLabel(edge.freeText ? `Frit svar · ${edge.label}` : edge.label) : "?"}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className={styles.graphItems} aria-label="Scener og udfald">
+              {graph.items.map((item) => {
+                const isEnding = item.kind === "ending";
+                const seen = isEnding ? knownEndings.has(item.id) : knownNodes.has(item.id);
+                const current = item.key === currentKey;
+                const node = isEnding ? null : character.case.nodes[item.id];
+                const ending = isEnding ? character.case.endings[item.id] : null;
+                const itemStyle = { left: item.x, top: item.y, width: graph.nodeWidth, height: graph.nodeHeight };
+                const stateClass = current ? styles.branchNodeCurrent : seen ? styles.branchNodeSeen : styles.branchNodeUnknown;
               return (
-                <article className={`${styles.endingNode} ${seen ? styles.endingNodeSeen : ""}`} key={id}>
-                  <Sparkles size={15} />
-                  <small>{seen ? (rarityLabels[String(ending.rarity)] ?? String(ending.rarity)) : "Uopdaget"}</small>
-                  <strong>{seen ? ending.title : "???"}</strong>
-                </article>
-              );
-            })}
+                  <article
+                    className={`${styles.branchNode} ${isEnding ? styles.branchEndingNode : ""} ${stateClass}`}
+                    style={itemStyle}
+                    key={item.key}
+                    aria-label={seen ? (ending?.title ?? `${node?.speaker}: ${node?.stage}`) : "Ukendt punkt"}
+                  >
+                    <div className={styles.branchNodeHead}>
+                      <span className={styles.branchIndex}>{isEnding ? <Sparkles size={12} /> : String(item.index + 1).padStart(2, "0")}</span>
+                      <small>{current ? "Aktuel" : seen ? (isEnding ? "Udfald" : "Besøgt") : "Låst"}</small>
+                    </div>
+                    <strong>{seen ? (ending?.title ?? node?.speaker) : "???"}</strong>
+                    <p>{seen ? (ending ? (rarityLabels[String(ending.rarity)] ?? String(ending.rarity)) : node?.stage) : "Ukendt scene"}</p>
+                    {current && <span className={styles.currentPulse} aria-hidden="true" />}
+                  </article>
+                );
+              })}
+            </div>
           </div>
+          <p className={styles.branchScrollHint}>Træk vandret for at følge forløbet →</p>
         </div>
       </section>
     </div>

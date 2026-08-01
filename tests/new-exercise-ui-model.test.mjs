@@ -64,3 +64,10 @@ test("sentence-building feedback always reveals the complete correct sentence af
   assert.match(source, /Korrekt sætning/u);
   assert.match(source, /<b lang="da">\{expectedAnswerLabel\}<\/b>/u);
 });
+
+test("hovering an answer cannot create a horizontal lesson scrollbar", async () => {
+  const styles = await readFile(new URL("../app/globals.css", import.meta.url), "utf8");
+
+  assert.match(styles, /\.lesson-main \{[^}]*overflow-x: hidden;/u);
+  assert.doesNotMatch(styles, /\.answer-option:hover[^}]*translateX/u);
+});

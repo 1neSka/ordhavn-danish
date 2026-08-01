@@ -104,6 +104,7 @@ import {
   serializeRegisterMatches,
 } from "../lib/exerciseScoring";
 import { orderThreeChoiceOptions } from "../lib/optionOrder";
+import { filterResponseTimeOutliers } from "../lib/responseTimeStats";
 
 type View = "home" | "path" | "practice" | "wordle" | "scenarios" | "stats" | "profile" | "gender-bank";
 
@@ -744,24 +745,34 @@ function StatsView({
 }) {
   const correct = progress.attempts.filter((attempt) => attempt.correct).length;
   const accuracy = progress.attempts.length ? Math.round((correct / progress.attempts.length) * 100) : 0;
-  const totalSeconds = progress.sessions.reduce((sum, session) => sum + session.durationSeconds, 0);
-  const avgResponse = progress.attempts.length
-    ? Math.round(progress.attempts.reduce((sum, attempt) => sum + attempt.responseMs, 0) / progress.attempts.length / 100) / 10
+  const responseTimeSample = filterResponseTimeOutliers(progress.attempts, (attempt) => attempt.responseMs);
+  const responseAttempts = responseTimeSample.included;
+  const excludedResponseIds = new Set(responseTimeSample.excluded.map(({ sample }) => sample.id));
+  const recordedSessionMs = progress.sessions.reduce((sum, session) => sum + session.durationSeconds * 1000, 0);
+  const excludedPauseMs = responseTimeSample.excluded.reduce((sum, item) => sum + Math.max(0, item.responseMs), 0);
+  const totalSeconds = Math.round(Math.max(0, recordedSessionMs - excludedPauseMs) / 1000);
+  const avgResponse = responseAttempts.length
+    ? Math.round(responseAttempts.reduce((sum, attempt) => sum + attempt.responseMs, 0) / responseAttempts.length / 100) / 10
     : 0;
-  const skillMap = new Map<string, { correct: number; total: number; responseMs: number }>();
+  const skillMap = new Map<string, { correct: number; total: number; attempts: Attempt[] }>();
   progress.attempts.forEach((attempt) => {
-    const current = skillMap.get(attempt.skill) ?? { correct: 0, total: 0, responseMs: 0 };
+    const current = skillMap.get(attempt.skill) ?? { correct: 0, total: 0, attempts: [] };
     current.total += 1;
     current.correct += attempt.correct ? 1 : 0;
-    current.responseMs += attempt.responseMs;
+    current.attempts.push(attempt);
     skillMap.set(attempt.skill, current);
   });
-  const skills = [...skillMap.entries()].map(([name, value]) => ({
-    name,
-    accuracy: Math.round((value.correct / value.total) * 100),
-    attempts: value.total,
-    speed: Math.round(value.responseMs / value.total / 100) / 10,
-  })).sort((a, b) => b.attempts - a.attempts);
+  const skills = [...skillMap.entries()].map(([name, value]) => {
+    const timingSample = filterResponseTimeOutliers(value.attempts, (attempt) => attempt.responseMs).included;
+    return {
+      name,
+      accuracy: Math.round((value.correct / value.total) * 100),
+      attempts: value.total,
+      speed: timingSample.length
+        ? Math.round(timingSample.reduce((sum, attempt) => sum + attempt.responseMs, 0) / timingSample.length / 100) / 10
+        : null,
+    };
+  }).sort((a, b) => b.attempts - a.attempts);
 
   const lastSeven = Array.from({ length: 7 }, (_, index) => {
     const date = new Date();
@@ -803,9 +814,9 @@ function StatsView({
 
       <div className="metric-grid">
         <article className="metric-card"><span className="icon-box violet"><Target size={20} /></span><div><p>Præcision</p><strong>{accuracy}%</strong><small>{correct} af {progress.attempts.length} svar</small></div></article>
-        <article className="metric-card"><span className="icon-box mint"><Clock3 size={20} /></span><div><p>Aktiv tid</p><strong>{formatDuration(totalSeconds)}</strong><small>Kun tid i opgaver</small></div></article>
+        <article className="metric-card"><span className="icon-box mint"><Clock3 size={20} /></span><div><p>Aktiv tid</p><strong>{formatDuration(totalSeconds)}</strong><small>Sessionstid uden lange pauser</small></div></article>
         <article className="metric-card"><span className="icon-box amber"><Flame size={20} /></span><div><p>Nuværende stime</p><strong>{progress.streak} dage</strong><small>Bedste vane lige nu</small></div></article>
-        <article className="metric-card"><span className="icon-box blue"><Gauge size={20} /></span><div><p>Svartid</p><strong>{avgResponse} sek.</strong><small>Gennemsnit pr. opgave</small></div></article>
+        <article className="metric-card"><span className="icon-box blue"><Gauge size={20} /></span><div><p>Svartid</p><strong>{avgResponse} sek.</strong><small>{responseTimeSample.excluded.length ? `${responseTimeSample.excluded.length} lange pauser filtreret` : "Gennemsnit pr. opgave"}</small></div></article>
         <article className="metric-card"><span className="icon-box violet"><Gamepad2 size={20} /></span><div><p>Scenarier</p><strong>{new Set(progress.scenarioRuns.filter((run) => run.success).map((run) => run.caseId)).size}</strong><small>{progress.scenarioRuns.length} gennemførte forsøg</small></div></article>
       </div>
 
@@ -843,13 +854,13 @@ function StatsView({
       </section>
 
       <section className="panel skills-panel">
-        <div className="panel-heading"><div><p className="eyebrow">FÆRDIGHEDER</p><h3>Styrker og næste fokus</h3></div><span className="muted">Baseret på alle forsøg</span></div>
+        <div className="panel-heading"><div><p className="eyebrow">FÆRDIGHEDER</p><h3>Styrker og næste fokus</h3></div><span className="muted">Præcision: alle forsøg · tempo: uden lange pauser</span></div>
         {skills.length ? (
           <div className="skill-table">
             <div className="skill-row table-head"><span>Færdighed</span><span>Mestring</span><span>Forsøg</span><span>Tempo</span></div>
             {skills.slice(0, 8).map((skill) => (
               <div className="skill-row" key={skill.name}>
-                <strong>{skill.name}</strong><div className="skill-meter"><i style={{ width: `${skill.accuracy}%` }} /><span>{skill.accuracy}%</span></div><span>{skill.attempts}</span><span>{skill.speed} sek.</span>
+                <strong>{skill.name}</strong><div className="skill-meter"><i style={{ width: `${skill.accuracy}%` }} /><span>{skill.accuracy}%</span></div><span>{skill.attempts}</span><span>{skill.speed === null ? "—" : `${skill.speed} sek.`}</span>
               </div>
             ))}
           </div>
@@ -860,7 +871,7 @@ function StatsView({
         <section className="panel error-panel">
           <div className="panel-heading"><div><p className="eyebrow">FEJLMØNSTRE</p><h3>Ord der fortjener et comeback</h3></div><RotateCcw size={20} /></div>
           {recentErrors.length ? recentErrors.map((attempt) => (
-            <div className="error-row" key={attempt.id}><span className="error-type">{attempt.questionType}</span><div><strong>{attempt.prompt}</strong><span>Du skrev: {attempt.givenAnswer || "—"}</span></div><small>{Math.round(attempt.responseMs / 1000)} sek.</small></div>
+            <div className="error-row" key={attempt.id}><span className="error-type">{attempt.questionType}</span><div><strong>{attempt.prompt}</strong><span>Du skrev: {attempt.givenAnswer || "—"}</span></div><small>{excludedResponseIds.has(attempt.id) ? "lang pause" : `${Math.round(attempt.responseMs / 1000)} sek.`}</small></div>
           )) : <EmptyState icon={ShieldCheck} title="Ingen fejl endnu" copy="Når et svar driller, gemmer vi mønsteret her — uden at dømme." />}
         </section>
 
@@ -1750,7 +1761,6 @@ export default function HomePage() {
           retentionFailurePolicy: "threaten",
         }).rank.id,
       };
-      if (directoryHandle) window.setTimeout(() => exportData("folder", next), 300);
       return next;
     });
   };
@@ -1804,7 +1814,6 @@ export default function HomePage() {
           retentionFailurePolicy: "threaten",
         }).rank.id,
       };
-      if (directoryHandle) window.setTimeout(() => exportData("folder", next), 300);
       return next;
     });
     notify(run.success ? `Scenarie løst · +${run.score} XP · havnen betaler` : `Forsøget er gemt · +${run.score} XP`);

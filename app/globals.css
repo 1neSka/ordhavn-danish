@@ -357,7 +357,7 @@ h1, h2, h3 { letter-spacing: -.035em; }
 .lesson-progress { height: 8px; border-radius: 999px; background: #e8e6eb; overflow: hidden; }
 .lesson-progress span { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #8a6cea, #5fcab0); transition: width .35s ease; }
 .lesson-hearts { display: flex; align-items: center; gap: 6px; color: #e86d66; font-size: 9px; font-weight: 750; }
-.lesson-main { width: min(690px, calc(100% - 40px)); margin: 0 auto; padding: clamp(30px, 6vh, 66px) 0 30px; overflow-y: auto; }
+.lesson-main { width: min(690px, calc(100% - 40px)); margin: 0 auto; padding: clamp(30px, 6vh, 66px) 0 30px; overflow-x: hidden; overflow-y: auto; }
 .question-meta { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 26px; color: var(--violet); font-size: 9px; font-weight: 780; text-transform: uppercase; letter-spacing: .08em; }
 .question-instruction { color: var(--muted); font-size: 12px; margin-bottom: 10px; }
 .question-prompt { font-size: clamp(27px, 4vw, 40px); line-height: 1.16; margin-bottom: 8px; }
@@ -426,7 +426,7 @@ h1, h2, h3 { letter-spacing: -.035em; }
 .transform-display strong { font-family: Georgia, serif; font-size: 12px; line-height: 1.45; }
 .option-list { display: grid; gap: 10px; margin-top: 31px; }
 .answer-option { min-height: 58px; display: grid; grid-template-columns: 34px 1fr auto; gap: 13px; align-items: center; padding: 10px 15px; text-align: left; border: 1.5px solid var(--line); border-radius: 14px; background: white; cursor: pointer; transition: .15s ease; box-shadow: 0 3px 8px rgba(45,39,75,.025); }
-.answer-option:hover:not(.answer-correct):not(.answer-wrong) { border-color: #bcb0ed; transform: translateX(2px); }
+.answer-option:hover:not(.answer-correct):not(.answer-wrong) { border-color: #bcb0ed; box-shadow: inset 3px 0 #8b74e8, 0 5px 12px rgba(45,39,75,.04); }
 .answer-option > span { width: 30px; height: 30px; border-radius: 8px; display: grid; place-items: center; background: #f1eff4; color: #8d8999; font-size: 10px; }
 .answer-option strong { font-size: 13px; }
 .answer-option.selected { border-color: var(--violet); background: #f4f1ff; }

@@ -85,8 +85,9 @@ Ordles datakilder, filtrering og licenser er dokumenteret i
 ## Dataeksport
 
 Åbn **Statistik → Dit læringsarkiv → Vælg mappe**, og vælg projektets
-`data-exports`-mappe. Browseren kræver denne engangsgodkendelse. Derefter skriver
-Ordhavn automatisk et nyt, opdelt snapshot efter hver afsluttet mission.
+`data-exports`-mappe. Browseren kræver denne engangsgodkendelse. Et nyt, opdelt
+snapshot skrives kun, når du vælger **Eksportér til mappe**; lokal fremgang
+gemmes fortsat automatisk i browseren.
 
 Se [data-exports/README.md](data-exports/README.md) for den fulde filliste.
 
