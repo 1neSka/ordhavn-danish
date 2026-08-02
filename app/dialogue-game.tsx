@@ -895,7 +895,11 @@ export default function DialogueGame({ runs, initialCaseId, onExit, onComplete, 
             <div className={styles.warning}><LockKeyhole size={17} /><p><strong>Vær opmærksom</strong>{dossier.warning}</p></div>
             <div className={styles.objectiveBox}>
               <span>Din opgave</span>
-              <p>{character.case.objective}</p>
+              <strong>{character.case.objective.role}</strong>
+              <p>{character.case.objective.assignment}</p>
+              <ul>
+                {character.case.objective.constraints.map((constraint) => <li key={constraint}>{constraint}</li>)}
+              </ul>
             </div>
 
             <div className={styles.briefingFooter}>
@@ -1014,7 +1018,7 @@ export default function DialogueGame({ runs, initialCaseId, onExit, onComplete, 
         <div className={styles.sceneInterface}>
           <div className={styles.sceneObjective}>
             <span>Aktiv opgave</span>
-            <p>{character.case.objective}</p>
+            <p>{character.case.objective.assignment}</p>
           </div>
 
           <div className={styles.meters} aria-label="Situationsmålinger">

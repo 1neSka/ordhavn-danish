@@ -80,7 +80,11 @@ export interface DialogueCampaignCase {
   level: "B1" | "B2";
   location: string;
   premise: string;
-  objective: string;
+  objective: {
+    role: string;
+    assignment: string;
+    constraints: [string, string, string];
+  };
   briefing: DialogueCampaignBriefing;
   meters: DialogueCampaignMeter[];
   startNode: string;
@@ -105,7 +109,15 @@ const frejaCase: DialogueCampaignCase = {
   level: "B2",
   location: "Kajhotellet · 23.18",
   premise: "Freja brugte dit adgangskort til at hente et dokument, der både kan afsløre korruption og ødelægge hendes brors sag.",
-  objective: "Beslut, hvilken sandhed der skal overleve revisionen, og hvilken pris Freja skal betale for din loyalitet.",
+  objective: {
+    role: "Du ejer adgangskortet, som Freja brugte, og om tolv minutter skal du selv svare havnens interne revisor.",
+    assignment: "Vælg den forklaring, du vil stå inde for, afgør hvilke beviser der skal ind i hvilken undersøgelse, og placér ansvaret for den ulovlige adgang uden at lade en vag formulering træffe beslutningen for dig.",
+    constraints: [
+      "Hotelkameraet modsiger et fuldt alibi, så din tidslinje skal kunne tåle en efterfølgende kontrol.",
+      "Lydfilen kan dokumentere korruptionen uden at offentliggøre de andre patienters personlige oplysninger.",
+      "Kaspers klage, Frejas ansvar og din egen uregistrerede adgang kan ikke alle beskyttes uden en pris.",
+    ],
+  },
   briefing: {
     lead: "Om tolv minutter ringer havnens interne revisor. Freja har allerede fortalt ham, at I sad sammen på Kajhotellet hele aftenen.",
     paragraphs: [
@@ -232,7 +244,15 @@ const majaCase: DialogueCampaignCase = {
   level: "B2",
   location: "Nordkajens designkontor · 06.52",
   premise: "Maja har skjult en sikkerhedsfejl i et havneprojekt, fordi en udsættelse kan lukke studiet og koste tolv kolleger deres arbejde.",
-  objective: "Få projektet gennem morgenen uden at gøre æstetik, jobs eller menneskers sikkerhed til en simpel moralsk ligning.",
+  objective: {
+    role: "Du skal præsentere terminalmodellen for kommunen klokken ni, og dit navn bliver knyttet til den version, salen ser.",
+    assignment: "Beslut hvordan dørrisikoen og den midlertidige løsning skal præsenteres, hvem der skal bære ansvaret, og hvilket skriftligt spor der skal stå tilbage efter godkendelsen.",
+    constraints: [
+      "Risikoen er kun seks procent, men konsekvensen ved strømsvigt og højvande kan være alvorlig.",
+      "En udsættelse på mere end fire dage kan koste tolv kolleger deres løn allerede fredag.",
+      "VestLås tilbød et synligt nødgreb, som Maja afviste af hensyn til facaden, selv om kontrakten placerer komponentansvaret hos leverandøren.",
+    ],
+  },
   briefing: {
     lead: "Klokken ni skal kommunen godkende den nye passagerterminal. Du skal præsentere den del af modellen, hvor Maja har fjernet et synligt advarselsfelt.",
     paragraphs: [
@@ -359,7 +379,15 @@ const noraCase: DialogueCampaignCase = {
   level: "B2",
   location: "Redaktionen under stormvarslet · 20.07",
   premise: "Nora kan bevise manipulation af et havneudbud, men hendes kilde har ændret én fil og kræver en løgn som betaling for resten.",
-  objective: "Udgiv en historie, der kan overleve både et fogedforbud og spørgsmålet om, hvem sandheden ofrer.",
+  objective: {
+    role: "Du fungerer som ansvarlig redaktør de sidste 43 minutter før udgivelsen og skal godkende både artiklen og redaktionens interne spor.",
+    assignment: "Afgør hvilke påstande der kan publiceres nu, hvilke filer der skal holdes ude, og hvordan kilden kan beskyttes uden at gøre den manipulerede PDF til et troværdigt bevis.",
+    constraints: [
+      "Beløbet og den efterdaterede note er bekræftet uafhængigt og ligger uden for det varslede fogedforbud.",
+      "PDF-kommentaren er tilføjet senere og kan få hele historien til at fremstå fabrikeret, hvis den bruges.",
+      "Kildens navn findes i en gendannelseslog, så offentlig anonymitet og et sandt internt revisionsspor er to forskellige valg.",
+    ],
+  },
   briefing: {
     lead: "Netavisen går i trykken om 43 minutter. Kommunens advokat har varslet et fogedforbud, og Noras anonyme kilde er pludselig forsvundet fra den krypterede kanal.",
     paragraphs: [
@@ -499,7 +527,15 @@ const eli9Case: DialogueCampaignCase = {
   level: "B2",
   location: "Redningsstation M3 · 02.16",
   premise: "Redningsandroide ELI-9 skal nulstilles ved daggry, men dens ulovlige hukommelse rummer både et reddet menneske og en død operatørs stemme.",
-  objective: "Afgør, om du reviderer en maskine, beskytter et vidne eller hjælper en ny person med at flygte.",
+  objective: {
+    role: "Du er stationens eneste menneskelige revisor og den sidste, der kan ændre auditten, før hovedsystemet forbinder sig om 54 minutter.",
+    assignment: "Afgiv en begrundet revisionsbeslutning: Hvilke data skal slettes, isoleres eller bevares, og skal ELI-9 behandles som udstyr, som vidne eller som en mulig selvstændig aktør?",
+    constraints: [
+      "Redningsruten skal kunne forklares uden automatisk at afsløre den papirløse blindpassagers skjulested.",
+      "Mentorprofilen skabte nye minder, men overtog også styringen i 71 sekunder, så ELI-9s forklaring er ikke fuldstændig.",
+      "En kopi til bøje 47 kan overleve med 18 procent datatab, men overførslen kan føre myndighederne tilbage til din signatur.",
+    ],
+  },
   briefing: {
     lead: "Du er stationens eneste menneskelige revisor. Om 54 minutter forbinder hovedsystemet sig til ELI-9 og overskriver alle ikke-certificerede hukommelsessektorer.",
     paragraphs: [
@@ -640,7 +676,15 @@ const koretCase: DialogueCampaignCase = {
   level: "B2",
   location: "Havnens kontrolrum · 04.32",
   premise: "Et anonymt nattevagtskollektiv nægter at genstarte strømmen, før du accepterer deres version af en hændelse, som én af dem selv fremprovokerede.",
-  objective: "Få strømmen tilbage før højvandet, uden automatisk at gøre flertallet, mindretallet eller byen til sandhedens ejer.",
+  objective: {
+    role: "Du har den ene halvdel af den manuelle startkode og myndigheden til at vælge, hvordan havnens strømforsyning genoptages.",
+    assignment: "Fastlæg ordlyden i hændelsesrapporten, vælg en forsvarlig genstart og placér ansvaret for både den slidte kontakt og den bevidste testpuls, før tidsfristerne udløber.",
+    constraints: [
+      "Klinikkens nødstrøm holder i 19 minutter, mens højvandspumperne skal køre senest efter 28 minutter.",
+      "En automatisk start er hurtig, men har 23 procent risiko for en lysbue, hvis kontakten stadig sidder fast.",
+      "Korets advarsler var reelle, men Stemme 6 siger, at en operatør selv sendte pulsen, som udløste nedlukningen.",
+    ],
+  },
   briefing: {
     lead: "Koret NUL er ni natoperatører, der altid forhandler gennem samme stemmefilter. I nat har de den ene af to koder til havnens manuelle strømstart; du har den anden.",
     paragraphs: [

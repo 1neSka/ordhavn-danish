@@ -91,6 +91,13 @@ gemmes fortsat automatisk i browseren.
 
 Se [data-exports/README.md](data-exports/README.md) for den fulde filliste.
 
+## Scenariebriefs
+
+Et dossier i **Mellem linjerne** skal altid fortælle spillerens konkrete rolle,
+den beslutning spilleren er ansvarlig for og tre relevante begrænsninger. Det
+må gerne gøre konflikten tydelig, men må ikke beskrive valgrækken til et bestemt
+udfald.
+
 ## Arkitektur
 
 - `app/page.tsx` — navigation, læringssti, træning, player og statistik

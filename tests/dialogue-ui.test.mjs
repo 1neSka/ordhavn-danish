@@ -15,6 +15,9 @@ test("Mellem linjerne uses the redesigned campaign engine", () => {
 test("the UI requires a dossier and records named endings", () => {
   assert.match(source, /phase === "briefing"/u);
   assert.match(source, /Start samtalen/u);
+  assert.match(source, /character\.case\.objective\.role/u);
+  assert.match(source, /character\.case\.objective\.assignment/u);
+  assert.match(source, /character\.case\.objective\.constraints\.map/u);
   assert.match(source, /endingId,/u);
   assert.match(source, /udfald opdaget/u);
   assert.match(source, /Dine valg, uden facitstempel/u);

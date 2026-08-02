@@ -250,6 +250,11 @@
 .warning strong { display: block; margin-bottom: 3px; color: var(--dg-text); }
 .objectiveBox { display: block; border-color: color-mix(in srgb, var(--dialogue-accent) 30%, var(--dg-border)); background: color-mix(in srgb, var(--dialogue-accent) 8%, var(--dg-panel-2)); }
 .objectiveBox span { display: block; margin-bottom: 5px; color: var(--dialogue-accent); font-size: 7px; font-weight: 850; letter-spacing: .1em; text-transform: uppercase; }
+.objectiveBox > strong { display: block; margin-bottom: 7px; color: var(--dg-text); font-family: Georgia, serif; font-size: 13px; font-weight: 500; line-height: 1.45; }
+.objectiveBox > p { max-width: 760px; color: var(--dg-text); font-size: 10px; line-height: 1.65; }
+.objectiveBox ul { display: grid; gap: 7px; margin: 12px 0 0; padding: 0; list-style: none; }
+.objectiveBox li { padding-left: 15px; color: var(--dg-muted); font-size: 9px; line-height: 1.55; position: relative; }
+.objectiveBox li::before { content: ""; width: 5px; height: 5px; position: absolute; left: 0; top: .52em; border: 1px solid var(--dialogue-accent); border-radius: 50%; background: color-mix(in srgb, var(--dialogue-accent) 28%, transparent); }
 
 .briefingFooter { display: flex; align-items: center; gap: 9px; margin-top: 26px; }
 .briefingFooter > div { display: grid; margin-right: auto; }

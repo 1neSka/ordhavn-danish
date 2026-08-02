@@ -45,6 +45,10 @@ test("the redesigned mode has five distinct, deep campaigns", () => {
     assert.ok(campaign.briefing.paragraphs.every((paragraph) => paragraph.length >= 170), `${campaign.id}: briefing paragraphs must carry actionable detail`);
     assert.ok(campaign.briefing.facts.length >= 4, `${campaign.id}: dossier is too small`);
     assert.ok(campaign.briefing.facts.every((fact) => fact.significance.length >= 35), `${campaign.id}: every fact must explain its mechanical significance`);
+    assert.ok(campaign.objective.role.length >= 90, `${campaign.id}: objective must state the player's concrete role`);
+    assert.ok(campaign.objective.assignment.length >= 140, `${campaign.id}: objective must name the decision the player has to make`);
+    assert.equal(campaign.objective.constraints.length, 3, `${campaign.id}: objective must surface exactly three decision constraints`);
+    assert.ok(campaign.objective.constraints.every((constraint) => constraint.length >= 80), `${campaign.id}: objective constraints must contain usable context`);
 
     const richNodes = nodes.filter((node) => nodeRoutes(node).length >= 3);
     assert.ok(richNodes.length > nodes.length / 2, `${campaign.id}: most nodes need at least three responses`);
