@@ -93,10 +93,12 @@ Se [data-exports/README.md](data-exports/README.md) for den fulde filliste.
 
 ## Scenariebriefs
 
-Et dossier i **Mellem linjerne** skal altid fortælle spillerens konkrete rolle,
-den beslutning spilleren er ansvarlig for og tre relevante begrænsninger. Det
-må gerne gøre konflikten tydelig, men må ikke beskrive valgrækken til et bestemt
-udfald.
+Et almindeligt dossier i **Mellem linjerne** skal fortælle spillerens konkrete
+rolle, den beslutning spilleren er ansvarlig for og tre relevante begrænsninger.
+Når sagen åbnes som en havneprøve med et obligatorisk udfald, erstattes **Din
+opgave** af det faktiske oplåsningsmål og tre strategiske kriterier. De skal være
+konkrete nok til, at spilleren kan planlægge sin vej, uden at kopiere den præcise
+rækkefølge af svarknapper.
 
 ## Arkitektur
 

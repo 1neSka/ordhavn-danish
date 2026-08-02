@@ -28,6 +28,7 @@ import styles from "./dialogue-game.module.css";
 type DialogueGameProps = {
   runs: ScenarioRun[];
   initialCaseId?: string;
+  targetEndingId?: string;
   onExit: () => void;
   onComplete: (run: ScenarioRun) => void;
   onStartAttempt: (caseId: string) => boolean;
@@ -483,7 +484,7 @@ function BranchMap({
   );
 }
 
-export default function DialogueGame({ runs, initialCaseId, onExit, onComplete, onStartAttempt, onEvaluateTurn }: DialogueGameProps) {
+export default function DialogueGame({ runs, initialCaseId, targetEndingId, onExit, onComplete, onStartAttempt, onEvaluateTurn }: DialogueGameProps) {
   const directCharacter = useMemo(
     () => initialCaseId
       ? dialogueCampaignCharacters.find((item) => item.case.id === initialCaseId) ?? null
@@ -855,6 +856,10 @@ export default function DialogueGame({ runs, initialCaseId, onExit, onComplete, 
     );
   }
 
+  const bossObjective = targetEndingId
+    ? character.case.endings[targetEndingId]?.bossObjective
+    : undefined;
+
   if (phase === "briefing") {
     const dossier = character.case.briefing;
     const opened = openedEndingIds(runs, character.case.id).size;
@@ -893,12 +898,12 @@ export default function DialogueGame({ runs, initialCaseId, onExit, onComplete, 
             </div>
 
             <div className={styles.warning}><LockKeyhole size={17} /><p><strong>Vær opmærksom</strong>{dossier.warning}</p></div>
-            <div className={styles.objectiveBox}>
-              <span>Din opgave</span>
-              <strong>{character.case.objective.role}</strong>
-              <p>{character.case.objective.assignment}</p>
+            <div className={`${styles.objectiveBox} ${bossObjective ? styles.bossObjectiveBox : ""}`}>
+              <span>{bossObjective ? "Din opgave · Havneprøven" : "Din opgave"}</span>
+              <strong>{bossObjective?.headline ?? character.case.objective.role}</strong>
+              <p>{bossObjective?.briefing ?? character.case.objective.assignment}</p>
               <ul>
-                {character.case.objective.constraints.map((constraint) => <li key={constraint}>{constraint}</li>)}
+                {(bossObjective?.criteria ?? character.case.objective.constraints).map((constraint) => <li key={constraint}>{constraint}</li>)}
               </ul>
             </div>
 
@@ -1017,8 +1022,8 @@ export default function DialogueGame({ runs, initialCaseId, onExit, onComplete, 
 
         <div className={styles.sceneInterface}>
           <div className={styles.sceneObjective}>
-            <span>Aktiv opgave</span>
-            <p>{character.case.objective.assignment}</p>
+            <span>{bossObjective ? "Aktiv bossopgave" : "Aktiv opgave"}</span>
+            <p>{bossObjective?.headline ?? character.case.objective.assignment}</p>
           </div>
 
           <div className={styles.meters} aria-label="Situationsmålinger">

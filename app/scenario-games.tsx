@@ -382,7 +382,7 @@ export default function ScenarioHub({ initialLaunch = null, runs, kroner, unlock
   const common = { onComplete, successful, unlockedScenarioIds, attemptedScenarioIds, maritimeRankId, relationships, onStartAttempt, onUnlockScenario, onSpendKroner, onUseHint };
   if (activeGame === "harbor") return <HarborCaseGame initialCaseId={directLaunch?.kind === "harbor" ? directLaunch.caseId : undefined} onExit={exitActiveGame} {...common} />;
   if (activeGame === "phone") return <PhoneGame initialCaseId={directLaunch?.kind === "phone" ? directLaunch.caseId : undefined} onExit={exitActiveGame} {...common} />;
-  if (activeGame === "dialogue") return <DialogueGame runs={runs} initialCaseId={directLaunch?.kind === "dialogue" ? directLaunch.caseId : undefined} onExit={exitActiveGame} onStartAttempt={onStartAttempt} onComplete={onComplete} onEvaluateTurn={evaluateDialogueTurn} />;
+  if (activeGame === "dialogue") return <DialogueGame runs={runs} initialCaseId={directLaunch?.kind === "dialogue" ? directLaunch.caseId : undefined} targetEndingId={directLaunch?.kind === "dialogue" ? directLaunch.targetEndingId : undefined} onExit={exitActiveGame} onStartAttempt={onStartAttempt} onComplete={onComplete} onEvaluateTurn={evaluateDialogueTurn} />;
   if (activeGame === "post") return <PostGame initialCaseId={directLaunch?.kind === "post" ? directLaunch.caseId : undefined} onExit={exitActiveGame} {...common} />;
   if (activeGame === "metro") return <MetroGame initialCaseId={directLaunch?.kind === "metro" ? directLaunch.caseId : undefined} onExit={exitActiveGame} {...common} />;
   if (activeGame === "safety-console" || activeGame === "cargo-routing") {

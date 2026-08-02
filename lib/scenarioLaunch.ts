@@ -18,6 +18,12 @@ export type ScenarioLaunch = {
   caseId: string;
   cityScenarioId?: CityScenarioId;
   forceDirect?: boolean;
+  targetEndingId?: string;
+};
+
+type BossEndingTarget = {
+  caseId: string;
+  endingId: string;
 };
 
 const directCollections = [
@@ -58,6 +64,7 @@ export function nextBossScenarioLaunch(
   caseIds: readonly string[],
   successfulCaseIds: ReadonlySet<string>,
   unlockedScenarioIds: readonly string[],
+  endingTargets: readonly BossEndingTarget[] = [],
 ) {
   const launches = caseIds
     .filter((caseId) => !successfulCaseIds.has(caseId))
@@ -69,5 +76,9 @@ export function nextBossScenarioLaunch(
   const launch = fallback.find((candidate) => isScenarioLaunchAccessible(candidate, successfulCaseIds, unlockedScenarioIds))
     ?? fallback[0]
     ?? null;
-  return launch ? { ...launch, forceDirect: true } : null;
+  if (!launch) return null;
+  const targetEndingId = endingTargets.find((target) => target.caseId === launch.caseId)?.endingId;
+  return targetEndingId
+    ? { ...launch, forceDirect: true, targetEndingId }
+    : { ...launch, forceDirect: true };
 }

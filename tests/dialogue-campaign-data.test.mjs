@@ -100,6 +100,17 @@ test("all graph routes and endings are valid and reachable", () => {
   }
 
   assert.ok([...expectedSpecialEndings].every((endingId) => globalEndingIds.has(endingId)), "all gated special endings must exist");
+  const specialEndings = campaigns.dialogueCampaignCases
+    .flatMap((campaign) => Object.values(campaign.endings))
+    .filter((ending) => expectedSpecialEndings.has(ending.id));
+  assert.equal(specialEndings.length, expectedSpecialEndings.size);
+  for (const ending of specialEndings) {
+    assert.ok(ending.bossObjective, `${ending.id}: gated ending needs a boss-specific objective`);
+    assert.ok(ending.bossObjective.headline.length >= 60, `${ending.id}: boss headline is too vague`);
+    assert.ok(ending.bossObjective.briefing.length >= 170, `${ending.id}: boss briefing needs enough strategic context`);
+    assert.equal(ending.bossObjective.criteria.length, 3, `${ending.id}: boss objective needs three strategic criteria`);
+    assert.ok(ending.bossObjective.criteria.every((criterion) => criterion.length >= 75), `${ending.id}: boss criteria are too vague`);
+  }
   assert.equal(campaigns.getDialogueCampaignCase("missing-case"), undefined);
 });
 

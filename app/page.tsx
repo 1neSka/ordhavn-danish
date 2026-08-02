@@ -1936,7 +1936,12 @@ export default function HomePage() {
     const successfulCaseIds = new Set(progress.scenarioRuns.filter((run) => run.success).map((run) => run.caseId));
     const bossProgress = getBossGateProgress(gate, progress.scenarioRuns);
     bossProgress.unmetEndingRequirements.forEach((requirement) => successfulCaseIds.delete(requirement.caseId));
-    setScenarioLaunch(nextBossScenarioLaunch(bossProgress.nextScenarioIds, successfulCaseIds, progress.unlockedScenarioIds));
+    setScenarioLaunch(nextBossScenarioLaunch(
+      bossProgress.nextScenarioIds,
+      successfulCaseIds,
+      progress.unlockedScenarioIds,
+      bossProgress.unmetEndingRequirements,
+    ));
     setWordleCheckpoint(null);
     setView("scenarios");
   };

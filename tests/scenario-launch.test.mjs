@@ -46,3 +46,30 @@ test("boss links explicitly bypass the scenario catalog", () => {
   assert.equal(launch?.caseId, "harbor-bike-chain");
   assert.equal(launch?.forceDirect, true);
 });
+
+test("an unfinished ending requirement follows a direct dialogue boss launch", () => {
+  const launch = nextBossScenarioLaunch(
+    ["dialogue-eli9-audit", "storskrald"],
+    new Set(),
+    [],
+    [{ caseId: "dialogue-eli9-audit", endingId: "eli9-ghost-protocol" }],
+  );
+
+  assert.deepEqual(launch, {
+    kind: "dialogue",
+    caseId: "dialogue-eli9-audit",
+    forceDirect: true,
+    targetEndingId: "eli9-ghost-protocol",
+  });
+});
+
+test("ordinary direct scenarios do not inherit an unrelated ending target", () => {
+  const launch = nextBossScenarioLaunch(
+    ["storskrald"],
+    new Set(),
+    [],
+    [{ caseId: "dialogue-eli9-audit", endingId: "eli9-ghost-protocol" }],
+  );
+
+  assert.equal(launch?.targetEndingId, undefined);
+});

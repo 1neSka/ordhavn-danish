@@ -40,6 +40,7 @@ function campaignTexts() {
     }
     for (const ending of Object.values(campaign.endings)) {
       push(ending.title, ending.kicker, ending.description, ending.epilogue);
+      if (ending.bossObjective) push(ending.bossObjective.headline, ending.bossObjective.briefing, ...ending.bossObjective.criteria);
     }
   }
   return texts;

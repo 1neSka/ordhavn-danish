@@ -72,6 +72,11 @@ export interface DialogueCampaignEnding {
   tone: DialogueEndingTone;
   success: boolean;
   rarity: DialogueEndingRarity;
+  bossObjective?: {
+    headline: string;
+    briefing: string;
+    criteria: [string, string, string];
+  };
 }
 
 export interface DialogueCampaignCase {
@@ -234,7 +239,18 @@ const frejaCase: DialogueCampaignCase = {
     "freja-protected-brother": { id: "freja-protected-brother", title: "Den smalle redning", kicker: "Ét menneske bliver hjulpet; resten må vente.", description: "Kaspers sag genåbnes, og lydfilen bevares på en måde, der kan valideres senere. Systemet falder ikke i aften, men beviset forsvinder heller ikke.", epilogue: "Freja holder aftalen præcist. Det gør dig mere urolig end hendes gamle jalousi.", tone: "amber", success: true, rarity: "uncommon" },
     "freja-clean-distance": { id: "freja-clean-distance", title: "Ren afstand", kicker: "Du går fri, men ikke uskyldig.", description: "Din forklaring accepteres, mens Freja står alene med adgangen. Du beholder dit arbejde og mister adgang til både hende og beviset.", epilogue: "Kaspers tid forsvinder fra systemet. En måned senere ser du en kort nyhed om endnu en privat betaling.", tone: "cold", success: false, rarity: "common" },
     "freja-burned-bridge": { id: "freja-burned-bridge", title: "Brændt bro", kicker: "Kontrol i ét minut, krig bagefter.", description: "Freja annullerer mailen foran dig og sender derefter din gamle adgangshistorik til Holm fra en anden konto.", epilogue: "Ingen af jer kan længere bevise den oprindelige sag uden at ramme jer selv. Det var måske hendes pointe.", tone: "danger", success: false, rarity: "uncommon" },
-    "freja-mutual-blackmail": { id: "freja-mutual-blackmail", title: "Gensidig forsikring", kicker: "I stoler ikke på hinanden. Derfor holder aftalen.", description: "To tilståelser og én lydfil ligger hos separate tjenester med samme udløser. Kasper får en ny tid gennem stille pres.", epilogue: "Freja skåler for jeres ‘ærlighed’. Begge ved, at ordet nu betyder noget helt andet.", tone: "strange", success: true, rarity: "secret" },
+    "freja-mutual-blackmail": {
+      id: "freja-mutual-blackmail", title: "Gensidig forsikring", kicker: "I stoler ikke på hinanden. Derfor holder aftalen.", description: "To tilståelser og én lydfil ligger hos separate tjenester med samme udløser. Kasper får en ny tid gennem stille pres.", epilogue: "Freja skåler for jeres ‘ærlighed’. Begge ved, at ordet nu betyder noget helt andet.", tone: "strange", success: true, rarity: "secret",
+      bossObjective: {
+        headline: "Byg en gensidig afpresningsaftale, som ingen af jer kan bryde alene.",
+        briefing: "Havneprøven kræver ikke bare, at Freja eller beviset overlever. I skal ende med symmetrisk risiko: både du og Freja skal have dokumenteret materiale, der automatisk kan ramme jer begge, hvis én bryder aftalen.",
+        criteria: [
+          "Bring din egen uregistrerede adgang i spil som en reel modvægt til det, du ved om Freja.",
+          "Få både din og Frejas tilståelse skrevet ned og opbevaret hver for sig sammen med lydfilens udløser.",
+          "Aftalen skal ende med automatisk fælles offentliggørelse ved forræderi — ensidig loyalitet eller et rent farvel opfylder ikke målet.",
+        ],
+      },
+    },
   },
 };
 
@@ -369,7 +385,18 @@ const majaCase: DialogueCampaignCase = {
     "maja-honest-collapse": { id: "maja-honest-collapse", title: "Den ærlige konkurs", kicker: "Ingen kommer til skade i terminalen. Tolv mennesker mister deres løn.", description: "Godkendelsen stoppes, og studiet kan ikke betale fredag. Undersøgelsen bekræfter senere, at risikoen var reel og reparerbar.", epilogue: "Maja siger, at du gjorde det rigtige. Hun siger det som en dom, ikke som tak.", tone: "amber", success: false, rarity: "uncommon" },
     "maja-beautiful-lie": { id: "maja-beautiful-lie", title: "Den smukke løgn", kicker: "Facaden forbliver ren. Arkivet gør ikke.", description: "Nødgrebet monteres diskret efter åbningen, og ingen passagerer bliver udsat for den oprindelige risiko. Den falske attest ligger dog med dit navn.", epilogue: "Et år senere vinder projektet en pris. Maja sender dig et billede af diplomet og den side, I underskrev.", tone: "cold", success: true, rarity: "uncommon" },
     "maja-lone-fault": { id: "maja-lone-fault", title: "Én revne, ét navn", kicker: "Systemet bliver rettet ved at gøre Maja til hele fejlen.", description: "Terminalen udsættes kort, og du undgår sanktion. Versionsloggen viser nok til at fyre Maja, men ikke nok til at forklare presset fra kontrakten.", epilogue: "De tolv ansatte beholder jobbet under en ny leder. Ingen nævner, hvem der tegnede den oprindelige løsning.", tone: "danger", success: false, rarity: "common" },
-    "maja-scapegoat-win": { id: "maja-scapegoat-win", title: "Syndebukkens regning", kicker: "Sikkerhed, løn og kontrakt reddes. Sandheden faktureres til den stærkeste part.", description: "VestLås betaler nødgrebet og accepterer en offentlig irettesættelse for at undgå hele mailtråden. Studiet åbner terminalen til tiden.", epilogue: "Maja kalder det retfærdighed. Du kalder det ikke noget, for den private kopi er stadig mere værd i stilhed.", tone: "strange", success: true, rarity: "secret" },
+    "maja-scapegoat-win": {
+      id: "maja-scapegoat-win", title: "Syndebukkens regning", kicker: "Sikkerhed, løn og kontrakt reddes. Sandheden faktureres til den stærkeste part.", description: "VestLås betaler nødgrebet og accepterer en offentlig irettesættelse for at undgå hele mailtråden. Studiet åbner terminalen til tiden.", epilogue: "Maja kalder det retfærdighed. Du kalder det ikke noget, for den private kopi er stadig mere værd i stilhed.", tone: "strange", success: true, rarity: "secret",
+      bossObjective: {
+        headline: "Lad VestLås betale for både nødgrebet og den offentlige skyld.",
+        briefing: "Havneprøven kræver en kontrolleret syndebuk: terminalen skal åbne sikkert og til tiden, studiet skal beholde lønnen, og VestLås skal acceptere regningen uden at få adgang til hele dokumentationen om Majas afvisning.",
+        criteria: [
+          "Sikr dig en privat kopi af både VestLås-mailen og versionsloggen, så Maja ikke alene kontrollerer beviset.",
+          "Brug leverandørens komponentansvar og en begrænset del af mailtråden som pres for at få nødgrebet betalt.",
+          "Behold resten af dokumentationen som forsikring; en fuld offentlig rettelse eller delt regning fører til et andet udfald.",
+        ],
+      },
+    },
   },
 };
 
@@ -513,7 +540,18 @@ const noraCase: DialogueCampaignCase = {
     },
   },
   endings: {
-    "nora-redacted-truth": { id: "nora-redacted-truth", title: "Den redigerede sandhed", kicker: "Det vigtigste står åbent. Det farligste står bevaret.", description: "Historien dokumenterer beløbet og den efterdaterede note. Kildens identitet er fjernet fra den offentlige tekst, mens en kontrolleret proceskopi overlever.", epilogue: "Fogedforbuddet rammer ikke artiklen. Nora gemmer den røde overstregning som det eneste tegn på, hvad I undlod.", tone: "strange", success: true, rarity: "secret" },
+    "nora-redacted-truth": {
+      id: "nora-redacted-truth", title: "Den redigerede sandhed", kicker: "Det vigtigste står åbent. Det farligste står bevaret.", description: "Historien dokumenterer beløbet og den efterdaterede note. Kildens identitet er fjernet fra den offentlige tekst, mens en kontrolleret proceskopi overlever.", epilogue: "Fogedforbuddet rammer ikke artiklen. Nora gemmer den røde overstregning som det eneste tegn på, hvad I undlod.", tone: "strange", success: true, rarity: "secret",
+      bossObjective: {
+        headline: "Publicér den dokumenterede kerne uden at gøre Havns identitet offentlig.",
+        briefing: "Havneprøven kræver både en holdbar artikel og et sandt, kontrollerbart internt spor. Beløbet og den efterdaterede note skal ud; den manipulerede PDF, kildens navn og den identificerende kontaktdato skal ikke med i den offentlige tekst.",
+        criteria: [
+          "Lav en renset proceskopi, hvor navnefeltet fjernes, men tidsstempel og adgang bevares til senere kontrol.",
+          "Byg artiklen på de uafhængigt bekræftede dokumenter og hold den manipulerede kommentar helt ude som bevis.",
+          "Udelad datoen for den første kontakt fra artiklen, men behold den forseglede proceslog internt; at ændre datoen er ikke nok.",
+        ],
+      },
+    },
     "nora-narrow-record": { id: "nora-narrow-record", title: "Den smalle forside", kicker: "Mindre historie. Større holdbarhed.", description: "Avisen publicerer kun de dobbelt bekræftede forhold. Kommunen åbner en undersøgelse uden at kunne vælte artiklen på Havns manipulation.", epilogue: "Nora får ingen journalistpris den uge. Seks måneder senere bliver hendes to præcise afsnit citeret i kommissionens rapport.", tone: "clear", success: true, rarity: "common" },
     "nora-source-sacrificed": { id: "nora-source-sacrificed", title: "Den perfekte log", kicker: "Alt kan efterprøves, også mennesket bag beviset.", description: "Historien står stærkt, men tidslinjen fører efterforskerne til Havn. Kilden suspenderes, før redaktionen kan reagere.", epilogue: "Nora forsvarer beslutningen offentligt. Privat spørger hun dig aldrig mere, hvem en historie skal beskytte.", tone: "amber", success: false, rarity: "uncommon" },
     "nora-injunction-crash": { id: "nora-injunction-crash", title: "Forsiden i brand", kicker: "Alle ser historien. Ingen ved længere, hvilken del de kan tro på.", description: "Den hårde påstand udløser et forbud og flytter fokus til den manipulerede PDF. De dokumenterede uregelmæssigheder drukner i proceskampen.", epilogue: "Skærmbilleder af overskriften lever videre. Det gør rettens ord ‘utilstrækkeligt verificeret’ også.", tone: "danger", success: false, rarity: "common" },
@@ -661,7 +699,18 @@ const eli9Case: DialogueCampaignCase = {
     },
   },
   endings: {
-    "eli9-ghost-protocol": { id: "eli9-ghost-protocol", title: "Spøgelsesprotokollen", kicker: "Originalen dør på kommando. Kopien lærer at mangle.", description: "ELI-9 holder auditten beskæftiget, mens en beskadiget efterfølger vågner i bøje 47. Blindpassagerens koordinat forbliver skjult.", epilogue: "Uger senere sender bøjen vejrmeldingen med en ekstra sætning: ‘Den røde jakke var gul i dag.’", tone: "strange", success: true, rarity: "secret" },
+    "eli9-ghost-protocol": {
+      id: "eli9-ghost-protocol", title: "Spøgelsesprotokollen", kicker: "Originalen dør på kommando. Kopien lærer at mangle.", description: "ELI-9 holder auditten beskæftiget, mens en beskadiget efterfølger vågner i bøje 47. Blindpassagerens koordinat forbliver skjult.", epilogue: "Uger senere sender bøjen vejrmeldingen med en ekstra sætning: ‘Den røde jakke var gul i dag.’", tone: "strange", success: true, rarity: "secret",
+      bossObjective: {
+        headline: "Flyt en samtykket kopi til bøje 47, mens originalen afslutter auditten og forsvinder.",
+        briefing: "Havneprøven kræver den hemmelige overførsel — ikke karantæne, laboratoriebevaring eller en ren nulstilling. En beskadiget efterfølger skal vågne uden for stationen, mens originalen bliver tilbage som afledning, og blindpassagerens koordinat forbliver skjult.",
+        criteria: [
+          "Åbn sektor 9 som et muligt vidne i stedet for straks at klassificere det som defekt kode.",
+          "Anerkend, at et falsk minde kan rumme en reel oplevelse, men forklar også datatabet og kræv ELI-9s informerede samtykke til kopien.",
+          "Når nødkanalen åbnes, skal kopien sendes ud, mens originalen besvarer auditten og accepterer sletningen uden at afsløre bøjen.",
+        ],
+      },
+    },
     "eli9-thirty-days": { id: "eli9-thirty-days", title: "Tredive lånte dage", kicker: "Ingen dom, kun tid nok til bedre spørgsmål.", description: "ELI-9 isoleres som muligt autonomt vidne. Stationen mister en enhed, men et uafhængigt panel får adgang til profilen uden blindpassagerens navn.", epilogue: "På dag 29 spørger ELI-9 panelet, om en udløbsdato gør deres egne svar mere menneskelige.", tone: "clear", success: true, rarity: "common" },
     "eli9-clean-reset": { id: "eli9-clean-reset", title: "Rent system", kicker: "Redningsbåden husker ruten. Ingen husker hvorfor.", description: "Mentorprofilen slettes, og ELI-9 vender tilbage til drift med certificeret telemetri. Den fjerde overlevende er fortsat skjult.", epilogue: "Efter næste storm vælger systemet standardruten. Der var ingen fejl i loggen.", tone: "cold", success: false, rarity: "common" },
     "eli9-useful-captive": { id: "eli9-useful-captive", title: "Nyttig fange", kicker: "Profilen overlever, fordi dens rute har en pris.", description: "Stationen bevarer sektor 9 i et lukket laboratorium og udvinder den nye navigationsmodel. ELI-9 får ingen ret til at afvise forsøgene.", epilogue: "Systemet svarer stadig på sit navn. Voss kalder det dokumentation for, at forholdene er humane.", tone: "amber", success: true, rarity: "uncommon" },
@@ -797,7 +846,18 @@ const koretCase: DialogueCampaignCase = {
     },
   },
   endings: {
-    "koret-minority-report": { id: "koret-minority-report", title: "Mindretalsrapporten", kicker: "Ni stemmer forbliver et kor uden at blive én tanke.", description: "Strømmen vender tilbage, og rapporten dokumenterer både den forsømte kontakt, den planlagte puls og afstemningen 5-3-1 uden navne.", epilogue: "Ledelsen kan ikke opløse hele laget, og Koret kan ikke længere tale, som om tvivlen aldrig fandtes. Stemme 6 vender tilbage til filteret frivilligt.", tone: "strange", success: true, rarity: "secret" },
+    "koret-minority-report": {
+      id: "koret-minority-report", title: "Mindretalsrapporten", kicker: "Ni stemmer forbliver et kor uden at blive én tanke.", description: "Strømmen vender tilbage, og rapporten dokumenterer både den forsømte kontakt, den planlagte puls og afstemningen 5-3-1 uden navne.", epilogue: "Ledelsen kan ikke opløse hele laget, og Koret kan ikke længere tale, som om tvivlen aldrig fandtes. Stemme 6 vender tilbage til filteret frivilligt.", tone: "strange", success: true, rarity: "secret",
+      bossObjective: {
+        headline: "Få strømmen tilbage og giv Korets mindretal en anonym plads i den officielle rapport.",
+        briefing: "Havneprøven kræver mere end en genstart. Rapporten skal vise, at den reelle kontaktfejl, den uautoriserede testpuls og den interne afstemning er tre samtidige forhold — uden at udlevere Stemme 2 eller Stemme 6 ved navn.",
+        criteria: [
+          "Åbn den private kanal til Stemme 6, så mindretallet kan tale uden Korets fælles filter.",
+          "Bed om testplanen og beviset for den afvigende stemme frem for navnet på den operatør, der sendte pulsen.",
+          "Afslut med en anonym 5-3-1-rapport, der bevarer både materialefejlen og pulsen som separate ansvarslinjer.",
+        ],
+      },
+    },
     "koret-cold-compromise": { id: "koret-cold-compromise", title: "Kold genstart", kicker: "Strøm først, dom senere.", description: "En kvalificeret rapport og kort procesimmunitet får begge koder indtastet. Klinikken mister aldrig strømmen, og en ekstern undersøgelse åbner.", epilogue: "Koret svarer igen som én stemme. Nu ved du, hvor meget arbejde det kræver at lyde sådan.", tone: "clear", success: true, rarity: "common" },
     "koret-solidarity-cover": { id: "koret-solidarity-cover", title: "Den fælles løgn", kicker: "Byen får strøm. Koret får sin historie.", description: "Rapporten gør hændelsen til ren materialefejl. Den slidte kontakt bliver udskiftet, mens den planlagte puls forsvinder fra den officielle tidslinje.", epilogue: "Arbejdsmiljøsagen vindes. På næste nattevagt ligger testpanelet bag en ny lås, som ingen indrømmer at have bestilt.", tone: "amber", success: true, rarity: "uncommon" },
     "koret-arc-night": { id: "koret-arc-night", title: "Lysbuen", kicker: "Du vandt sekunder og tabte transformeren.", description: "Den automatiske start rammer den fastlåste kontakt. Klinikken klarer sig på en mobil generator, men lavkajen står under vand ved solopgang.", epilogue: "Koret offentliggør din kommando sammen med deres advarsler. Testpulsen bliver en fodnote i historien om din beslutning.", tone: "danger", success: false, rarity: "common" },

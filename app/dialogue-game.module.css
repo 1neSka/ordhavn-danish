@@ -255,6 +255,9 @@
 .objectiveBox ul { display: grid; gap: 7px; margin: 12px 0 0; padding: 0; list-style: none; }
 .objectiveBox li { padding-left: 15px; color: var(--dg-muted); font-size: 9px; line-height: 1.55; position: relative; }
 .objectiveBox li::before { content: ""; width: 5px; height: 5px; position: absolute; left: 0; top: .52em; border: 1px solid var(--dialogue-accent); border-radius: 50%; background: color-mix(in srgb, var(--dialogue-accent) 28%, transparent); }
+.bossObjectiveBox { border-color: color-mix(in srgb, #e7b657 55%, var(--dg-border)); background: linear-gradient(135deg, color-mix(in srgb, #e7b657 11%, var(--dg-panel-2)), color-mix(in srgb, var(--dialogue-accent) 6%, var(--dg-panel-2))); }
+.bossObjectiveBox > span { color: #e7b657; }
+.bossObjectiveBox li::before { border-color: #e7b657; background: color-mix(in srgb, #e7b657 30%, transparent); }
 
 .briefingFooter { display: flex; align-items: center; gap: 9px; margin-top: 26px; }
 .briefingFooter > div { display: grid; margin-right: auto; }

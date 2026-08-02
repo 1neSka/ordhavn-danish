@@ -17,10 +17,19 @@ test("the UI requires a dossier and records named endings", () => {
   assert.match(source, /Start samtalen/u);
   assert.match(source, /character\.case\.objective\.role/u);
   assert.match(source, /character\.case\.objective\.assignment/u);
-  assert.match(source, /character\.case\.objective\.constraints\.map/u);
+  assert.match(source, /bossObjective\?\.criteria \?\? character\.case\.objective\.constraints/u);
+  assert.match(source, /character\.case\.endings\[targetEndingId\]\?\.bossObjective/u);
+  assert.match(source, /Din opgave · Havneprøven/u);
+  assert.match(source, /bossObjective\?\.criteria/u);
   assert.match(source, /endingId,/u);
   assert.match(source, /udfald opdaget/u);
   assert.match(source, /Dine valg, uden facitstempel/u);
+});
+
+test("a learning-path boss receives its required ending without changing catalog briefs", () => {
+  assert.match(hub, /targetEndingId=\{directLaunch\?\.kind === "dialogue" \? directLaunch\.targetEndingId : undefined\}/u);
+  assert.match(source, /bossObjective\?\.headline \?\? character\.case\.objective\.role/u);
+  assert.match(source, /bossObjective\?\.briefing \?\? character\.case\.objective\.assignment/u);
 });
 
 test("a directly launched boss initializes its first scene before the dossier starts", () => {
