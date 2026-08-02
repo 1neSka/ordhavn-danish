@@ -79,6 +79,31 @@ test("navigation, listing, help and man behave like the documented Linux subset"
   assert.match(result.stdout, /sha256sum/u);
 });
 
+test("clear wipes only the visible terminal while preserving mission history and state", () => {
+  const scenario = data.terminalScenarioCases[0];
+  let session = engine.createTerminalSession(scenario);
+
+  let result = run(session, "cd /data/modtagelse");
+  session = result.session;
+  result = run(session, "ls -a");
+  session = result.session;
+  const entriesBeforeClear = structuredClone(session.entries);
+
+  result = run(session, "clear");
+  assert.equal(result.exitCode, 0);
+  assert.equal(result.stdout, "");
+  assert.equal(result.session.cwd, "/data/modtagelse");
+  assert.deepEqual(result.session.entries, entriesBeforeClear);
+  assert.deepEqual(result.session.history.map((record) => record.command), ["cd", "ls", "clear"]);
+  assert.equal(result.session.screenHistoryStart, result.session.history.length);
+  assert.equal(engine.evaluateTerminalCase(scenario, result.session).stages[0].metRequirements, 2);
+
+  const invalid = run(result.session, "clear nu");
+  assert.equal(invalid.exitCode, 1);
+  assert.match(invalid.stderr, /ingen argumenter/u);
+  assert.equal(invalid.session.screenHistoryStart, 3);
+});
+
 test("grep, cut, sort, uniq and pipes reproduce a realistic log-analysis workflow", () => {
   const scenario = data.terminalScenarioCases.find((candidate) => candidate.pathLevel === 16);
   let session = engine.createTerminalSession(scenario);

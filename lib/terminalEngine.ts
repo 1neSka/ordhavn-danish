@@ -27,6 +27,7 @@ export interface TerminalSession {
   home: string;
   entries: Record<string, TerminalFsEntry>;
   history: TerminalCommandRecord[];
+  screenHistoryStart: number;
 }
 
 export interface TerminalExecutionResult {
@@ -72,6 +73,7 @@ interface CommandResult {
 const supportedCommands = [
   "help",
   "man",
+  "clear",
   "pwd",
   "ls",
   "cd",
@@ -108,6 +110,7 @@ const destructiveCommands = new Set([
 const manualPages: Record<string, string> = {
   help: "help [kommando] — vis en kort oversigt eller hjælp til én understøttet kommando.",
   man: "man KOMMANDO — vis denne simulations manualside for kommandoen.",
+  clear: "clear — ryd den synlige terminalhistorik uden at nulstille filer, mappe eller missionsfremskridt.",
   pwd: "pwd — skriv navnet på den aktuelle arbejdsmappe.",
   ls: "ls [-a] [-l] [-1] [STI...] — vis mapper. -a medtager skjulte poster; -l viser type og størrelse.",
   cd: "cd [STI] — skift arbejdsmappe. Uden sti bruges hjemmemappen. .. og ~ virker.",
@@ -721,6 +724,7 @@ function runCommand(context: CommandContext, tokens: string[]): CommandResult {
   if (!(supportedCommands as readonly string[]).includes(command)) return fail(`${command}: Kommandoen understøttes ikke. Brug help.`, 127);
   if (command === "help") return commandHelp(args);
   if (command === "man") return args.length === 1 ? commandHelp(args) : fail("man: Angiv præcis én kommando.");
+  if (command === "clear") return args.length === 0 ? ok() : fail("clear: Kommandoen tager ingen argumenter.");
   if (command === "pwd") return args.length === 0 ? ok(`${context.session.cwd}\n`) : fail("pwd: Kommandoen tager ingen argumenter.");
   if (command === "ls") return commandLs(context, args);
   if (command === "cd") {
@@ -778,7 +782,7 @@ export function createTerminalSession(scenario: TerminalScenarioCase): TerminalS
   }
   const cwd = normalizeAbsolutePath(scenario.startPath);
   if (entries[cwd]?.kind !== "directory") throw new Error(`${scenario.id}: Startmappen findes ikke.`);
-  return { caseId: scenario.id, cwd, home: "/home/elev", entries, history: [] };
+  return { caseId: scenario.id, cwd, home: "/home/elev", entries, history: [], screenHistoryStart: 0 };
 }
 
 export function executeTerminalCommand(session: TerminalSession, commandLine: string): TerminalExecutionResult {
@@ -804,6 +808,7 @@ export function executeTerminalCommand(session: TerminalSession, commandLine: st
       stderr: final.stderr,
       exitCode: final.exitCode,
     });
+    if (tokens[0] === "clear" && final.exitCode === 0) next.screenHistoryStart = next.history.length;
     if (final.exitCode > 1 || final.stderr) break;
     stdin = final.stdout;
   }
