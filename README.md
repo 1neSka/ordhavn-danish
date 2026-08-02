@@ -119,6 +119,7 @@ rækkefølge af svarknapper.
 - `app/city-scenario-games.tsx` — blanketter, beregninger og ruteplanlægning
 - `app/logic-scenario-games.tsx` — begrænsningsgitre og betydningsredigering
 - `app/api/gemini/evaluate/route.ts` — server-side Gemini-evaluering med model-fallback
+- `app/api/dictionary/lookup/route.ts` — cached online-fallback til Kaikki og Wiktionary
 - `app/instruction-puzzle-games.tsx` — manual- og ruteopgaver med beregninger
 - `app/selection-dictionary.tsx` — miniordbog for markerede danske enkeltord
 - `app/wordle-game.tsx` — daglig Ordle, træningsrunder og sti-checkpoints
@@ -140,6 +141,7 @@ rækkefølge af svarknapper.
 - `lib/exerciseScoring.ts` — Levenshtein og delvis kredit for sammensatte svar
 - `lib/instructionPuzzleData.ts` — seks B1–B2-manualpuslespil
 - `lib/dictionaryData.ts` — lokal dansk-engelsk ordbog med bøjningsformer
+- `lib/onlineDictionary.ts` — sikker parsing, grundformsforsøg og kildeangivelse for online-ordbogen
 - `lib/gameEconomy.ts` — valutaer, rangporte, bygninger og ugens storm
 - `lib/harborData.ts` — karakterer, bosser og udvidelige havnecases
 - `lib/dialogueEpisodes.ts` — seks betalte, forgrenede karakterfortsættelser
@@ -150,6 +152,9 @@ rækkefølge af svarknapper.
 - `lib/analytics.ts` — eventlog, aggregater og validering
 - `data-exports/schema.json` — stabilt data- og audio-ready schema
 
-Fremgang, kildedata og personlige eksporter bliver på enheden. Når Gemini er
+Fremgang, kildedata og personlige eksporter bliver på enheden. Den markerede
+enkeltordsform sendes kun til Kaikki/English Wiktionary, når den lokale ordbog
+ikke har et svar; resultatet caches og vises med kilde samt CC BY-SA 4.0-link.
+Når Gemini er
 aktiv, sendes kun den afsluttende scenarietekst og sagens påkrævede fakta til
 Google for sproglig vurdering. Ingen ekstern analytics-tjeneste er koblet på.

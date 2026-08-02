@@ -1,16 +1,26 @@
 "use client";
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { BookOpen, Languages } from "lucide-react";
-import { lookupDanishWord, type DictionaryLookup, type DanishPartOfSpeech } from "@/lib/dictionaryData";
+import { BookOpen, ExternalLink, Languages, LoaderCircle } from "lucide-react";
+import {
+  lookupDanishWord,
+  normalizeSelectedDanishWord,
+  type DictionaryLookup,
+  type DanishPartOfSpeech,
+} from "@/lib/dictionaryData";
+import type { OnlineDictionaryLookup } from "@/lib/onlineDictionary";
 import styles from "./selection-dictionary.module.css";
 
 type AnchorRect = Pick<DOMRect, "top" | "right" | "bottom" | "left" | "width" | "height">;
 
-type PopoverState = {
-  lookup: DictionaryLookup;
-  anchor: AnchorRect;
-};
+type PopoverState =
+  | { kind: "local"; lookup: DictionaryLookup; anchor: AnchorRect }
+  | { kind: "online"; lookup: OnlineDictionaryLookup; anchor: AnchorRect }
+  | { kind: "loading"; normalized: string; anchor: AnchorRect };
+
+type OnlineDictionaryResponse =
+  | { found: true; lookup: OnlineDictionaryLookup }
+  | { found: false; reason?: string };
 
 const partLabels: Readonly<Record<DanishPartOfSpeech, string>> = {
   noun: "noun",
@@ -53,9 +63,19 @@ export default function SelectionDictionary() {
   const [popover, setPopover] = useState<PopoverState | null>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
   const frameRef = useRef<number | null>(null);
+  const requestRef = useRef<AbortController | null>(null);
+  const selectedWordRef = useRef<string | null>(null);
+  const pendingWordRef = useRef<string | null>(null);
+  const onlineCacheRef = useRef(new Map<string, OnlineDictionaryLookup | null>());
 
   useEffect(() => {
-    const close = () => setPopover(null);
+    const close = () => {
+      requestRef.current?.abort();
+      requestRef.current = null;
+      pendingWordRef.current = null;
+      selectedWordRef.current = null;
+      setPopover(null);
+    };
     const inspectSelection = () => {
       if (frameRef.current !== null) window.cancelAnimationFrame(frameRef.current);
       frameRef.current = window.requestAnimationFrame(() => {
@@ -65,8 +85,8 @@ export default function SelectionDictionary() {
           close();
           return;
         }
-        const lookup = lookupDanishWord(selection.toString());
-        if (!lookup) {
+        const normalized = normalizeSelectedDanishWord(selection.toString());
+        if (!normalized) {
           close();
           return;
         }
@@ -75,17 +95,62 @@ export default function SelectionDictionary() {
           close();
           return;
         }
-        setPopover({
-          lookup,
-          anchor: {
-            top: rect.top,
-            right: rect.right,
-            bottom: rect.bottom,
-            left: rect.left,
-            width: rect.width,
-            height: rect.height,
-          },
-        });
+        const anchor = {
+          top: rect.top,
+          right: rect.right,
+          bottom: rect.bottom,
+          left: rect.left,
+          width: rect.width,
+          height: rect.height,
+        };
+        const localLookup = lookupDanishWord(normalized);
+        if (localLookup) {
+          requestRef.current?.abort();
+          requestRef.current = null;
+          pendingWordRef.current = null;
+          selectedWordRef.current = normalized;
+          setPopover({ kind: "local", lookup: localLookup, anchor });
+          return;
+        }
+        if (normalized.length < 4) {
+          close();
+          return;
+        }
+
+        selectedWordRef.current = normalized;
+        if (onlineCacheRef.current.has(normalized)) {
+          const cached = onlineCacheRef.current.get(normalized) ?? null;
+          setPopover(cached ? { kind: "online", lookup: cached, anchor } : null);
+          return;
+        }
+        if (pendingWordRef.current === normalized) return;
+
+        requestRef.current?.abort();
+        const controller = new AbortController();
+        requestRef.current = controller;
+        pendingWordRef.current = normalized;
+        setPopover({ kind: "loading", normalized, anchor });
+        void fetch(`/api/dictionary/lookup?word=${encodeURIComponent(normalized)}`, { signal: controller.signal })
+          .then(async (response) => {
+            const payload = await response.json() as OnlineDictionaryResponse;
+            if (!response.ok || !payload.found) {
+              if (response.status === 404) onlineCacheRef.current.set(normalized, null);
+              if (selectedWordRef.current === normalized) setPopover(null);
+              return;
+            }
+            onlineCacheRef.current.set(normalized, payload.lookup);
+            if (selectedWordRef.current === normalized) {
+              setPopover({ kind: "online", lookup: payload.lookup, anchor });
+            }
+          })
+          .catch((error: unknown) => {
+            if (error instanceof DOMException && error.name === "AbortError") return;
+            if (selectedWordRef.current === normalized) setPopover(null);
+          })
+          .finally(() => {
+            if (pendingWordRef.current === normalized) pendingWordRef.current = null;
+            if (requestRef.current === controller) requestRef.current = null;
+          });
       });
     };
     const onKeyDown = (event: KeyboardEvent) => {
@@ -95,7 +160,12 @@ export default function SelectionDictionary() {
     document.addEventListener("selectionchange", inspectSelection);
     document.addEventListener("mouseup", inspectSelection);
     document.addEventListener("touchend", inspectSelection, { passive: true });
-    document.addEventListener("pointerdown", close);
+    const closeOutside = (event: PointerEvent) => {
+      if (popoverRef.current?.contains(event.target as Node)) return;
+      close();
+    };
+
+    document.addEventListener("pointerdown", closeOutside);
     document.addEventListener("keydown", onKeyDown);
     window.addEventListener("scroll", close, true);
     window.addEventListener("resize", close);
@@ -103,10 +173,11 @@ export default function SelectionDictionary() {
       document.removeEventListener("selectionchange", inspectSelection);
       document.removeEventListener("mouseup", inspectSelection);
       document.removeEventListener("touchend", inspectSelection);
-      document.removeEventListener("pointerdown", close);
+      document.removeEventListener("pointerdown", closeOutside);
       document.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("scroll", close, true);
       window.removeEventListener("resize", close);
+      requestRef.current?.abort();
       if (frameRef.current !== null) window.cancelAnimationFrame(frameRef.current);
     };
   }, []);
@@ -129,6 +200,44 @@ export default function SelectionDictionary() {
   }, [popover]);
 
   if (!popover) return null;
+  if (popover.kind === "loading") {
+    return (
+      <div className={styles.popover} ref={popoverRef} role="status" aria-live="polite">
+        <div className={styles.heading}>
+          <span className={styles.icon}><LoaderCircle className={styles.spinner} size={15} /></span>
+          <div><strong>{popover.normalized}</strong></div>
+          <span className={styles.part}>online</span>
+        </div>
+        <div className={styles.translation}>Searching Kaikki and Wiktionary…</div>
+      </div>
+    );
+  }
+
+  if (popover.kind === "online") {
+    const online = popover.lookup;
+    return (
+      <div className={styles.popover} ref={popoverRef} role="status" aria-live="polite">
+        <div className={styles.heading}>
+          <span className={styles.icon}><Languages size={15} /></span>
+          <div>
+            <strong>{online.headword}</strong>
+            {online.selectedWord !== online.headword && <small>selected: {online.selectedWord}</small>}
+          </div>
+          <span className={styles.part}>{online.partOfSpeech ?? "online"}</span>
+        </div>
+        <div className={styles.translation}>{online.english.join("; ")}</div>
+        {online.formNote && <div className={styles.form}><BookOpen size={13} /><span>{online.formNote}</span></div>}
+        <div className={styles.source}>
+          <span>online fallback</span>
+          <a href={online.sourceUrl} target="_blank" rel="noreferrer" onPointerDown={(event) => event.preventDefault()}>
+            {online.sourceName} <ExternalLink size={10} />
+          </a>
+          <a href={online.licenseUrl} target="_blank" rel="noreferrer" onPointerDown={(event) => event.preventDefault()}>CC BY-SA 4.0</a>
+        </div>
+      </div>
+    );
+  }
+
   const { entry, alternatives, normalized } = popover.lookup;
   return (
     <div className={styles.popover} ref={popoverRef} role="status" aria-live="polite">
