@@ -28,3 +28,17 @@ export function orderThreeChoiceOptions(
   distractors.splice(answerPosition, 0, options[answerIndex]);
   return distractors;
 }
+
+/** Stable Fisher–Yates shuffle for token-bank mechanics; never mutates authored data. */
+export function orderItemTokens(tokens: readonly string[], seed: string) {
+  const ordered = [...tokens];
+  if (ordered.length < 2) return ordered;
+  let state = hashSeed(`${seed}:tokens`) || 1;
+  for (let index = ordered.length - 1; index > 0; index -= 1) {
+    state = (Math.imul(state, 1_664_525) + 1_013_904_223) >>> 0;
+    const swapIndex = state % (index + 1);
+    [ordered[index], ordered[swapIndex]] = [ordered[swapIndex], ordered[index]];
+  }
+  if (ordered.every((token, index) => token === tokens[index])) ordered.push(ordered.shift()!);
+  return ordered;
+}

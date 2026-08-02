@@ -8,7 +8,11 @@ export type ScenarioKind =
   | "cargo-routing"
   | "advanced"
   | "city"
-  | "logic";
+  | "logic"
+  | "terminal"
+  | "science"
+  | "authority"
+  | "detective";
 export type ScenarioLevel = "A1" | "A2" | "B1" | "B2";
 
 export interface ScenarioRun {

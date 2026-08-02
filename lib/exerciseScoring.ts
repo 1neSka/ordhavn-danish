@@ -70,3 +70,40 @@ export function scoreRegisterMatches(pairs: RegisterPair[], matches: Record<stri
   )).length;
   return correct / pairs.length;
 }
+
+/** Longest-common-subsequence credit rewards a mostly coherent paragraph without
+ * treating one displaced sentence as a total failure. */
+export function longestCommonSubsequenceLength(expected: readonly string[], actual: readonly string[]) {
+  const row = new Array(actual.length + 1).fill(0) as number[];
+  for (const expectedValue of expected) {
+    let diagonal = 0;
+    for (let index = 1; index <= actual.length; index += 1) {
+      const above = row[index];
+      row[index] = expectedValue === actual[index - 1]
+        ? diagonal + 1
+        : Math.max(row[index], row[index - 1]);
+      diagonal = above;
+    }
+  }
+  return row[actual.length] ?? 0;
+}
+
+export function scoreOrderedSequence(expected: readonly string[], actual: readonly string[]) {
+  if (!expected.length) return 0;
+  return longestCommonSubsequenceLength(expected, actual) / expected.length;
+}
+
+export function serializeErrorHunt(errorIndex: number | null, correction: string) {
+  return `${errorIndex ?? -1} | ${correction.trim()}`;
+}
+
+export function scoreErrorHunt(
+  expectedIndex: number,
+  expectedCorrection: string,
+  chosenIndex: number | null,
+  correction: string,
+) {
+  const indexCredit = chosenIndex === expectedIndex ? 0.5 : 0;
+  const correctionCredit = normalizeExerciseAnswer(correction) === normalizeExerciseAnswer(expectedCorrection) ? 0.5 : 0;
+  return indexCredit + correctionCredit;
+}

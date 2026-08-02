@@ -8,31 +8,30 @@ const scenarios = await import("../lib/scenarioData.ts");
 test("course contains at least one hour of unique, audio-ready Danish content", () => {
   const missions = course.courseLevels.flatMap((level) => level.missions);
   const items = missions.flatMap((mission) => mission.questions);
-  assert.equal(course.courseLevels.length, 14);
-  assert.equal(missions.length, 50);
-  assert.equal(items.length, 400);
+  assert.ok(course.courseLevels.length >= 20);
+  assert.ok(missions.length >= 74);
+  assert.ok(items.length >= 592);
   assert.equal(new Set(items.map((item) => item.id)).size, items.length);
   assert.ok(missions.reduce((sum, mission) => sum + mission.estimatedMinutes, 0) >= 100);
   assert.ok(items.every((item) => ["read", "produce"].includes(item.modality)));
   assert.ok(items.every((item) => item.assets.audio === null));
   assert.equal(items.filter((item) => item.type === "gender-bet").length, 10);
   assert.doesNotMatch(JSON.stringify(course.courseLevels), /[\u0400-\u04ff]/u);
-  assert.deepEqual(
-    new Set(items.map((item) => item.type)),
-    new Set([
-      "choice",
-      "order",
-      "input",
-      "gender-bet",
-      "number-arcade",
-      "definiteness",
-      "agreement",
-      "ikke-position",
-      "cloze-multi",
-      "register-match",
-      "transform",
-    ]),
-  );
+  const itemTypes = new Set(items.map((item) => item.type));
+  for (const type of [
+    "choice",
+    "order",
+    "input",
+    "gender-bet",
+    "number-arcade",
+    "definiteness",
+    "agreement",
+    "ikke-position",
+    "cloze-multi",
+    "register-match",
+    "transform",
+  ]) assert.ok(itemTypes.has(type), `missing legacy item type ${type}`);
+  assert.ok(itemTypes.size >= 25, `only ${itemTypes.size} item mechanics`);
 });
 
 test("every item has a playable answer path", () => {

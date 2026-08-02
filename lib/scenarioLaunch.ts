@@ -4,8 +4,12 @@ import {
   type CityScenarioId,
 } from "./cityScenarioData.ts";
 import { dialogueCampaignCharacters } from "./dialogueCampaignData.ts";
+import { detectiveCases } from "./detectiveScenarioData.ts";
 import { harborScenarioCases } from "./harborData.ts";
 import { logicScenarioCards } from "./logicScenarioData.ts";
+import { scienceScenarioCases } from "./scienceScenarioData.ts";
+import { terminalScenarioCases } from "./terminalScenarioData.ts";
+import { authorityScenarioCases } from "./authorityScenarioData.ts";
 import {
   metroCases,
   phoneMissions,
@@ -32,6 +36,10 @@ const directCollections = [
   { kind: "dialogue" as const, cases: dialogueCampaignCharacters.map((item) => item.case) },
   { kind: "post" as const, cases: postCases },
   { kind: "metro" as const, cases: metroCases },
+  { kind: "terminal" as const, cases: terminalScenarioCases },
+  { kind: "science" as const, cases: scienceScenarioCases },
+  { kind: "authority" as const, cases: authorityScenarioCases },
+  { kind: "detective" as const, cases: detectiveCases },
 ];
 
 export function resolveScenarioLaunch(caseId: string): ScenarioLaunch | null {

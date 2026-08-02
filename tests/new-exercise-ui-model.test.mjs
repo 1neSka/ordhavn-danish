@@ -60,7 +60,10 @@ test("transform/free input uses the best Levenshtein score without making it boo
 test("sentence-building feedback always reveals the complete correct sentence after an error", async () => {
   const source = await readFile(new URL("../app/page.tsx", import.meta.url), "utf8");
 
-  assert.match(source, /\["order", "ikke-position", "transform", "cloze-multi"\]\.includes\(question\.type\)/u);
+  for (const type of ["order", "ikke-position", "transform", "cloze-multi", "text-order", "counterfactual-chain", "word-forge"]) {
+    assert.ok(source.includes(`"${type}"`), `${type} should reveal its complete correction`);
+  }
+  assert.match(source, /\.includes\(question\.type\)/u);
   assert.match(source, /Korrekt sætning/u);
   assert.match(source, /<b lang="da">\{expectedAnswerLabel\}<\/b>/u);
 });

@@ -1485,8 +1485,82 @@ export const coreGameDictionaryEntries: readonly DictionaryEntry[] = [
   ].map(([headword, english]) => noun(headword, english, "en", headword)),
 ] as const;
 
+/** High-frequency metalanguage and content words introduced by course levels 15–20. */
+export const expansionCourseDictionaryEntries: readonly DictionaryEntry[] = [
+  adjective("AI-bedømt", "AI-assessed", "AI-bedømt · AI-bedømte", ["ai-bedømt", "ai-bedømte"]),
+  noun("kritik", "criticism; critique", "en", "kritikken", ["kritikken"]),
+  noun("hovedled", "head element; main component", "et", "hovedleddet · hovedled", ["hovedleddet", "hovedleddene"]),
+  verb("gengive", "to reproduce; report", "gengiver · gengav · gengivet", ["gengiver", "gengav", "gengivet"]),
+  verb("angive", "to indicate; state", "angiver · angav · angivet", ["angiver", "angav", "angivet"]),
+  word("hen", "towards; over there (direction)", "adverb", "Directional form; compare static henne.", ["henne", "derhen"]),
+  noun("sammenhæng", "connection; coherence; context", "en", "sammenhængen · sammenhænge", ["sammenhængen", "sammenhænge", "sammenhængende"]),
+  word("sidst", "last; lastly", "adverb", "Can refer to the final position or the previous occasion."),
+  verb("udtrykke", "to express", "udtrykker · udtrykte · udtrykt", ["udtrykker", "udtrykte", "udtrykt"]),
+  verb("ordne", "to arrange; put in order", "ordner · ordnede · ordnet", ["ordner", "ordnede", "ordnet"]),
+  verb("udlede", "to infer; derive", "udleder · udledte · udledt", ["udleder", "udledte", "udledt"]),
+  noun("begrænsning", "limitation; constraint", "en", "begrænsningen · begrænsninger", ["begrænsningen", "begrænsninger", "begrænsningerne"]),
+  verb("begrænse", "to limit; constrain", "begrænser · begrænsede · begrænset", ["begrænser", "begrænsede", "begrænset"]),
+  noun("fugeelement", "linking element in a compound", "et", "fugeelementet · fugeelementer", ["fugeelementet", "fugeelementer", "fugeelementerne", "fuge-s"]),
+  word("forbi", "past; by", "adverb", "Marks movement past a reference point."),
+  noun("komparativ", "comparative form", "en", "komparativen · komparativer", ["komparativen", "komparativer"]),
+  word("ifølge", "according to", "preposition", "Attributes information to a source."),
+  noun("slutning", "ending; conclusion; inference", "en", "slutningen · slutninger", ["slutningen", "slutninger", "slutningerne"]),
+  adjective("etableret", "established", "etableret · etablerede", ["etablerede"]),
+  noun("anbefaling", "recommendation", "en", "anbefalingen · anbefalinger", ["anbefalingen", "anbefalinger", "anbefalingerne"]),
+  noun("fortid", "past", "en", "fortiden", ["fortiden", "fortidigt", "fortidige"]),
+  noun("pligt", "duty; obligation", "en", "pligten · pligter", ["pligten", "pligter", "pligterne"]),
+  noun("retning", "direction", "en", "retningen · retninger", ["retningen", "retninger", "retningerne"]),
+  word("oppe", "up; upstairs (location)", "adverb", "Static location form; compare directional op."),
+  word("nede", "down; downstairs (location)", "adverb", "Static location form; compare directional ned."),
+  { headword: "stil", english: "style; tone; to place", partOfSpeech: "noun / verb", gender: "en", form: "stilen · stilarter; stil!", aliases: ["stilen", "stilarter", "stille", "stiller", "stillet"] },
+  word("desto", "the (in a ‘the more … the more’ comparison)", "adverb", "Used after jo in the pattern jo … desto."),
+  noun("påstand", "claim; assertion", "en", "påstanden · påstande", ["påstanden", "påstande", "påstandene"]),
+  word("angiveligt", "reportedly; allegedly", "adverb", "Marks information as unconfirmed or attributed."),
+  noun("kildestatus", "source status", "en", "kildestatussen", ["kildestatussen"]),
+  noun("analyse", "analysis", "en", "analysen · analyser", ["analysen", "analyser", "analyserne"]),
+  adjective("kontrafaktisk", "counterfactual", "kontrafaktisk · kontrafaktiske", ["kontrafaktiske"]),
+  noun("kæde", "chain", "en", "kæden · kæder", ["kæden", "kæder", "kæderne"]),
+  noun("landmærke", "landmark", "et", "landmærket · landmærker", ["landmærket", "landmærker", "landmærkerne"]),
+  noun("gengivelse", "reproduction; reported rendering", "en", "gengivelsen · gengivelser", ["gengivelsen", "gengivelser", "gengivelserne"]),
+  noun("tekniker", "technician", "en", "teknikeren · teknikere", ["teknikeren", "teknikere", "teknikerne"]),
+  noun("præposition", "preposition", "en", "præpositionen · præpositioner", ["præpositionen", "præpositioner", "præpositionerne"]),
+  noun("kasse", "box; crate", "en", "kassen · kasser", ["kassen", "kasser", "kasserne"]),
+  noun("flade", "surface", "en", "fladen · flader", ["fladen", "flader", "fladerne"]),
+  adjective("modsat", "opposite; contrary", "modsat · modsatte", ["modsatte"]),
+  noun("modtager", "recipient; receiver", "en", "modtageren · modtagere", ["modtageren", "modtagere", "modtagerne"]),
+  noun("afslutning", "ending; conclusion", "en", "afslutningen · afslutninger", ["afslutningen", "afslutninger", "afslutningerne"]),
+  noun("direktør", "director; executive", "en", "direktøren · direktører", ["direktøren", "direktører", "direktørerne"]),
+  noun("taler", "speaker", "en", "taleren · talere", ["taleren", "talere", "talerne"]),
+  adjective("mekanisk", "mechanical", "mekanisk · mekaniske", ["mekaniske"]),
+  adjective("engelsk", "English", "engelsk · engelske", ["engelske"]),
+  noun("komprimering", "compression; condensation", "en", "komprimeringen · komprimeringer", ["komprimeringen", "komprimeringer"]),
+  noun("ordgrænse", "word boundary", "en", "ordgrænsen · ordgrænser", ["ordgrænsen", "ordgrænser", "ordgrænserne"]),
+  noun("struktur", "structure", "en", "strukturen · strukturer", ["strukturen", "strukturer", "strukturerne"]),
+  noun("kollokation", "collocation", "en", "kollokationen · kollokationer", ["kollokationen", "kollokationer", "kollokationerne"]),
+  noun("stof", "material; matter; subject matter", "et", "stoffet · stoffer", ["stoffet", "stoffer", "stofferne"]),
+  noun("nuance", "nuance; shade of meaning", "en", "nuancen · nuancer", ["nuancen", "nuancer", "nuancerne"]),
+  verb("tyde", "to indicate; interpret", "tyder · tydede · tydet", ["tyder", "tydede", "tydet"]),
+  noun("argument", "argument; reason", "et", "argumentet · argumenter", ["argumentet", "argumentets", "argumenter", "argumenterne"]),
+  adjective("håbløs", "hopeless", "håbløs · håbløst · håbløse", ["håbløst", "håbløse"]),
+  adjective("uvirkelig", "unreal; counter-to-fact", "uvirkelig · uvirkeligt · uvirkelige", ["uvirkeligt", "uvirkelige"]),
+  noun("ventil", "valve", "en", "ventilen · ventiler", ["ventilen", "ventiler", "ventilerne"]),
+  noun("procedure", "procedure", "en", "proceduren · procedurer", ["proceduren", "procedurer", "procedurerne"]),
+  word("netop", "precisely; just", "adverb", "Adds focus or marks something as exact."),
+  noun("gård", "courtyard; farm", "en", "gården · gårde", ["gården", "gårde", "gårdene"]),
+  verb("afhænge", "to depend", "afhænger · afhang · afhængt", ["afhænger", "afhang", "afhængt"]),
+  noun("skilt", "sign", "et", "skiltet · skilte", ["skiltet", "skilte", "skiltene"]),
+  noun("smule", "small amount; bit", "en", "smulen · smuler", ["smulen", "smuler", "smule"]),
+  noun("skab", "cabinet; cupboard", "et", "skabet · skabe", ["skabet", "skabe", "skabene"]),
+  adjective("øverst", "topmost; at the top", "øverst · øverste", ["øverste"]),
+  noun("kant", "edge", "en", "kanten · kanter", ["kanten", "kanter", "kanterne"]),
+  verb("indlede", "to begin; introduce", "indleder · indledte · indledt", ["indleder", "indledte", "indledt"]),
+  adjective("observeret", "observed", "observeret · observerede", ["observerede"], "Source-status label: directly observed."),
+  adjective("udledt", "inferred; derived", "udledt · udledte", ["udledte"], "Source-status label: inferred from evidence."),
+  noun("førdatid", "past perfect; pluperfect", "en", "førdatiden", ["førdatiden"], "A tense for an event that happened before another past event."),
+];
+
 /** A compact offline lexicon covering the common vocabulary used from A0 to B2. */
-export const dictionaryEntries: readonly DictionaryEntry[] = [
+const baseDictionaryEntries: readonly DictionaryEntry[] = [
   noun("mand", "man", "en", "manden · mænd", ["manden", "mænd", "mændene"]),
   noun("kvinde", "woman", "en", "kvinden · kvinder", ["kvinden", "kvinder", "kvinderne"]),
   noun("barn", "child", "et", "barnet · børn", ["barnet", "børn", "børnene"]),
@@ -1818,7 +1892,55 @@ export const dictionaryEntries: readonly DictionaryEntry[] = [
   ...scenarioDictionaryEntries,
   ...dialogueCampaignDictionaryEntries,
   ...coreGameDictionaryEntries,
+  ...expansionCourseDictionaryEntries,
 ] as const;
+
+const lexicalBankDictionaryCandidates: DictionaryEntry[] = [
+  ...LEXICAL_BANKS.synonymGroups.flatMap((group) => group.candidates.map((candidate) =>
+    verb(candidate.lemmaDa, candidate.glossEn, `Lexical register: ${candidate.register}.`, [], candidate.constraintEn),
+  )),
+  ...LEXICAL_BANKS.nuanceScales.flatMap((scale) => scale.entries.map((entry) =>
+    word(entry.termDa, entry.glossEn, "adverb", `${entry.usageDa} Intensity ${entry.strength}/5 on the ${scale.axisEn} scale.`),
+  )),
+  ...LEXICAL_BANKS.collocations.map((entry) =>
+    verb(entry.verbDa, entry.glossEn, entry.phraseDa, [], `Frequent verb–noun collocation: ${entry.phraseDa}.`),
+  ),
+  ...LEXICAL_BANKS.governedPrepositions.map((entry) => {
+    const headword = entry.headDa.replace(/^at\s+/u, "");
+    const note = `Governed preposition: ${entry.prepositionDa}. ${entry.exampleDa}`;
+    if (entry.headKind === "adjective") return adjective(headword, entry.glossEn, note);
+    if (entry.headKind === "verb") return verb(headword, entry.glossEn, note);
+    return word(headword, entry.glossEn, "noun / verb", note);
+  }),
+  ...LEXICAL_BANKS.falseFriends.map((entry) =>
+    word(entry.danishDa, entry.meaningEn, "noun / verb", `False friend: not “${entry.temptingEnglish}”. ${entry.trapEn}`),
+  ),
+  ...LEXICAL_BANKS.compoundPatterns.map((entry) =>
+    word(entry.compoundDa, entry.glossEn, "noun / verb", `Compound: ${entry.firstStemDa} + ${entry.linkerDa || "∅"} + ${entry.headDa}.`),
+  ),
+  ...LEXICAL_BANKS.inflectionTargets.map((entry) => {
+    const headword = entry.lemmaDa.replace(/^at\s+/u, "");
+    const aliases = [...new Set([entry.answerDa, ...entry.acceptableAnswersDa].filter((form) => !/\s/u.test(form)))];
+    if (entry.partOfSpeech === "verb") return verb(headword, entry.targetEn, entry.contextDa, aliases);
+    if (entry.partOfSpeech === "adjective") return adjective(headword, entry.targetEn, entry.contextDa, aliases);
+    if (entry.partOfSpeech === "pronoun") return word(headword, entry.targetEn, "pronoun", entry.contextDa, aliases);
+    return word(headword, entry.targetEn, "noun / verb", entry.contextDa, aliases);
+  }),
+].filter((entry) => !/\s/u.test(entry.headword));
+
+const baseHeadwords = new Set(baseDictionaryEntries.map((entry) => entry.headword.toLocaleLowerCase("da-DK")));
+const addedHeadwords = new Set<string>();
+export const lexicalBankDictionaryEntries: readonly DictionaryEntry[] = lexicalBankDictionaryCandidates.filter((entry) => {
+  const headword = entry.headword.toLocaleLowerCase("da-DK");
+  if (baseHeadwords.has(headword) || addedHeadwords.has(headword)) return false;
+  addedHeadwords.add(headword);
+  return true;
+});
+
+export const dictionaryEntries: readonly DictionaryEntry[] = [
+  ...baseDictionaryEntries,
+  ...lexicalBankDictionaryEntries,
+];
 
 const EDGE_PUNCTUATION = /^[\p{P}\p{S}]+|[\p{P}\p{S}]+$/gu;
 const ONE_DANISH_WORD = /^\p{Script=Latin}+(?:[-‐‑’']\p{Script=Latin}+)*$/iu;
@@ -1875,3 +1997,4 @@ export function lookupDanishWord(value: string): DictionaryLookup | null {
 export const dictionarySize = dictionaryEntries.length;
 export const dictionaryAliasCount = dictionaryEntries.reduce((total, entry) => total + (entry.aliases?.length ?? 0), 0);
 export const dictionaryIndexedFormCount = dictionaryIndex.size;
+import { LEXICAL_BANKS } from "./lexicalBanks.ts";

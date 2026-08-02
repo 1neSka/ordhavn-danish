@@ -20,7 +20,7 @@ const rareEndingIds = [
 ];
 
 test("every path level from ten through fourteen has exactly one boss gate", () => {
-  const lateGates = scenarioBossGates.filter((gate) => gate.afterPathLevel >= 10);
+  const lateGates = scenarioBossGates.filter((gate) => gate.afterPathLevel >= 10 && gate.afterPathLevel <= 14);
   assert.deepEqual(lateGates.map((gate) => gate.afterPathLevel), [10, 11, 12, 13, 14]);
   assert.equal(new Set(lateGates.map((gate) => gate.afterPathLevel)).size, 5);
   assert.deepEqual(
@@ -31,7 +31,7 @@ test("every path level from ten through fourteen has exactly one boss gate", () 
 
 test("late gates reference the five new dialogue cases as stable string IDs", () => {
   const lateScenarioIds = scenarioBossGates
-    .filter((gate) => gate.afterPathLevel >= 10)
+    .filter((gate) => gate.afterPathLevel >= 10 && gate.afterPathLevel <= 14)
     .flatMap((gate) => gate.scenarioIds);
 
   for (const caseId of newDialogueCaseIds) {
@@ -43,7 +43,7 @@ test("late gates reference the five new dialogue cases as stable string IDs", ()
 
 test("ending challenges are valid alternatives within their own gate", () => {
   const endingChallenges = scenarioBossGates
-    .filter((gate) => gate.afterPathLevel >= 10)
+    .filter((gate) => gate.afterPathLevel >= 10 && gate.afterPathLevel <= 14)
     .flatMap((gate) => (gate.endingRequirements ?? []).map((requirement) => ({ gate, requirement })));
 
   assert.ok(endingChallenges.length >= 2);

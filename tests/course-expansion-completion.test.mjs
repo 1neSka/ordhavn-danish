@@ -5,7 +5,7 @@ import test from "node:test";
 const { courseLevels } = await import("../lib/courseData.ts");
 
 const legacyLevels = courseLevels.slice(0, 10);
-const newLevels = courseLevels.slice(10);
+const newLevels = courseLevels.filter((level) => /^level-(11|12|13|14)$/u.test(level.id));
 const newMissions = newLevels.flatMap((level) => level.missions);
 const newItems = newMissions.flatMap((mission) => mission.questions);
 
@@ -37,10 +37,10 @@ test("levels 11-14 are appended without changing any persisted legacy id", () =>
   assert.deepEqual(newLevels.map((level) => level.unlockXp), [6_800, 8_400, 10_200, 12_200]);
 });
 
-test("the expansion contains the exact requested 4 x 4 x 8 structure", () => {
-  assert.equal(courseLevels.length, 14);
-  assert.equal(courseLevels.flatMap((level) => level.missions).length, 50);
-  assert.equal(courseLevels.flatMap((level) => level.missions.flatMap((mission) => mission.questions)).length, 400);
+test("the levels 11-14 expansion keeps its requested 4 x 4 x 8 structure as later levels are appended", () => {
+  assert.ok(courseLevels.length >= 14);
+  assert.ok(courseLevels.flatMap((level) => level.missions).length >= 50);
+  assert.ok(courseLevels.flatMap((level) => level.missions.flatMap((mission) => mission.questions)).length >= 400);
   assert.equal(newMissions.length, 16);
   assert.equal(newItems.length, 128);
   assert.equal(new Set(newItems.map((item) => item.id)).size, 128);

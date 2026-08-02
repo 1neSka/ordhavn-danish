@@ -13,7 +13,13 @@ export type GeminiEvaluationTask =
   | "risk-briefing"
   | "public-message"
   | "operational-note"
-  | "public-notice";
+  | "public-notice"
+  | "free-rewrite"
+  | "compress"
+  | "micro-dialogue"
+  | "explain-why"
+  | "authority-persuasion"
+  | "terminal-assistant";
 
 export interface GeminiEvaluationRequest {
   scenarioId: string;
@@ -53,6 +59,12 @@ const taskRubrics: Record<GeminiEvaluationTask, string> = {
   "public-message": "Evaluate clear Danish public-facing language, tone, factual restraint, useful instructions, and coverage of verified facts.",
   "operational-note": "Evaluate concise Danish operational language, exact ordering, temporal connectors, unambiguous references, and coverage of verified facts.",
   "public-notice": "Evaluate accessible Danish public information, preserved meaning, actionable instructions, calm register, and coverage of verified facts.",
+  "free-rewrite": "Evaluate whether the Danish rewrite preserves the full meaning while genuinely changing syntax, wording, and information structure.",
+  "compress": "Evaluate whether the Danish compression stays within the stated limit, preserves every required fact, and avoids unsupported claims.",
+  "micro-dialogue": "Evaluate three concise Danish turns for persona awareness, pragmatic coherence, register, and progress toward the hidden communicative goal.",
+  "explain-why": "Evaluate the causal explanation for Danish precision, explicit logical links, correct concepts, and justified rather than circular reasoning.",
+  "authority-persuasion": "Evaluate a Danish persuasion monologue for valid use of the authoritative evidence, logical control, audience awareness, strategic framing, register, and progress toward the hidden goal. Reward selective emphasis and psychological timing, but reject invented data or invalid inference. Never advise the learner to lie and never alter the deterministic decision.",
+  "terminal-assistant": "Answer the learner's Danish terminal question in Danish. Explain one Linux principle and suggest at most one small next experiment. Do not reveal the complete scenario solution, a full command chain, hidden required files, or a grading verdict. Put the useful answer in feedback.",
 };
 
 export function isGeminiEvaluationRequest(value: unknown): value is GeminiEvaluationRequest {
@@ -61,9 +73,9 @@ export function isGeminiEvaluationRequest(value: unknown): value is GeminiEvalua
   return typeof request.scenarioId === "string"
     && request.scenarioId.length > 0
     && request.scenarioId.length <= 80
-    && ["formal-report", "risk-briefing", "public-message", "operational-note", "public-notice"].includes(request.task ?? "")
+    && ["formal-report", "risk-briefing", "public-message", "operational-note", "public-notice", "free-rewrite", "compress", "micro-dialogue", "explain-why", "authority-persuasion", "terminal-assistant"].includes(request.task ?? "")
     && typeof request.submission === "string"
-    && request.submission.trim().length >= 20
+    && request.submission.trim().length >= (request.task === "terminal-assistant" ? 4 : 20)
     && request.submission.length <= 4_000
     && Array.isArray(request.requiredFacts)
     && request.requiredFacts.length <= 20

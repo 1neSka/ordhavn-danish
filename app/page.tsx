@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Activity,
   Anchor,
@@ -94,17 +94,11 @@ import {
 import { prepareProgressWrite, readProgressWithBackup } from "../lib/progressStorage";
 import { nextBossScenarioLaunch, type ScenarioLaunch } from "../lib/scenarioLaunch";
 import { getBossGateProgress } from "../lib/bossProgress";
-import {
-  clozeBlanks,
-  normalizeExerciseAnswer,
-  scoreClozeSelections,
-  scoreFreeAnswer,
-  scoreRegisterMatches,
-  serializeClozeSelections,
-  serializeRegisterMatches,
-} from "../lib/exerciseScoring";
-import { orderThreeChoiceOptions } from "../lib/optionOrder";
+import { orderItemTokens, orderThreeChoiceOptions } from "../lib/optionOrder";
 import { filterResponseTimeOutliers } from "../lib/responseTimeStats";
+import { getItemModule } from "../lib/itemRegistry";
+import { EMPTY_ITEM_RESPONSE, type ItemResponseState } from "../lib/itemRuntime";
+import { evaluateLessonItem } from "../lib/lessonAiClient";
 
 type View = "home" | "path" | "practice" | "wordle" | "scenarios" | "stats" | "profile" | "gender-bank";
 
@@ -282,10 +276,6 @@ function computeStreak(lastActiveDate: string | null, currentStreak: number) {
   const diff = Math.round((now.getTime() - last.getTime()) / 86_400_000);
   if (diff <= 0) return currentStreak || 1;
   return diff === 1 ? currentStreak + 1 : 1;
-}
-
-function scoreAnswer(challenge: Challenge, answer: string) {
-  return scoreFreeAnswer(challenge, answer);
 }
 
 function downloadFile(filename: string, content: string, type = "application/json") {
@@ -952,15 +942,13 @@ function LessonPlayer({
   onComplete: (attempts: Attempt[], session: StudySession) => void;
 }) {
   const [index, setIndex] = useState(0);
-  const [selected, setSelected] = useState("");
-  const [ordered, setOrdered] = useState<string[]>([]);
-  const [clozeSelections, setClozeSelections] = useState<Record<string, string>>({});
-  const [registerMatches, setRegisterMatches] = useState<Record<string, string>>({});
-  const [activeClozeBlankId, setActiveClozeBlankId] = useState("");
+  const [response, setResponse] = useState<ItemResponseState>(() => ({ ...EMPTY_ITEM_RESPONSE }));
   const [checked, setChecked] = useState(false);
   const [correct, setCorrect] = useState(false);
+  const [checkingAi, setCheckingAi] = useState(false);
+  const [aiSkipped, setAiSkipped] = useState(false);
+  const [aiFeedback, setAiFeedback] = useState("");
   const [hintsUsed, setHintsUsed] = useState(0);
-  const [genderConfidence, setGenderConfidence] = useState<50 | 60 | 70 | 80 | 90 | 100>(70);
   const [combo, setCombo] = useState(0);
   const [earnedXp, setEarnedXp] = useState(0);
   const [animatedXp, setAnimatedXp] = useState(0);
@@ -968,29 +956,15 @@ function LessonPlayer({
   const [finished, setFinished] = useState(false);
   const questionStartedAt = useRef(startedAtMs);
   const question = mission.questions[index];
-  const tokens = question?.tokens ?? [];
   const displayOptions = question?.options
     ? orderThreeChoiceOptions(question.options, question.answer, `${sessionId}:${question.id}`)
     : [];
-  const clozeSegments = question?.type === "cloze-multi" ? question.segments : [];
-  const currentClozeBlanks = clozeBlanks(clozeSegments);
-  const registerPairs = question?.type === "register-match" ? question.pairs : [];
-  const answer = question?.type === "order" || question?.type === "ikke-position"
-    ? ordered.join(" ")
-    : question?.type === "cloze-multi"
-      ? serializeClozeSelections(clozeSegments, clozeSelections)
-      : question?.type === "register-match"
-        ? serializeRegisterMatches(registerPairs, registerMatches)
-        : selected;
-  const answerReady = question?.type === "cloze-multi"
-    ? currentClozeBlanks.length > 0 && currentClozeBlanks.every((blank) => Boolean(clozeSelections[blank.blankId]))
-    : question?.type === "register-match"
-      ? registerPairs.length > 0 && registerPairs.every((pair) => Boolean(registerMatches[pair.addressee]))
-      : Boolean(answer.trim());
-  const focusedClozeBlankId = activeClozeBlankId
-    || currentClozeBlanks.find((blank) => !clozeSelections[blank.blankId])?.blankId
-    || currentClozeBlanks[0]?.blankId
-    || "";
+  const displayTokens = question?.tokens
+    ? orderItemTokens(question.tokens, `${sessionId}:${question.id}`)
+    : [];
+  const itemModule = question ? getItemModule(question) : null;
+  const answer = question && itemModule ? itemModule.serialize(question, response) : "";
+  const answerReady = Boolean(question && itemModule?.isReady(question, response));
   const progressPercent = ((index + (checked ? 1 : 0)) / mission.questions.length) * 100;
   const latestAttempt = localAttempts.at(-1);
 
@@ -1003,35 +977,11 @@ function LessonPlayer({
         if (!checked && answerReady) checkAnswer();
         else if (checked) nextQuestion();
       }
-      if (question && ["choice", "number-arcade", "definiteness", "agreement"].includes(question.type) && !checked && /^[1-9]$/.test(event.key)) {
-        const option = displayOptions[Number(event.key) - 1];
-        if (option) setSelected(option);
-      }
-      if (question && ["gender-bet"].includes(question.type) && !checked && /^[12]$/.test(event.key)) {
-        const option = question.options?.[Number(event.key) - 1];
-        if (option) setSelected(option);
-      }
-      if (question && ["order", "ikke-position"].includes(question.type) && !checked && /^[1-9]$/.test(event.key)) {
-        const tokenIndex = Number(event.key) - 1;
-        const token = tokens[tokenIndex];
-        const alreadyUsed = token && ordered.filter((item) => item === token).length >= tokens.slice(0, tokenIndex + 1).filter((item) => item === token).length;
-        if (token && !alreadyUsed) setOrdered((items) => [...items, token]);
-      }
-      if (question && ["order", "ikke-position"].includes(question.type) && !checked && event.key === "Backspace") {
-        setOrdered((items) => items.slice(0, -1));
-      }
-      if (question?.type === "cloze-multi" && !checked && /^[1-9]$/.test(event.key)) {
-        const activeBlank = currentClozeBlanks.find((blank) => blank.blankId === focusedClozeBlankId);
-        const activeBlankOptions = activeBlank
-          ? orderThreeChoiceOptions(activeBlank.options, activeBlank.answer, `${sessionId}:${question.id}:${activeBlank.blankId}`)
-          : [];
-        const option = activeBlankOptions[Number(event.key) - 1];
-        if (activeBlank && option) {
+      if (question && itemModule && !checked) {
+        const nextResponse = itemModule.keyboard(event.key, { question, response, displayOptions, displayTokens, checked, sessionId });
+        if (nextResponse) {
           event.preventDefault();
-          setClozeSelections((old) => ({ ...old, [activeBlank.blankId]: option }));
-          const activeIndex = currentClozeBlanks.findIndex((blank) => blank.blankId === activeBlank.blankId);
-          const nextBlank = currentClozeBlanks.slice(activeIndex + 1).find((blank) => !clozeSelections[blank.blankId]);
-          if (nextBlank) setActiveClozeBlankId(nextBlank.blankId);
+          setResponse(nextResponse);
         }
       }
     };
@@ -1054,19 +1004,30 @@ function LessonPlayer({
 
   if (!question && !finished) return null;
 
-  function checkAnswer() {
-    if (!answerReady || checked) return;
-    const score = question.type === "cloze-multi"
-      ? scoreClozeSelections(question.segments, clozeSelections)
-      : question.type === "register-match"
-        ? scoreRegisterMatches(question.pairs, registerMatches)
-        : scoreAnswer(question, answer);
+  async function checkAnswer() {
+    if (!answerReady || checked || !itemModule) return;
+    let score: number;
+    if (question.aiPolicy) {
+      setCheckingAi(true);
+      const evaluation = await evaluateLessonItem(question, answer);
+      setCheckingAi(false);
+      setAiFeedback(evaluation.feedback);
+      if (!evaluation.available) {
+        setAiSkipped(true);
+        setChecked(true);
+        setCorrect(false);
+        return;
+      }
+      score = evaluation.score;
+    } else {
+      score = itemModule.score(question, response);
+    }
     const wasCorrect = score >= 0.95;
-    const supportsDiscretePartialCredit = question.type === "cloze-multi" || question.type === "register-match";
+    const supportsDiscretePartialCredit = itemModule.partialCredit;
     const result: Attempt["result"] = wasCorrect ? "correct" : score > 0 && (supportsDiscretePartialCredit || score >= 0.5) ? "partial" : "incorrect";
     const nextCombo = wasCorrect ? combo + 1 : 0;
     const brierScore = question.type === "gender-bet"
-      ? Math.round(Math.pow(genderConfidence / 100 - (wasCorrect ? 1 : 0), 2) * 1000) / 1000
+      ? Math.round(Math.pow(response.confidence / 100 - (wasCorrect ? 1 : 0), 2) * 1000) / 1000
       : null;
     const calibrationBonus = brierScore === null ? 0 : Math.round((1 - brierScore) * 5);
     const xp = wasCorrect ? 10 + Math.min(5, nextCombo) + calibrationBonus : result === "partial" ? 5 : Math.max(1, calibrationBonus);
@@ -1088,7 +1049,7 @@ function LessonPlayer({
       responseMs: Date.now() - questionStartedAt.current,
       hintsUsed,
       retryNumber: 0,
-      confidence: question.type === "gender-bet" ? genderConfidence / 100 : null,
+      confidence: question.type === "gender-bet" ? response.confidence / 100 : null,
       brierScore,
       score,
       result,
@@ -1121,15 +1082,13 @@ function LessonPlayer({
       return;
     }
     setIndex((value) => value + 1);
-    setSelected("");
-    setOrdered([]);
-    setClozeSelections({});
-    setRegisterMatches({});
-    setActiveClozeBlankId("");
+    setResponse({ ...EMPTY_ITEM_RESPONSE });
     setChecked(false);
     setCorrect(false);
+    setCheckingAi(false);
+    setAiSkipped(false);
+    setAiFeedback("");
     setHintsUsed(0);
-    setGenderConfidence(70);
     questionStartedAt.current = Date.now();
   }
 
@@ -1178,19 +1137,13 @@ function LessonPlayer({
     );
   }
 
-  const expectedAnswerLabel = question.type === "cloze-multi"
-    ? question.segments.map((segment) => "text" in segment ? segment.text : segment.answer).join("").trim()
-    : question.type === "register-match"
-      ? "de korrekte forbindelser, som nu er markeret"
-      : question.answer;
+  if (!itemModule) return null;
+  const ItemRenderer = itemModule.Render;
+  const expectedAnswerLabel = itemModule.expectedAnswer(question);
   const partialFeedback = latestAttempt?.result === "partial"
-    ? question.type === "cloze-multi"
-      ? `Næsten — ${Math.round(latestAttempt.score * currentClozeBlanks.length)} af ${currentClozeBlanks.length} felter er rigtige`
-      : question.type === "register-match"
-        ? `Næsten — ${Math.round(latestAttempt.score * registerPairs.length)} af ${registerPairs.length} forbindelser er rigtige`
-        : `Næsten — ${Math.round(latestAttempt.score * 100)}% match`
+    ? `Næsten — ${Math.round(latestAttempt.score * 100)}% match`
     : "";
-  const showsSentenceCorrection = !correct && ["order", "ikke-position", "transform", "cloze-multi"].includes(question.type);
+  const showsSentenceCorrection = !correct && ["order", "ikke-position", "transform", "cloze-multi", "text-order", "counterfactual-chain", "word-forge"].includes(question.type);
 
   return (
     <div className="lesson-overlay">
@@ -1201,155 +1154,10 @@ function LessonPlayer({
       </header>
       <main className="lesson-main">
         <div className="question-meta"><span>{question.skill}</span><span>Opgave {index + 1} af {mission.questions.length}</span></div>
-        <p className="question-instruction">{
-          question.type === "choice" ? "Vælg det bedste svar" :
-          question.type === "order" ? "Byg sætningen" :
-          question.type === "gender-bet" ? "Vælg en eller et — og sats på din sikkerhed" :
-          question.type === "number-arcade" ? "Knæk det danske tal" :
-          question.type === "definiteness" ? "Vælg den rigtige bestemthed" :
-          question.type === "agreement" ? "Få tillægsordet til at passe" :
-          question.type === "ikke-position" ? "Sæt ‘ikke’ på den danske plads" :
-          question.type === "cloze-multi" ? "Udfyld alle led, så de passer sammen" :
-          question.type === "register-match" ? "Forbind hver person med den rigtige tone" :
-          question.type === "transform" ? "Skriv sætningen om efter instruktionen" :
-          "Skriv det manglende"
-        }</p>
+        <p className="question-instruction">{itemModule.instruction}</p>
         <h1 className="question-prompt">{question.prompt}</h1>
         {question.translation && <p className="question-translation">{question.translation}</p>}
-
-        {question.type === "number-arcade" && <div className="number-arcade-display"><span>{question.value}</span><div><strong>Vigesimalt værksted</strong><small>{checked ? question.breakdown : "Find talordet før maskinen køler af"}</small></div></div>}
-        {question.type === "definiteness" && <div className="grammar-transform"><span>{question.forms.indefinite}</span><ArrowRight size={16} /><span>{question.forms.definite}</span><ArrowRight size={16} /><span>{question.forms.modified}</span></div>}
-        {question.type === "agreement" && <div className="grammar-rule"><Layers3 size={18} /><span>grundform</span><i>→</i><strong>{question.agreementForm === "t" ? "-t ved et-ord" : question.agreementForm === "e" ? "-e i bestemt/flertal" : "ingen endelse ved en-ord"}</strong></div>}
-        {question.type === "ikke-position" && <div className={`field-model ${checked ? "resolved" : ""}`}><span>{question.clauseType === "main" ? "Hovedsætning · V2" : "Ledsætning"}</span><div>{question.clauseType === "main" ? <><i>forfelt</i><i>verbum</i><i>subjekt</i><i className="ikke">ikke</i></> : <><i>bindeord</i><i>subjekt</i><i className="ikke">ikke</i><i>verbum</i></>}</div>{checked && <p className="field-answer-flight">{question.answer}</p>}</div>}
-        {question.type === "cloze-multi" && (
-          <div className="cloze-multi-area">
-            <div className="cloze-sentence" aria-label="Sætning med flere tomme felter">
-              {question.segments.map((segment, segmentIndex) => "text" in segment
-                ? <span key={`text-${segmentIndex}`}>{segment.text}</span>
-                : <button
-                    key={segment.blankId}
-                    type="button"
-                    disabled={checked}
-                    aria-label={`Vælg ord til felt ${segmentIndex + 1}`}
-                    className={`${focusedClozeBlankId === segment.blankId ? "active" : ""} ${clozeSelections[segment.blankId] ? "filled" : ""} ${checked && clozeSelections[segment.blankId] === segment.answer ? "answer-correct" : ""} ${checked && clozeSelections[segment.blankId] !== segment.answer ? "answer-wrong" : ""}`}
-                    onClick={() => setActiveClozeBlankId(segment.blankId)}
-                  >{clozeSelections[segment.blankId] || "___"}</button>
-              )}
-            </div>
-            <div className="cloze-option-groups">
-              {currentClozeBlanks.map((blank, blankIndex) => (
-                <section className={focusedClozeBlankId === blank.blankId ? "active" : ""} key={blank.blankId} onClick={() => !checked && setActiveClozeBlankId(blank.blankId)}>
-                  <div><strong>Felt {blankIndex + 1}</strong><span>{clozeSelections[blank.blankId] || "Vælg en form"}</span></div>
-                  <div>
-                    {orderThreeChoiceOptions(blank.options, blank.answer, `${sessionId}:${question.id}:${blank.blankId}`).map((option, optionIndex) => <button
-                      type="button"
-                      key={option}
-                      disabled={checked}
-                      className={`${clozeSelections[blank.blankId] === option ? "selected" : ""} ${checked && option === blank.answer ? "answer-correct" : ""} ${checked && clozeSelections[blank.blankId] === option && option !== blank.answer ? "answer-wrong" : ""}`}
-                      onClick={() => setClozeSelections((old) => ({ ...old, [blank.blankId]: option }))}
-                    >{focusedClozeBlankId === blank.blankId && <kbd>{optionIndex + 1}</kbd>}{option}</button>)}
-                  </div>
-                </section>
-              ))}
-            </div>
-          </div>
-        )}
-        {question.type === "register-match" && (
-          <div className="register-match-area">
-            <div className="register-intent"><MessageCircle size={20} /><div><span>Intention</span><strong>{question.intent}</strong></div></div>
-            <div className="register-pairs">
-              {question.pairs.map((pair) => {
-                const chosen = registerMatches[pair.addressee] ?? "";
-                const rowCorrect = normalizeExerciseAnswer(chosen) === normalizeExerciseAnswer(pair.utterance);
-                return (
-                  <label className={checked ? rowCorrect ? "answer-correct" : "answer-wrong" : ""} key={pair.addressee}>
-                    <span className="register-addressee"><strong>{pair.addressee}</strong><small>{pair.addresseeNote}</small></span>
-                    <span className="register-arrow"><ArrowRight size={17} /></span>
-                    <select
-                      aria-label={`Formulering til ${pair.addressee}`}
-                      disabled={checked}
-                      value={chosen}
-                      onChange={(event) => setRegisterMatches((old) => ({ ...old, [pair.addressee]: event.target.value }))}
-                    >
-                      <option value="">Vælg formulering …</option>
-                      {[...question.pairs].map((option) => option.utterance).sort((left, right) => left.localeCompare(right, "da-DK")).map((utterance) => (
-                        <option
-                          key={utterance}
-                          value={utterance}
-                          disabled={Object.entries(registerMatches).some(([addressee, value]) => addressee !== pair.addressee && value === utterance)}
-                        >{utterance}</option>
-                      ))}
-                    </select>
-                    {checked && !rowCorrect && <small className="register-correction">Rigtigt: {pair.utterance}</small>}
-                  </label>
-                );
-              })}
-            </div>
-          </div>
-        )}
-        {question.type === "transform" && <div className="transform-display"><div><span>Udgangspunkt</span><strong>{question.sourceSentence}</strong></div><ArrowRight size={20} /><div><span>Ændring</span><strong>{question.instruction}</strong></div></div>}
-
-        {(question.type === "choice" || question.type === "number-arcade" || question.type === "definiteness" || question.type === "agreement") && (
-          <div className="option-list">
-            {displayOptions.map((option, optionIndex) => (
-              <button
-                className={`answer-option ${selected === option ? "selected" : ""} ${checked && option === question.answer ? "answer-correct" : ""} ${checked && selected === option && !correct ? "answer-wrong" : ""}`}
-                key={option}
-                onClick={() => !checked && setSelected(option)}
-              ><span>{optionIndex + 1}</span><strong>{option}</strong>{checked && option === question.answer && <Check size={19} />}</button>
-            ))}
-          </div>
-        )}
-
-        {question.type === "gender-bet" && (
-          <div className="gender-bet-area">
-            <div className="gender-options">
-              {(question.options ?? ["en", "et"]).map((option) => (
-                <button
-                  className={`gender-card ${selected === option ? "selected" : ""} ${checked && option === question.answer ? "answer-correct" : ""} ${checked && selected === option && !correct ? "answer-wrong" : ""}`}
-                  key={option}
-                  disabled={checked}
-                  onClick={() => setSelected(option)}
-                ><strong>{option}</strong><span>{option === "en" ? "fælleskøn" : "intetkøn"}</span></button>
-              ))}
-            </div>
-            <div className="confidence-wager">
-              <div><span>Sikkerhedsindsats</span><strong>{genderConfidence}%</strong></div>
-              <input
-                type="range"
-                min="50"
-                max="100"
-                step="10"
-                value={genderConfidence}
-                disabled={checked}
-                onChange={(event) => setGenderConfidence(Number(event.target.value) as 50 | 60 | 70 | 80 | 90 | 100)}
-                aria-label="Hvor sikker er du?"
-              />
-              <p>Høj sikkerhed giver flere point, men koster ved et sikkert forkert svar. Kalibrering måles med Brier-score.</p>
-            </div>
-          </div>
-        )}
-
-        {(question.type === "order" || question.type === "ikke-position") && (
-          <div className="order-area">
-            <div className="order-answer">
-              {ordered.length ? ordered.map((token, tokenIndex) => <button key={`${token}-${tokenIndex}`} onClick={() => !checked && setOrdered((items) => items.filter((_, i) => i !== tokenIndex))}>{token}</button>) : <span>Klik på ordene nedenfor …</span>}
-            </div>
-            <div className="token-bank">
-              {tokens.map((token, tokenIndex) => {
-                const used = ordered.filter((item) => item === token).length >= tokens.slice(0, tokenIndex + 1).filter((item) => item === token).length;
-                return <button key={`${token}-${tokenIndex}`} disabled={used || checked} onClick={() => setOrdered((items) => [...items, token])}><kbd>{tokenIndex + 1}</kbd>{token}</button>;
-              })}
-            </div>
-          </div>
-        )}
-
-        {(question.type === "input" || question.type === "transform") && (
-          <form onSubmit={(event: FormEvent) => { event.preventDefault(); checkAnswer(); }} className="input-answer-wrap">
-            <input autoFocus value={selected} disabled={checked} onChange={(event) => setSelected(event.target.value)} placeholder={question.type === "transform" ? "Skriv hele den nye sætning …" : "Skriv på dansk …"} aria-label="Dit svar" autoComplete="off" />
-            <Keyboard size={20} />
-          </form>
-        )}
+        <ItemRenderer question={question} response={response} setResponse={setResponse} checked={checked} correct={correct} sessionId={sessionId} displayOptions={displayOptions} displayTokens={displayTokens} onSubmit={checkAnswer} />
 
         {!checked && (
           <button className="hint-button" disabled={!hintsUsed && hintTokens <= 0} onClick={() => {
@@ -1357,20 +1165,20 @@ function LessonPlayer({
           }}><CircleHelp size={17} /> {hintsUsed ? question.hint : hintTokens > 0 ? `Brug 1 hint-token · ${hintTokens} tilbage` : "Ingen hint-tokens"}</button>
         )}
       </main>
-      <footer className={`lesson-footer ${checked ? (correct ? "correct" : latestAttempt?.result === "partial" ? "partial" : "wrong") : ""}`}>
+      <footer className={`lesson-footer ${checked ? (aiSkipped ? "skipped" : correct ? "correct" : latestAttempt?.result === "partial" ? "partial" : "wrong") : ""}`}>
         {checked ? (
           <div className="feedback-content">
-            <div className="feedback-icon">{correct ? <Check size={24} /> : <Lightbulb size={24} />}</div>
+            <div className="feedback-icon">{correct ? <Check size={24} /> : aiSkipped ? <Sparkles size={24} /> : <Lightbulb size={24} />}</div>
             <div className="feedback-copy">
-              <strong>{correct ? "Præcis!" : latestAttempt?.result === "partial" ? partialFeedback : showsSentenceCorrection ? "Ikke helt endnu" : `Det rigtige svar er “${expectedAnswerLabel}”`}</strong>
-              {showsSentenceCorrection && <div className="correct-sentence" role="status"><span>Korrekt sætning</span><b lang="da">{expectedAnswerLabel}</b></div>}
-              <p>{question.explanation}</p>
+              <strong>{aiSkipped ? "AI-opgaven er sprunget over" : correct ? "Præcis!" : latestAttempt?.result === "partial" ? partialFeedback : showsSentenceCorrection ? "Ikke helt endnu" : `Det rigtige svar er “${expectedAnswerLabel}”`}</strong>
+              {!aiSkipped && showsSentenceCorrection && <div className="correct-sentence" role="status"><span>Korrekt sætning</span><b lang="da">{expectedAnswerLabel}</b></div>}
+              <p>{aiFeedback || question.explanation}</p>
             </div>
-            <div className="confidence-picker">{question.type === "gender-bet" ? <><span>Kalibrering</span><strong>Brier {Math.round(Math.pow(genderConfidence / 100 - (correct ? 1 : 0), 2) * 100) / 100}</strong></> : <><span>Hukommelsesspor</span><strong>{question.modality === "produce" ? "Produktion" : question.modality === "listen" ? "Lytning" : "Læsning"}</strong></>}</div>
+            <div className="confidence-picker">{question.type === "gender-bet" ? <><span>Kalibrering</span><strong>Brier {Math.round(Math.pow(response.confidence / 100 - (correct ? 1 : 0), 2) * 100) / 100}</strong></> : <><span>Hukommelsesspor</span><strong>{question.modality === "produce" ? "Produktion" : question.modality === "listen" ? "Lytning" : "Læsning"}</strong></>}</div>
             <button className="primary-button next" onClick={nextQuestion}>Fortsæt <ArrowRight size={18} /></button>
           </div>
         ) : (
-          <div className="lesson-actions"><span className="keyboard-tip"><Keyboard size={15} /> Enter for at fortsætte</span><button className="primary-button next" disabled={!answerReady} onClick={checkAnswer}>Tjek svar</button></div>
+          <div className="lesson-actions"><span className="keyboard-tip"><Keyboard size={15} /> Enter for at fortsætte</span><button className="primary-button next" disabled={!answerReady || checkingAi} onClick={checkAnswer}>{checkingAi ? "Gemini vurderer …" : "Tjek svar"}</button></div>
         )}
       </footer>
     </div>

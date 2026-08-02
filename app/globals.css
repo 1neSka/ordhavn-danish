@@ -455,9 +455,20 @@ h1, h2, h3 { letter-spacing: -.035em; }
 .token-bank button { display: inline-flex; align-items: center; gap: 6px; }
 .token-bank kbd { min-width: 17px; height: 17px; display: grid; place-items: center; border: 1px solid var(--line); border-radius: 5px; color: var(--muted); background: var(--paper); font-size: 7px; font-family: inherit; }
 .input-answer-wrap { margin-top: 34px; position: relative; }
-.input-answer-wrap input { width: 100%; height: 62px; border: 1.5px solid #dcd9e2; border-radius: 14px; background: white; padding: 0 48px 0 17px; font-size: 16px; color: var(--ink); }
-.input-answer-wrap input:focus { border-color: var(--violet); }
+.input-answer-wrap input, .input-answer-wrap textarea { width: 100%; border: 1.5px solid #dcd9e2; border-radius: 14px; background: white; padding: 0 48px 0 17px; font-size: 16px; color: var(--ink); }
+.input-answer-wrap input { height: 62px; }
+.input-answer-wrap textarea { min-height: 150px; padding-top: 17px; resize: vertical; font: inherit; line-height: 1.5; }
+.input-answer-wrap input:focus, .input-answer-wrap textarea:focus { border-color: var(--violet); outline: none; }
 .input-answer-wrap svg { position: absolute; right: 17px; top: 21px; color: #aaa6b4; }
+.ai-skip-note { display: flex; align-items: center; gap: 7px; margin: 10px 2px 0; color: var(--muted); font-size: 9px; }
+.error-hunt-area { display: grid; gap: 16px; margin-top: 25px; }
+.error-token-row { display: flex; flex-wrap: wrap; gap: 8px; padding: 16px; border: 1px solid var(--line); border-radius: 14px; background: color-mix(in srgb, var(--violet) 5%, var(--surface)); }
+.error-token-row button { display: inline-flex; align-items: center; gap: 6px; padding: 9px 11px; border: 1px solid var(--line); border-bottom-width: 3px; border-radius: 9px; background: var(--surface); color: var(--ink); font-weight: 700; cursor: pointer; }
+.error-token-row button.selected { border-color: var(--coral); background: color-mix(in srgb, var(--coral) 12%, var(--surface)); }
+.error-token-row button.answer-correct { border-color: var(--mint); background: color-mix(in srgb, var(--mint) 13%, var(--surface)); }
+.error-token-row kbd, .text-order-area kbd { color: var(--muted); font: inherit; font-size: 8px; }
+.text-order-area .order-answer, .text-order-area .token-bank { display: grid; justify-content: stretch; }
+.text-order-area .order-answer button, .text-order-area .token-bank button { width: 100%; text-align: left; line-height: 1.45; }
 .hint-button { margin-top: 22px; border: 0; background: transparent; color: var(--violet); display: flex; align-items: center; gap: 7px; font-size: 11px; cursor: pointer; padding: 4px 0; }
 .lesson-footer { min-height: 92px; border-top: 1px solid var(--line); background: white; padding: 17px 28px; }
 .lesson-actions { width: min(850px, 100%); margin: 0 auto; display: flex; justify-content: flex-end; align-items: center; gap: 22px; }
@@ -466,10 +477,12 @@ h1, h2, h3 { letter-spacing: -.035em; }
 .lesson-footer.correct { background: #e9f8f3; border-color: #c8ece1; }
 .lesson-footer.wrong { background: #fff1ed; border-color: #f3d5cf; }
 .lesson-footer.partial { background: #fff8e6; border-color: #f0dfaf; }
+.lesson-footer.skipped { background: #f2efff; border-color: #d9d0fb; }
 .feedback-content { width: min(950px, 100%); min-height: 60px; margin: 0 auto; display: grid; grid-template-columns: 44px minmax(220px,1fr) auto auto; align-items: center; gap: 15px; }
 .feedback-icon { width: 42px; height: 42px; border-radius: 50%; display: grid; place-items: center; background: white; color: var(--mint); }
 .wrong .feedback-icon { color: var(--coral); }
 .partial .feedback-icon { color: var(--amber); }
+.skipped .feedback-icon { color: var(--violet); }
 .feedback-copy { display: grid; gap: 4px; }
 .feedback-copy strong { font-size: 13px; }
 .feedback-copy p { margin: 0; color: var(--muted); font-size: 9px; line-height: 1.35; }
@@ -757,7 +770,7 @@ h1, h2, h3 { letter-spacing: -.035em; }
 .app-shell.dark .panel, .app-shell.dark .metric-card, .app-shell.dark .path-score, .app-shell.dark .mission-card, .app-shell.dark .focus-card, .app-shell.dark .secondary-button, .app-shell.dark select { background: var(--surface); }
 .app-shell.dark .nav-item:hover { background: #302c40; }
 .app-shell.dark .lesson-overlay { background: var(--paper); }
-.app-shell.dark .lesson-footer, .app-shell.dark .answer-option, .app-shell.dark .order-answer button, .app-shell.dark .token-bank button, .app-shell.dark .input-answer-wrap input { background: var(--surface); }
+.app-shell.dark .lesson-footer, .app-shell.dark .answer-option, .app-shell.dark .order-answer button, .app-shell.dark .token-bank button, .app-shell.dark .input-answer-wrap input, .app-shell.dark .input-answer-wrap textarea { background: var(--surface); }
 .app-shell.dark .mastery-ring::before { background: var(--surface); }
 .app-shell.dark .training-card.mint, .app-shell.dark .training-card.lavender, .app-shell.dark .training-card.peach, .app-shell.dark .training-card.blue { background: var(--surface); border-color: var(--line); }
 .app-shell.dark .mobile-nav { background: rgba(31,29,41,.96); }

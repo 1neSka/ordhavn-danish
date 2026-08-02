@@ -1,20 +1,24 @@
 # Ordhavn
 
 Ordhavn er et local-first læringsspil til dansk. Den nuværende udgave indeholder
-14 niveauer, 50 missioner, 400 unikke opgaver og 234 minutters aktivt
+20 niveauer, 74 missioner, 592 unikke opgaver og 402 minutters aktivt
 kursusindhold fra A0 til B2. Brugerfladen og hjælpesproget er kun dansk og
 engelsk.
 
 ## Det særlige ved Ordhavn
 
 - hele den primære brugerflade er på enkelt dansk;
-- elleve opgavetyper, herunder danske tal, `en/et` med sikkerhedsindsats,
+- 25 registry-drevne opgavetyper, herunder danske tal, `en/et` med sikkerhedsindsats,
   bestemthed, adjektivkongruens, V2, placeringen af `ikke`, flerdelte cloze-felter,
-  registermatching og fri sætningsomskrivning med delvis kredit;
-- ti udvidelige scenariesystemer: danske telefonindstillinger, forgrenede
+  registermatching, kollokationer, nuancer, fejljagt, ordsmedning, tekstordning,
+  evidentialitet, kontrafaktiske kæder og fri produktion;
+- seks nye niveauer fører fra rum og gengivelse gennem kollokationer og
+  orddannelse til kontrafaktisk argumentation og B2-formulering;
+- 14 udvidelige scenariesystemer: danske telefonindstillinger, forgrenede
   psykologiske dialoger, mail-efterforskning, trafik-dispatch, A1–A2-havnecases,
   en B1–B2-manualkonsol, tidevandsbaseret last-routing og Sagslaboratoriets tre
-  AI-hybride efterforskninger samt to nye A2–B2-laboratorier med tyve sager;
+  AI-hybride efterforskninger samt de nye Terminalværftet, Forsøgshallen,
+  Modsigelseskammeret og Sporrummet med tilsammen 24 sager;
 - `Borgerservice & bybud` lader spilleren læse digital post, udfylde blanketter,
   beregne priser og bygge ruter med frister, tidsvinduer, zoner og billetvalg;
 - `Vagtcentralen` har fem entydige begrænsningsgitre og fem
@@ -23,7 +27,7 @@ engelsk.
 - `Havnefogedens sag` kombinerer V2-afhøring, evidentialitet, en entydig tidslinje
   og et formelt rapportskift. `Stormvagten` og `Færgens reserveplan` kombinerer
   dansk manualforståelse, beregninger og en kodevalideret kontrolsekvens;
-- et lokalt miniordbogskort med 693 artikler, 3.295 indeksformer, bøjninger og alternative betydninger ved markering af præcis ét dansk ord;
+- et lokalt miniordbogskort med 1.948 artikler, 8.581 indeksformer, bøjninger og alternative betydninger ved markering af præcis ét dansk ord;
 - **Ordle** som dagligt fem-bogstavsspil, fri træning og fire valgfrie
   checkpoints på læringsstien. Svarbanken har 500 hyppige ord, mens 6.071
   danske gæt accepteres;
@@ -56,10 +60,12 @@ npm run dev
 
 Åbn `http://localhost:3000`.
 
-De avancerede scenarier kan vurdere fri dansk produktion via Gemini. Sæt
+De avancerede scenarier og fire frie kursusmekanikker kan vurdere dansk
+produktion via Gemini. Sæt
 `GEMINI_API_KEY` som en server-side miljøvariabel (se `.env.example`). Nøglen må
 aldrig hedde `NEXT_PUBLIC_GEMINI_API_KEY`. Hvis alle modeller er utilgængelige,
-fortsætter spillet automatisk med sin deterministiske lokale rubric.
+springes den aktuelle AI-opgave over uden straf og uden en skjult lokal
+erstatningsbedømmelse; scenariernes deterministiske puslespil virker stadig.
 
 På Windows kan `start-ordhavn.bat` bruges til en synlig, manuel start. Kør
 `install-ordhavn-autostart.ps1` én gang for at registrere den skjulte opgave
@@ -76,8 +82,9 @@ npm run check
 
 Kontrollen bygger produktionsversionen, typechecker hele projektet, kører ESLint,
 verificerer server-rendering, indholdsinvarianter, FSRS-adskillelsen og den
-deterministiske holdout-gruppe, de 128 nye kursusitems, tre nye opgavetyper,
-femten avancerede scenariecases, Gemini-fallback og Ordles to ordlister.
+deterministiske holdout-gruppe, alle 592 kursusitems, item-registry, de fire nye
+scenariemotorer, AI-skip-politikken, bossporte, ordbogsdækning og Ordles to
+ordlister.
 
 Ordles datakilder, filtrering og licenser er dokumenteret i
 [WORDLE_SOURCES.md](WORDLE_SOURCES.md).
@@ -103,7 +110,11 @@ rækkefølge af svarknapper.
 ## Arkitektur
 
 - `app/page.tsx` — navigation, læringssti, træning, player og statistik
-- `app/scenario-games.tsx` — indgangen til de ti interaktive scenariesystemer
+- `app/scenario-games.tsx` — indgangen til de 14 interaktive scenariesystemer
+- `app/terminal-scenario-game.tsx` — virtuel Linux-terminal og flertrins dataarbejde
+- `app/science-scenario-game.tsx` — dansk manual og kodevalideret forsøgsflade
+- `app/authority-scenario-game.tsx` — tal, evidens og beslutninger under pres
+- `app/detective-scenario-game.tsx` — frit arkiv og deterministiske beviskæder
 - `app/advanced-scenario-games.tsx` — afhøring, kodepuslespil og fri rapportproduktion
 - `app/city-scenario-games.tsx` — blanketter, beregninger og ruteplanlægning
 - `app/logic-scenario-games.tsx` — begrænsningsgitre og betydningsredigering
@@ -112,8 +123,16 @@ rækkefølge af svarknapper.
 - `app/selection-dictionary.tsx` — miniordbog for markerede danske enkeltord
 - `app/wordle-game.tsx` — daglig Ordle, træningsrunder og sti-checkpoints
 - `app/harbor-game.tsx` — havnen, karakterkontrakter og Kønsbanken
-- `lib/courseData.ts` — typed, data-driven dansk kursusindhold
+- `lib/courseData.ts` — stabil kompatibilitets-barrel for hele kurset
+- `lib/course/levels/level-15.ts` … `level-20.ts` — modulære expansionsniveauer
+- `lib/course/builders.ts` — typed builders for alle item-varianter
+- `lib/itemRegistry.ts` — rendering, keyboard, serialization og scoring pr. item-type
+- `lib/lexicalBanks.ts` — delte synonym-, nuance-, kollokations- og morfologibanker
 - `lib/scenarioData.ts` — typed cases, branches, settings and route data
+- `lib/terminalEngine.ts` — lukket virtuel filstruktur og Linux-kommando-subset
+- `lib/scienceEngine.ts` — deterministiske fysik- og målingsberegninger
+- `lib/authorityEngine.ts` — beslutningsscore mellem autoritet og data
+- `lib/detectiveEngine.ts` — bevisgraf, modsigelser og anklagevalidering
 - `lib/advancedScenarioData.ts` — tre deterministiske B1–B2-sager og offline rubric
 - `lib/cityScenarioData.ts` — seks A2–B1-cases med breve, priser, tid og zoner
 - `lib/logicScenarioData.ts` — seks B1–B2-cases med entydig logik og fri produktion

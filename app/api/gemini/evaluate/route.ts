@@ -36,7 +36,7 @@ function unavailable(feedback: string, status = 503) {
 
 export async function POST(request: Request) {
   const apiKey = await readApiKey();
-  if (!apiKey) return unavailable("AI-vurderingen er ikke konfigureret. Den lokale regelmotor bruges i stedet.");
+  if (!apiKey) return unavailable("AI-vurderingen er ikke konfigureret. Opgaven kan springes over uden straf.");
 
   let body: unknown;
   try {
@@ -49,5 +49,5 @@ export async function POST(request: Request) {
   const result = await evaluateWithGeminiFallback(body, apiKey);
   if (result) return Response.json(result);
 
-  return unavailable("AI-vurderingen er midlertidigt utilgængelig. Din tekst vurderes lokalt uden at blokere scenariet.");
+  return unavailable("AI-vurderingen er midlertidigt utilgængelig. Opgaven kan springes over uden straf.");
 }

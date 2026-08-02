@@ -12,6 +12,7 @@ import {
   Clock3,
   Coffee,
   Eye,
+  Fingerprint,
   Gamepad2,
   Grid3X3,
   Lightbulb,
@@ -29,6 +30,9 @@ import {
   Sparkles,
   Sun,
   TrainFront,
+  TerminalSquare,
+  FlaskConical,
+  Scale,
   Trophy,
   X,
 } from "lucide-react";
@@ -63,6 +67,16 @@ import { evaluateScenarioSubmission } from "@/lib/scenarioAiClient";
 import { dialogueCampaignCharacters } from "@/lib/dialogueCampaignData";
 import DialogueGame from "./dialogue-game";
 import { evaluateDialogueTurn } from "@/lib/dialogueAiClient";
+import { terminalScenarioCases } from "@/lib/terminalScenarioData";
+import { scienceScenarioCases } from "@/lib/scienceScenarioData";
+import TerminalScenarioGame from "./terminal-scenario-game";
+import { askTerminalAssistant } from "@/lib/terminalAiClient";
+import ScienceScenarioGame from "./science-scenario-game";
+import { authorityScenarioCases } from "@/lib/authorityScenarioData";
+import AuthorityScenarioGame from "./authority-scenario-game";
+import { evaluateAuthorityPersuasion } from "@/lib/authorityAiClient";
+import { detectiveCases } from "@/lib/detectiveScenarioData";
+import DetectiveScenarioGame from "./detective-scenario-game";
 
 type ScenarioHubProps = {
   initialLaunch?: ScenarioLaunch | null;
@@ -203,6 +217,50 @@ const gameCards: Array<{
     icon: Building2,
     tone: "amber",
   },
+  {
+    kind: "terminal",
+    eyebrow: "Linux · datajagt",
+    title: "Terminalværftet",
+    level: "A2–B2",
+    levels: ["A2", "B1", "B2"],
+    description: "Undersøg en lukket Linux-filstruktur med rigtige kommandoer, pipes og redirection. Sproget fører dig frem; terminalen kontrollerer sporet.",
+    meta: `${terminalScenarioCases.length} sager · 24 etaper`,
+    icon: TerminalSquare,
+    tone: "mint",
+  },
+  {
+    kind: "science",
+    eyebrow: "Science + Dansk",
+    title: "Forsøgshallen",
+    level: "A2–B2",
+    levels: ["A2", "B1", "B2"],
+    description: "Læs en dansk manual og løs fysiske forsøg med farvekoder, kredsløb, målinger, mekanik, densitet og varme.",
+    meta: `${scienceScenarioCases.length} forsøg · kodevalideret fysik`,
+    icon: FlaskConical,
+    tone: "cyan",
+  },
+  {
+    kind: "authority",
+    eyebrow: "Autoritet mod data",
+    title: "Modsigelseskammeret",
+    level: "A2–B2",
+    levels: ["A2", "B1", "B2"],
+    description: "Regn efter, læs presset og vælg en forsvarlig afgørelse, når en magtfuld stemme helst vil have et pænere tal.",
+    meta: `${authorityScenarioCases.length} sager · logik + valgfri overtalelse`,
+    icon: Scale,
+    tone: "amber",
+  },
+  {
+    kind: "detective",
+    eyebrow: "Frit bevisarkiv",
+    title: "Sporrummet",
+    level: "A2+–B2",
+    levels: ["A2", "B1", "B2"],
+    description: "Læs personer, tidslinjer, dokumenter og rå data i din egen rækkefølge. Anklag først, når kilderne danner en sammenhængende kæde.",
+    meta: `${detectiveCases.length} alvorlige sager · ingen AI`,
+    icon: Fingerprint,
+    tone: "rose",
+  },
 ];
 
 function runId() {
@@ -301,6 +359,18 @@ function ScenarioCardVisual({ kind }: { kind: ScenarioKind }) {
       <span className="mini-logic-grid">{Array.from({ length: 9 }, (_, index) => <i className={index === 1 || index === 5 || index === 6 ? "active" : ""} key={index} />)}</span>
       <span className="mini-logic-rule">hvis → kun hvis</span>
     </div>
+  );
+  if (kind === "terminal") return (
+    <div className="scenario-card-visual visual-logic" aria-hidden="true"><span className="mini-console-screen"><TerminalSquare size={22} /><b>grep → sort → uniq</b></span><span className="mini-logic-rule">/home/elev $</span></div>
+  );
+  if (kind === "science") return (
+    <div className="scenario-card-visual visual-investigation" aria-hidden="true"><span className="mini-evidence evidence-one" /><span className="mini-evidence evidence-two" /><span className="mini-evidence evidence-three" /><FlaskConical size={25} /></div>
+  );
+  if (kind === "authority") return (
+    <div className="scenario-card-visual visual-post" aria-hidden="true"><span className="mini-envelope"><Scale size={23} /></span><span className="mini-post-clue clue-one" /><span className="mini-post-clue clue-two" /><span className="mini-post-stamp">%</span></div>
+  );
+  if (kind === "detective") return (
+    <div className="scenario-card-visual visual-investigation" aria-hidden="true"><span className="mini-evidence evidence-one" /><span className="mini-evidence evidence-two" /><span className="mini-evidence evidence-three" /><span className="mini-evidence-lines"><i /><i /></span><Fingerprint size={25} /></div>
   );
   return (
     <div className="scenario-card-visual visual-city" aria-hidden="true">
@@ -424,6 +494,10 @@ export default function ScenarioHub({ initialLaunch = null, runs, kroner, unlock
       onComplete={(metadata) => onComplete(cityRunFromMetadata(metadata))}
     />;
   }
+  if (activeGame === "terminal") return <TerminalScenarioGame initialCaseId={directLaunch?.kind === "terminal" ? directLaunch.caseId : undefined} runs={runs} onStartAttempt={onStartAttempt} onComplete={onComplete} onExit={exitActiveGame} onAskAssistant={askTerminalAssistant} />;
+  if (activeGame === "science") return <ScienceScenarioGame initialCaseId={directLaunch?.kind === "science" ? directLaunch.caseId : undefined} runs={runs} onStartAttempt={onStartAttempt} onComplete={onComplete} onExit={exitActiveGame} />;
+  if (activeGame === "authority") return <AuthorityScenarioGame initialCaseId={directLaunch?.kind === "authority" ? directLaunch.caseId : undefined} runs={runs} onStartAttempt={onStartAttempt} onComplete={onComplete} onExit={exitActiveGame} onEvaluatePersuasion={evaluateAuthorityPersuasion} />;
+  if (activeGame === "detective") return <DetectiveScenarioGame initialCaseId={directLaunch?.kind === "detective" ? directLaunch.caseId : undefined} runs={runs} onStartAttempt={onStartAttempt} onComplete={onComplete} onExit={exitActiveGame} />;
 
   return (
     <main className="scenario-hub">

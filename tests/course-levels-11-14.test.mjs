@@ -44,7 +44,7 @@ function canComposeAnswer(answer, tokens) {
 }
 
 test("levels 11 through 14 are appended with the requested progression", () => {
-  assert.deepEqual(courseLevels.slice(-4).map((level) => level.id), [
+  assert.deepEqual(newLevels.map((level) => level.id), [
     "level-11", "level-12", "level-13", "level-14",
   ]);
   assert.deepEqual(newLevels.map((level) => level.unlockXp), [6800, 8400, 10200, 12200]);
