@@ -73,8 +73,9 @@ test("final lesson evaluation separates creative tone from strategic outcome", (
 });
 
 test("lesson UI uses a dedicated three-turn renderer and never displays a fake canonical AI answer", async () => {
-  const [renderer, registry, page, client] = await Promise.all([
+  const [renderer, styles, registry, page, client] = await Promise.all([
     readFile(new URL("../lib/itemRenderers.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../lib/micro-dialogue.module.css", import.meta.url), "utf8"),
     readFile(new URL("../lib/itemRegistry.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../lib/lessonAiClient.ts", import.meta.url), "utf8"),
@@ -82,6 +83,9 @@ test("lesson UI uses a dedicated three-turn renderer and never displays a fake c
   assert.match(renderer, /export function MicroDialogueRenderer/u);
   assert.match(renderer, /Du vælger selv tonen/u);
   assert.match(renderer, /continueMicroDialogue/u);
+  assert.match(renderer, /micro-dialogue\.module\.css/u);
+  assert.match(styles, /\.brief[\s\S]*grid-template-columns: repeat\(2/u);
+  assert.match(styles, /\.compose textarea[\s\S]*width: 100%/u);
   assert.match(registry, /response\.dialogueMessages/u);
   assert.match(registry, /Samtalen er klar til vurdering|Før en samtale over tre levende replikker/u);
   assert.match(page, /question\.aiPolicy \? aiResultLabel/u);

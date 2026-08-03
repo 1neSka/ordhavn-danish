@@ -2,6 +2,7 @@ import { useState } from "react";
 import { ArrowRight, Check, Keyboard, Layers3, MessageCircle, Send, Sparkles, UserRound } from "lucide-react";
 import { clozeBlanks, normalizeExerciseAnswer } from "./exerciseScoring.ts";
 import { continueMicroDialogue } from "./microDialogueClient.ts";
+import dialogueStyles from "./micro-dialogue.module.css";
 import { orderThreeChoiceOptions } from "./optionOrder.ts";
 import type { ItemRenderProps } from "./itemRuntime.ts";
 import type {
@@ -154,29 +155,29 @@ export function MicroDialogueRenderer({ question, response, setResponse, checked
   }
 
   return (
-    <div className="micro-dialogue">
-      <div className="micro-dialogue-brief">
+    <div className={dialogueStyles.root}>
+      <div className={dialogueStyles.brief}>
         <div><MessageCircle size={20} /><span>Person</span><strong>{item.persona}</strong></div>
         <div><Sparkles size={20} /><span>Dit mål</span><strong>{item.hiddenGoal}</strong></div>
         <p>Du har tre replikker. Du vælger selv tonen; personen reagerer på det, du faktisk skriver. En hård strategi er tilladt, men kan ændre samtalens udfald.</p>
       </div>
 
-      <div className="micro-dialogue-thread" aria-live="polite">
+      <div className={dialogueStyles.thread} aria-live="polite">
         {response.dialogueMessages.length === 0
-          ? <div className="micro-dialogue-empty"><MessageCircle size={22} /><p><strong>Du åbner samtalen.</strong><span>Skriv din første replik — ikke hele dialogen på én gang.</span></p></div>
+          ? <div className={dialogueStyles.empty}><MessageCircle size={22} /><p><strong>Du åbner samtalen.</strong><span>Skriv din første replik — ikke hele dialogen på én gang.</span></p></div>
           : response.dialogueMessages.map((message, index) => (
-            <article className={`micro-dialogue-message ${message.role}`} key={`${message.role}-${index}`}>
+            <article className={`${dialogueStyles.message} ${message.role === "learner" ? dialogueStyles.learner : dialogueStyles.character}`} key={`${message.role}-${index}`}>
               <div>{message.role === "learner" ? <UserRound size={16} /> : <MessageCircle size={16} />}</div>
               <p><span>{message.role === "learner" ? "Dig" : "Kollega"}</span><strong>{message.text}</strong></p>
               {message.role === "character" && message.disposition && <small>{dispositionLabels[message.disposition]}</small>}
             </article>
           ))}
-        {sending && <div className="micro-dialogue-typing"><i /><i /><i /><span>Kollegaen svarer …</span></div>}
+        {sending && <div className={dialogueStyles.typing}><i /><i /><i /><span>Kollegaen svarer …</span></div>}
       </div>
 
       {response.dialogueUnavailable
-        ? <div className="micro-dialogue-unavailable"><Sparkles size={18} /><p><strong>Gemini kunne ikke fortsætte samtalen.</strong><span>Du kan springe opgaven over uden straf.</span></p></div>
-        : !finished && <form className="micro-dialogue-compose" onSubmit={(event) => { event.preventDefault(); void sendTurn(); }}>
+        ? <div className={dialogueStyles.unavailable}><Sparkles size={18} /><p><strong>Gemini kunne ikke fortsætte samtalen.</strong><span>Du kan springe opgaven over uden straf.</span></p></div>
+        : !finished && <form className={dialogueStyles.compose} onSubmit={(event) => { event.preventDefault(); void sendTurn(); }}>
           <textarea
             autoFocus
             value={response.dialogueDraft}
@@ -195,7 +196,7 @@ export function MicroDialogueRenderer({ question, response, setResponse, checked
           <button type="submit" disabled={!response.dialogueDraft.trim() || sending}>Send replik <Send size={17} /></button>
         </form>}
 
-      <div className="micro-dialogue-progress"><span>{learnerTurns}/{item.turns} af dine replikker</span><div>{Array.from({ length: item.turns }, (_, index) => <i className={index < learnerTurns ? "complete" : ""} key={index} />)}</div>{finished && !sending && !response.dialogueUnavailable && <strong>Samtalen er klar til vurdering.</strong>}</div>
+      <div className={dialogueStyles.progress}><span>{learnerTurns}/{item.turns} af dine replikker</span><div>{Array.from({ length: item.turns }, (_, index) => <i className={index < learnerTurns ? dialogueStyles.complete : ""} key={index} />)}</div>{finished && !sending && !response.dialogueUnavailable && <strong>Samtalen er klar til vurdering.</strong>}</div>
     </div>
   );
 }
