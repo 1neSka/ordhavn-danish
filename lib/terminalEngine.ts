@@ -879,18 +879,6 @@ export function evaluateTerminalCase(scenario: TerminalScenarioCase, session: Te
   };
 }
 
-const danishPromptWords = new Set([
-  "af", "at", "den", "der", "det", "du", "en", "er", "et", "for", "fra", "hvad", "hvordan", "hvorfor",
-  "jeg", "kan", "kommando", "med", "mig", "og", "på", "skal", "som", "til", "viser", "virker",
-]);
-
-export function isDanishAssistantPrompt(prompt: string): boolean {
-  if (/[А-Яа-яЁё]/u.test(prompt)) return false;
-  const words = prompt.toLocaleLowerCase("da").match(/[a-zæøå]+/gu) ?? [];
-  const markers = words.filter((word) => danishPromptWords.has(word)).length;
-  return /[æøå]/iu.test(prompt) || markers >= 2;
-}
-
 export function createTerminalAssistantRequest(
   session: TerminalSession,
   prompt: string,
@@ -900,7 +888,6 @@ export function createTerminalAssistantRequest(
   if (!normalized || normalized.length > terminalAssistantPolicy.maxPromptCharacters) {
     return { accepted: false, reason: `Spørgsmålet skal være mellem 1 og ${terminalAssistantPolicy.maxPromptCharacters} tegn.` };
   }
-  if (!isDanishAssistantPrompt(normalized)) return { accepted: false, reason: terminalAssistantPolicy.refusal };
   if (session.history.length > terminalAssistantPolicy.maxTranscriptEntries) {
     return { accepted: false, reason: "Terminalhistorikken er for lang til én assistentsamtale. Start en ny sag for at fortsætte." };
   }

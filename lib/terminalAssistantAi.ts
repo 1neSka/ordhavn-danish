@@ -9,6 +9,7 @@ import {
 export const TERMINAL_ASSISTANT_RESPONSE_SCHEMA = {
   type: "OBJECT",
   properties: {
+    inputLanguage: { type: "STRING", enum: ["da", "other"] },
     answer: { type: "STRING" },
     correctedPrompt: { type: "STRING" },
     languageIssues: {
@@ -24,7 +25,7 @@ export const TERMINAL_ASSISTANT_RESPONSE_SCHEMA = {
       },
     },
   },
-  required: ["answer", "correctedPrompt", "languageIssues"],
+  required: ["inputLanguage", "answer", "correctedPrompt", "languageIssues"],
 } as const;
 
 function isBoundedString(value: unknown, maximum: number) {
@@ -100,8 +101,10 @@ export function buildTerminalAssistantPrompt(request: TerminalAssistantRequest) 
     "3. Hvis eleven allerede har prøvet en kommando, må du ikke bare foreslå den igen.",
     "4. Du må forklare én kommando eller foreslå højst ét lille diagnostisk eksperiment. Afslør ikke den resterende løsning eller en fuld kommandokæde.",
     "5. Hvis simulationen afviger fra rigtig Linux, sig det direkte og forklar forskellen.",
-    "6. answer skal være et sammenhængende svar på dansk. correctedPrompt skal være en naturlig rettelse af den seneste elevbesked.",
-    "7. languageIssues skal kun indeholde reelle fejl i almindeligt dansk, højst seks. Ret aldrig tekst inde i kommandoer, filstier eller citeret terminaloutput.",
+    "6. Vurdér sproget i den seneste elevbesked semantisk. Kommandoer, flag, filstier, engelske programnavne og citeret terminaloutput tæller ikke som fremmedsprog. En kort dansk sætning omkring fx `find`, `ls -a` eller `/home/elev` skal klassificeres som da.",
+    `7. Hvis beskeden hovedsageligt er dansk, sæt inputLanguage til da. Ellers sæt inputLanguage til other, skriv præcis “${terminalAssistantPolicy.refusal}” i answer, og returnér tom correctedPrompt og languageIssues.`,
+    "8. Ved inputLanguage da skal answer være et sammenhængende svar på dansk, og correctedPrompt skal være en naturlig rettelse af den seneste elevbesked.",
+    "9. languageIssues skal kun indeholde reelle fejl i almindeligt dansk, højst seks. Ret aldrig tekst inde i kommandoer, filstier eller citeret terminaloutput.",
     `Nuværende mappe:\n${request.cwd}`,
     `Aktiv etape:\n${stage}`,
     `HELE TERMINALHISTORIKKEN:\n${formatTranscript(request)}`,
@@ -112,7 +115,8 @@ export function buildTerminalAssistantPrompt(request: TerminalAssistantRequest) 
 
 export function parseTerminalAssistantResponse(value: unknown, model: string): TerminalAssistantResponse | null {
   if (!value || typeof value !== "object") return null;
-  const candidate = value as { answer?: unknown; correctedPrompt?: unknown; languageIssues?: unknown };
+  const candidate = value as { inputLanguage?: unknown; answer?: unknown; correctedPrompt?: unknown; languageIssues?: unknown };
+  if (candidate.inputLanguage !== "da" && candidate.inputLanguage !== "other") return null;
   if (typeof candidate.answer !== "string" || !candidate.answer.trim()) return null;
   if (typeof candidate.correctedPrompt !== "string") return null;
   const issues: TerminalLanguageIssue[] = Array.isArray(candidate.languageIssues)
@@ -128,8 +132,19 @@ export function parseTerminalAssistantResponse(value: unknown, model: string): T
       }];
     }).slice(0, 6)
     : [];
+  if (candidate.inputLanguage === "other") {
+    return {
+      available: true,
+      inputLanguage: "other",
+      answer: terminalAssistantPolicy.refusal,
+      correctedPrompt: "",
+      languageIssues: [],
+      model,
+    };
+  }
   return {
     available: true,
+    inputLanguage: "da",
     answer: candidate.answer.trim().slice(0, 6_000),
     correctedPrompt: candidate.correctedPrompt.trim().slice(0, terminalAssistantPolicy.maxPromptCharacters),
     languageIssues: issues,

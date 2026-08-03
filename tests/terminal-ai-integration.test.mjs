@@ -9,6 +9,7 @@ import {
 } from "../lib/terminalAssistantAi.ts";
 import { createTerminalAssistantRequest, createTerminalSession, executeTerminalCommand } from "../lib/terminalEngine.ts";
 import { terminalScenarioCases } from "../lib/terminalScenarioData.ts";
+import { terminalAssistantPolicy } from "../lib/terminalScenarioData.ts";
 
 function assistantRequest() {
   let session = createTerminalSession(terminalScenarioCases[0]);
@@ -46,6 +47,7 @@ test("the dedicated prompt uses outputs and conversation before offering one non
   assert.match(prompt, /må du ikke bare foreslå den igen/u);
   assert.match(prompt, /afvig.*rigtig Linux/iu);
   assert.match(prompt, /languageIssues/u);
+  assert.match(prompt, /`find`, `ls -a` eller `\/home\/elev` skal klassificeres som da/u);
   assert.doesNotMatch(prompt, /pakke=207|grep '\^pakke='/u);
 });
 
@@ -57,6 +59,7 @@ test("the client uses the dedicated endpoint and returns answer plus Danish corr
     capturedBody = JSON.parse(init.body);
     return Response.json({
       available: true,
+      inputLanguage: "da",
       answer: "Du har allerede kørt kommandoen korrekt.",
       correctedPrompt: "Jeg har allerede prøvet ls -a.",
       languageIssues: [{ original: "har prøvede", correction: "har prøvet", explanation: "Efter har bruges perfektum participium." }],
@@ -69,7 +72,7 @@ test("the client uses the dedicated endpoint and returns answer plus Danish corr
   assert.equal(result.languageIssues[0].correction, "har prøvet");
 
   const unavailable = await askTerminalAssistant(assistantRequest(), async () => Response.json({
-    available: false, answer: "offline", correctedPrompt: "", languageIssues: [], model: null,
+    available: false, inputLanguage: "da", answer: "offline", correctedPrompt: "", languageIssues: [], model: null,
   }));
   assert.equal(unavailable, null);
 });
@@ -81,6 +84,7 @@ test("the terminal provider falls back and parses its structured coaching respon
     if (calls.length === 1) return new Response("quota", { status: 429 });
     return Response.json({
       candidates: [{ content: { parts: [{ text: JSON.stringify({
+        inputLanguage: "da",
         answer: "`ls -a` virkede. Mappen indeholder kun de virtuelle poster `.` og `..`.",
         correctedPrompt: "Hvorfor viser mappen ikke noget nyt?",
         languageIssues: [],
@@ -91,4 +95,21 @@ test("the terminal provider falls back and parses its structured coaching respon
   assert.match(result.answer, /virkede/u);
   assert.equal(result.available, true);
   assert.ok(result.model);
+});
+
+test("the model's semantic language decision becomes the exact Danish-only notice", async () => {
+  const request = assistantRequest();
+  request.prompt = "How do I find the file?";
+  const result = await answerTerminalAssistantWithGemini(request, "test-key", async () => Response.json({
+    candidates: [{ content: { parts: [{ text: JSON.stringify({
+      inputLanguage: "other",
+      answer: "A model-specific refusal that should not leak into the UI.",
+      correctedPrompt: "Should be removed",
+      languageIssues: [{ original: "How", correction: "Hvordan", explanation: "Wrong language" }],
+    }) }] } }],
+  }), 100);
+  assert.equal(result.inputLanguage, "other");
+  assert.equal(result.answer, terminalAssistantPolicy.refusal);
+  assert.equal(result.correctedPrompt, "");
+  assert.deepEqual(result.languageIssues, []);
 });

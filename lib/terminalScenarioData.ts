@@ -81,6 +81,7 @@ export interface TerminalLanguageIssue {
 
 export interface TerminalAssistantResponse {
   available: boolean;
+  inputLanguage: "da" | "other";
   answer: string;
   correctedPrompt: string;
   languageIssues: TerminalLanguageIssue[];

@@ -178,7 +178,7 @@ test("the parser rejects destructive commands, shell chaining, substitution and 
   }
 });
 
-test("AI assistant contract accepts Danish only and exposes no network behavior", () => {
+test("AI assistant contract keeps language classification out of the local request builder", () => {
   let session = engine.createTerminalSession(data.terminalScenarioCases[1]);
   assert.equal(data.terminalAssistantPolicy.language, "da");
   assert.match(data.terminalAssistantPolicy.systemInstruction, /Svar kun på dansk/u);
@@ -200,10 +200,12 @@ test("AI assistant contract accepts Danish only and exposes no network behavior"
     assert.equal(accepted.request.stage.title, data.terminalScenarioCases[1].stages[0].title);
   }
 
-  const rejectedEnglish = engine.createTerminalAssistantRequest(session, "How do I count repeated addresses?");
-  assert.deepEqual(rejectedEnglish, { accepted: false, reason: data.terminalAssistantPolicy.refusal });
-  const rejectedRussian = engine.createTerminalAssistantRequest(session, "Как мне найти адрес?");
-  assert.deepEqual(rejectedRussian, { accepted: false, reason: data.terminalAssistantPolicy.refusal });
+  const quotedCommand = engine.createTerminalAssistantRequest(session, '"find" giver intet resultat. Ingen nye mapper og filer.');
+  assert.equal(quotedCommand.accepted, true, "a quoted Linux command must not make a Danish prompt fail locally");
+  const english = engine.createTerminalAssistantRequest(session, "How do I count repeated addresses?");
+  assert.equal(english.accepted, true, "Gemini, not a mechanical local heuristic, classifies the prompt language");
+  const russian = engine.createTerminalAssistantRequest(session, "Как мне найти адрес?");
+  assert.equal(russian.accepted, true, "non-Danish prompts must reach the semantic language classifier");
 });
 
 test("case progress belongs to its own deterministic session", () => {

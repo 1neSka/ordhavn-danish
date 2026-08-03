@@ -83,6 +83,11 @@ function TerminalRunner({ scenario, onStartAttempt, onComplete, onAskAssistant, 
         setAssistantNotice("AI-forbindelsen er midlertidigt utilgængelig. Missionen fortsætter uden den.");
         return;
       }
+      if (reply.inputLanguage === "other") {
+        setAssistantNotice(reply.answer);
+        setAssistantFeedback(null);
+        return;
+      }
       setAssistantConversation((old) => [...old, learnerTurn, { role: "assistant", content: reply.answer }]);
       setAssistantFeedback(reply);
       setAssistantPrompt("");

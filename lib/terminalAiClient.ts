@@ -9,8 +9,19 @@ function parseClientResponse(value: unknown): TerminalAssistantResponse | null {
   if (!value || typeof value !== "object") return null;
   const payload = value as Partial<TerminalAssistantResponse>;
   if (payload.available !== true || typeof payload.answer !== "string" || !payload.answer.trim()) return null;
+  if (payload.inputLanguage === "other") {
+    return {
+      available: true,
+      inputLanguage: "other",
+      answer: payload.answer.trim(),
+      correctedPrompt: "",
+      languageIssues: [],
+      model: typeof payload.model === "string" ? payload.model : null,
+    };
+  }
   return {
     available: true,
+    inputLanguage: "da",
     answer: payload.answer.trim(),
     correctedPrompt: typeof payload.correctedPrompt === "string" ? payload.correctedPrompt.trim() : "",
     languageIssues: Array.isArray(payload.languageIssues)

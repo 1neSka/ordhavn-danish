@@ -24,6 +24,7 @@ async function readApiKey() {
 function unavailable(answer: string, status = 503) {
   const result: TerminalAssistantResponse = {
     available: false,
+    inputLanguage: "da",
     answer,
     correctedPrompt: "",
     languageIssues: [],
