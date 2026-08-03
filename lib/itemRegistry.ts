@@ -154,10 +154,7 @@ const modules: ItemModule[] = [
   },
   ...inputTypes.map((type): ItemModule => ({
     type, build: identity, score: freeScore, serialize: textSerialize,
-    isReady: (item, response) => {
-      const minimum = "minWords" in item ? item.minWords : 1;
-      return response.selected.trim().split(/\s+/u).filter(Boolean).length >= minimum;
-    },
+    isReady: textReady,
     keyboard: noKeyboard, Render: InputItemRenderer,
     instruction: type === "free-rewrite" ? "Omskriv frit med samme betydning" : type === "compress" ? "Bevar fakta med færre ord" : type === "micro-dialogue" ? "Før en kort samtale med et skjult mål" : type === "explain-why" ? "Forklar hvorfor på præcist dansk" : type === "inflection-forge" ? "Bøj ordet til den krævede form" : type === "transform" ? "Skriv sætningen om efter instruktionen" : "Skriv det manglende",
     expectedAnswer: exactExpected, partialCredit: type === "input" || type === "transform" || type === "inflection-forge",

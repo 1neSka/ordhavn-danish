@@ -34,6 +34,22 @@ test("error-hunt awards one half for locating and one half for correcting", () =
   assert.equal(scoreErrorHunt(2, "havde", 2, "havde"), 1);
 });
 
+test("AI production can be submitted without reaching an authored word target", () => {
+  const item = {
+    type: "free-rewrite",
+    id: "short-ai-answer",
+    prompt: "Skriv en rute.",
+    answer: "",
+    minWords: 24,
+    sourceText: "Enter and wait.",
+    instruction: "Omskriv ruten.",
+    aiPolicy: { mode: "grade", task: "free-rewrite", skipWhenUnavailable: true },
+  };
+
+  assert.equal(itemRegistry["free-rewrite"].isReady(item, EMPTY_ITEM_RESPONSE), false);
+  assert.equal(itemRegistry["free-rewrite"].isReady(item, { ...EMPTY_ITEM_RESPONSE, selected: "Gå ind og vent." }), true);
+});
+
 test("ordered mechanics score semantic order and compound spelling", () => {
   const nuance = {
     type: "nuance-scale",
