@@ -45,9 +45,12 @@ test("the dedicated prompt uses outputs and conversation before offering one non
   assert.match(prompt, /stdout:\n\.  \.\./u);
   assert.match(prompt, /Hvad gør ls -a\?/u);
   assert.match(prompt, /må du ikke bare foreslå den igen/u);
+  assert.match(prompt, /Skeln mellem at kommandoen kunne køre/u);
   assert.match(prompt, /afvig.*rigtig Linux/iu);
   assert.match(prompt, /languageIssues/u);
   assert.match(prompt, /`find`, `ls -a` eller `\/home\/elev` skal klassificeres som da/u);
+  assert.match(prompt, /original skal være et ordret, sammenhængende tekstudsnit/u);
+  assert.match(prompt, /Citér aldrig dit eget answer/u);
   assert.doesNotMatch(prompt, /pakke=207|grep '\^pakke='/u);
 });
 
@@ -112,4 +115,29 @@ test("the model's semantic language decision becomes the exact Danish-only notic
   assert.equal(result.answer, terminalAssistantPolicy.refusal);
   assert.equal(result.correctedPrompt, "");
   assert.deepEqual(result.languageIssues, []);
+});
+
+test("language feedback cannot quote a phrase invented by the coach", async () => {
+  const request = assistantRequest();
+  request.prompt = "Jeg har allerede prøvede ls -a. Hvorfor viser mappen ikke noget nyt?";
+  const result = await answerTerminalAssistantWithGemini(request, "test-key", async () => Response.json({
+    candidates: [{ content: { parts: [{ text: JSON.stringify({
+      inputLanguage: "da",
+      answer: "Prøv ét andet sted i det virtuelle filsystem.",
+      correctedPrompt: request.prompt,
+      languageIssues: [
+        {
+          original: "har allerede prøvede",
+          correction: "har allerede prøvet",
+          explanation: "Efter har bruges perfektum participium.",
+        },
+        {
+          original: "for at finde modtagelsesmappen.",
+          correction: "for at finde modtagelsesmappen",
+          explanation: "Denne tekst kom fra coachens eget svar og findes ikke i elevens besked.",
+        },
+      ],
+    }) }] } }],
+  }), 100);
+  assert.deepEqual(result.languageIssues.map((issue) => issue.original), ["har allerede prøvede"]);
 });

@@ -99,12 +99,13 @@ export function buildTerminalAssistantPrompt(request: TerminalAssistantRequest) 
     "1. Besvar først elevens konkrete spørgsmål ud fra det faktiske stdout, stderr, exitkoden og den tidligere samtale.",
     "2. Nævn kort den relevante observation fra udskriften, så svaret ikke bliver generisk.",
     "3. Hvis eleven allerede har prøvet en kommando, må du ikke bare foreslå den igen.",
+    "3a. Kald ikke en kommando rigtig eller vellykket, bare fordi den havde exitkode 0. Skeln mellem at kommandoen kunne køre, og at dens faktiske output hjalp med elevens mål.",
     "4. Du må forklare én kommando eller foreslå højst ét lille diagnostisk eksperiment. Afslør ikke den resterende løsning eller en fuld kommandokæde.",
     "5. Hvis simulationen afviger fra rigtig Linux, sig det direkte og forklar forskellen.",
     "6. Vurdér sproget i den seneste elevbesked semantisk. Kommandoer, flag, filstier, engelske programnavne og citeret terminaloutput tæller ikke som fremmedsprog. En kort dansk sætning omkring fx `find`, `ls -a` eller `/home/elev` skal klassificeres som da.",
     `7. Hvis beskeden hovedsageligt er dansk, sæt inputLanguage til da. Ellers sæt inputLanguage til other, skriv præcis “${terminalAssistantPolicy.refusal}” i answer, og returnér tom correctedPrompt og languageIssues.`,
-    "8. Ved inputLanguage da skal answer være et sammenhængende svar på dansk, og correctedPrompt skal være en naturlig rettelse af den seneste elevbesked.",
-    "9. languageIssues skal kun indeholde reelle fejl i almindeligt dansk, højst seks. Ret aldrig tekst inde i kommandoer, filstier eller citeret terminaloutput.",
+    "8. Ved inputLanguage da skal answer være et sammenhængende svar på dansk, og correctedPrompt skal udelukkende være en naturlig rettelse af teksten under SENESTE SPØRGSMÅL FRA ELEVEN. Bevar betydningen, men ret også tydeligt unaturlige gentagelser som to men-led efter hinanden. Bland aldrig formuleringer fra dit eget answer, terminalhistorikken eller den tidligere samtale ind i correctedPrompt.",
+    "9. languageIssues skal kun indeholde reelle fejl i SENESTE SPØRGSMÅL FRA ELEVEN, højst seks. Feltet original skal være et ordret, sammenhængende tekstudsnit fra netop den besked; hvis udsnittet ikke findes ordret dér, må fejlen ikke medtages. Citér aldrig dit eget answer eller terminalhistorikken som en elevfejl. Ret aldrig tekst inde i kommandoer, filstier eller citeret terminaloutput.",
     `Nuværende mappe:\n${request.cwd}`,
     `Aktiv etape:\n${stage}`,
     `HELE TERMINALHISTORIKKEN:\n${formatTranscript(request)}`,
@@ -113,7 +114,7 @@ export function buildTerminalAssistantPrompt(request: TerminalAssistantRequest) 
   ].join("\n\n");
 }
 
-export function parseTerminalAssistantResponse(value: unknown, model: string): TerminalAssistantResponse | null {
+export function parseTerminalAssistantResponse(value: unknown, model: string, sourcePrompt?: string): TerminalAssistantResponse | null {
   if (!value || typeof value !== "object") return null;
   const candidate = value as { inputLanguage?: unknown; answer?: unknown; correctedPrompt?: unknown; languageIssues?: unknown };
   if (candidate.inputLanguage !== "da" && candidate.inputLanguage !== "other") return null;
@@ -125,8 +126,10 @@ export function parseTerminalAssistantResponse(value: unknown, model: string): T
       const item = issue as Partial<TerminalLanguageIssue>;
       if (typeof item.original !== "string" || typeof item.correction !== "string" || typeof item.explanation !== "string") return [];
       if (!item.original.trim() || !item.correction.trim() || !item.explanation.trim()) return [];
+      const original = item.original.trim();
+      if (sourcePrompt !== undefined && !sourcePrompt.includes(original)) return [];
       return [{
-        original: item.original.trim().slice(0, 500),
+        original: original.slice(0, 500),
         correction: item.correction.trim().slice(0, 500),
         explanation: item.explanation.trim().slice(0, 800),
       }];
@@ -183,7 +186,7 @@ export async function answerTerminalAssistantWithGemini(
       }
       const payload = await response.json() as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> };
       const text = payload.candidates?.[0]?.content?.parts?.map((part) => part.text ?? "").join("") ?? "";
-      const parsed = parseTerminalAssistantResponse(JSON.parse(text), model);
+      const parsed = parseTerminalAssistantResponse(JSON.parse(text), model, request.prompt);
       if (parsed) return parsed;
     } catch {
       // Timeouts, quota failures, malformed responses and transient errors continue to the next model.

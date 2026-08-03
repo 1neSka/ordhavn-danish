@@ -125,7 +125,13 @@ test("find, file, wc, redirection and SHA-256 operate only on the in-memory file
   const scenario = data.terminalScenarioCases.find((candidate) => candidate.pathLevel === 18);
   let session = engine.createTerminalSession(scenario);
 
-  let result = run(session, "find . -maxdepth 3 -type f -name '*.jpg'");
+  let result = run(session, "find / -maxdepth 3");
+  assert.match(result.stdout, /^\/\r?$/mu);
+  assert.match(result.stdout, /^\/home\/elev\r?$/mu, "find / must descend into the virtual root instead of filtering every child out");
+  assert.match(result.stdout, /^\/arkiv\/2026\/juli\r?$/mu);
+  session = result.session;
+
+  result = run(session, "find . -maxdepth 3 -type f -name '*.jpg'");
   assert.match(result.stdout, /\.\/2026\/juli\/kaj-c\.jpg/u);
   session = result.session;
 

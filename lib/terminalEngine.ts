@@ -479,8 +479,9 @@ function commandFind(context: CommandContext, args: string[]): CommandResult {
   const startDepth = start === "/" ? 0 : start.split("/").length - 1;
   let nameMatcher: RegExp | undefined;
   if (namePattern) nameMatcher = globRegex(namePattern, false);
+  const descendantPrefix = start === "/" ? "/" : `${start}/`;
   const paths = Object.entries(context.session.entries)
-    .filter(([path]) => path === start || path.startsWith(`${start}/`))
+    .filter(([path]) => path === start || path.startsWith(descendantPrefix))
     .filter(([path]) => (path === "/" ? 0 : path.split("/").length - 1) - startDepth <= maxDepth)
     .filter(([, entry]) => !kind || entry.kind === kind)
     .filter(([path]) => {
