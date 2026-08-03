@@ -17,6 +17,7 @@ import {
   ErrorHuntRenderer,
   GenderBetRenderer,
   InputItemRenderer,
+  MicroDialogueRenderer,
   OrderItemRenderer,
   RegisterMatchRenderer,
   textOrderExpected,
@@ -96,7 +97,7 @@ function serializeOrdered(item: CourseItem, response: ItemResponseState) {
 const noKeyboard = () => null;
 const choiceTypes = ["choice", "number-arcade", "definiteness", "agreement", "synonym-pick", "odd-one-out", "collocation-lock", "evidential-tag"] as const;
 const orderTypes = ["order", "ikke-position", "nuance-scale", "word-forge", "text-order", "counterfactual-chain"] as const;
-const inputTypes = ["input", "transform", "inflection-forge", "free-rewrite", "compress", "micro-dialogue", "explain-why"] as const;
+const inputTypes = ["input", "transform", "inflection-forge", "free-rewrite", "compress", "explain-why"] as const;
 
 const modules: ItemModule[] = [
   ...choiceTypes.map((type): ItemModule => ({
@@ -156,9 +157,26 @@ const modules: ItemModule[] = [
     type, build: identity, score: freeScore, serialize: textSerialize,
     isReady: textReady,
     keyboard: noKeyboard, Render: InputItemRenderer,
-    instruction: type === "free-rewrite" ? "Omskriv frit med samme betydning" : type === "compress" ? "Bevar fakta med færre ord" : type === "micro-dialogue" ? "Før en kort samtale med et skjult mål" : type === "explain-why" ? "Forklar hvorfor på præcist dansk" : type === "inflection-forge" ? "Bøj ordet til den krævede form" : type === "transform" ? "Skriv sætningen om efter instruktionen" : "Skriv det manglende",
+    instruction: type === "free-rewrite" ? "Omskriv frit med samme betydning" : type === "compress" ? "Bevar fakta med færre ord" : type === "explain-why" ? "Forklar hvorfor på præcist dansk" : type === "inflection-forge" ? "Bøj ordet til den krævede form" : type === "transform" ? "Skriv sætningen om efter instruktionen" : "Skriv det manglende",
     expectedAnswer: exactExpected, partialCredit: type === "input" || type === "transform" || type === "inflection-forge",
   })),
+  {
+    type: "micro-dialogue", build: identity,
+    score: freeScore,
+    serialize: (_item, response) => response.dialogueMessages
+      .map((message) => `${message.role === "learner" ? "LEARNER" : "CHARACTER"}: ${message.text.trim()}`)
+      .join("\n"),
+    isReady: (item, response) => item.type === "micro-dialogue"
+      && (response.dialogueUnavailable || (
+        response.dialogueMessages.filter((message) => message.role === "learner").length === item.turns
+        && response.dialogueMessages.at(-1)?.role === "character"
+      )),
+    keyboard: noKeyboard,
+    Render: MicroDialogueRenderer,
+    instruction: "Før en samtale over tre levende replikker",
+    expectedAnswer: () => "et sammenhængende samtaleforløb",
+    partialCredit: true,
+  },
 ];
 
 export const itemRegistry = Object.fromEntries(modules.map((module) => [module.type, module])) as Record<CourseItem["type"], ItemModule>;

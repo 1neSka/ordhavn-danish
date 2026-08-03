@@ -1008,6 +1008,12 @@ function LessonPlayer({
     if (!answerReady || checked || !itemModule) return;
     let score: number;
     if (question.aiPolicy) {
+      if (question.type === "micro-dialogue" && response.dialogueUnavailable) {
+        setAiSkipped(true);
+        setChecked(true);
+        setCorrect(false);
+        return;
+      }
       setCheckingAi(true);
       const evaluation = await evaluateLessonItem(question, answer);
       setCheckingAi(false);
@@ -1144,6 +1150,9 @@ function LessonPlayer({
     ? `Næsten — ${Math.round(latestAttempt.score * 100)}% match`
     : "";
   const showsSentenceCorrection = !correct && ["order", "ikke-position", "transform", "cloze-multi", "text-order", "counterfactual-chain", "word-forge"].includes(question.type);
+  const aiResultLabel = question.type === "micro-dialogue"
+    ? `Samtalen fik dette udfald — ${Math.round((latestAttempt?.score ?? 0) * 100)}%`
+    : `AI-vurderet — ${Math.round((latestAttempt?.score ?? 0) * 100)}%`;
 
   return (
     <div className="lesson-overlay">
@@ -1170,7 +1179,7 @@ function LessonPlayer({
           <div className="feedback-content">
             <div className="feedback-icon">{correct ? <Check size={24} /> : aiSkipped ? <Sparkles size={24} /> : <Lightbulb size={24} />}</div>
             <div className="feedback-copy">
-              <strong>{aiSkipped ? "AI-opgaven er sprunget over" : correct ? "Præcis!" : latestAttempt?.result === "partial" ? partialFeedback : showsSentenceCorrection ? "Ikke helt endnu" : `Det rigtige svar er “${expectedAnswerLabel}”`}</strong>
+              <strong>{aiSkipped ? "AI-opgaven er sprunget over" : correct ? "Præcis!" : question.aiPolicy ? aiResultLabel : latestAttempt?.result === "partial" ? partialFeedback : showsSentenceCorrection ? "Ikke helt endnu" : `Det rigtige svar er “${expectedAnswerLabel}”`}</strong>
               {!aiSkipped && showsSentenceCorrection && <div className="correct-sentence" role="status"><span>Korrekt sætning</span><b lang="da">{expectedAnswerLabel}</b></div>}
               <p>{aiFeedback || question.explanation}</p>
             </div>
@@ -1178,7 +1187,7 @@ function LessonPlayer({
             <button className="primary-button next" onClick={nextQuestion}>Fortsæt <ArrowRight size={18} /></button>
           </div>
         ) : (
-          <div className="lesson-actions"><span className="keyboard-tip"><Keyboard size={15} /> Enter for at fortsætte</span><button className="primary-button next" disabled={!answerReady || checkingAi} onClick={checkAnswer}>{checkingAi ? "Gemini vurderer …" : "Tjek svar"}</button></div>
+          <div className="lesson-actions"><span className="keyboard-tip"><Keyboard size={15} /> {question.type === "micro-dialogue" ? "Ctrl + Enter sender en replik" : "Enter for at fortsætte"}</span><button className="primary-button next" disabled={!answerReady || checkingAi} onClick={checkAnswer}>{checkingAi ? "Gemini vurderer …" : question.type === "micro-dialogue" ? response.dialogueUnavailable ? "Spring over" : "Vurdér samtalen" : "Tjek svar"}</button></div>
         )}
       </footer>
     </div>

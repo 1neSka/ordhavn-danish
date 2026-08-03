@@ -461,6 +461,42 @@ h1, h2, h3 { letter-spacing: -.035em; }
 .input-answer-wrap input:focus, .input-answer-wrap textarea:focus { border-color: var(--violet); outline: none; }
 .input-answer-wrap svg { position: absolute; right: 17px; top: 21px; color: #aaa6b4; }
 .ai-skip-note { display: flex; align-items: center; gap: 7px; margin: 10px 2px 0; color: var(--muted); font-size: 9px; }
+.micro-dialogue { display: grid; gap: 14px; margin-top: 22px; }
+.micro-dialogue-brief { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; padding: 13px; border: 1px solid color-mix(in srgb, var(--violet) 28%, var(--line)); border-radius: 16px; background: color-mix(in srgb, var(--violet) 7%, var(--surface)); }
+.micro-dialogue-brief > div { display: grid; grid-template-columns: 24px 1fr; gap: 2px 9px; align-items: center; min-width: 0; padding: 10px 11px; border-radius: 11px; background: color-mix(in srgb, var(--surface) 90%, var(--violet)); }
+.micro-dialogue-brief svg { grid-row: 1 / 3; color: var(--mint); }
+.micro-dialogue-brief span { color: var(--muted); font-size: 8px; font-weight: 800; letter-spacing: .07em; text-transform: uppercase; }
+.micro-dialogue-brief strong { font-size: 10px; line-height: 1.42; }
+.micro-dialogue-brief > p { grid-column: 1 / -1; margin: 2px 4px 0; color: var(--muted); font-size: 9px; line-height: 1.5; }
+.micro-dialogue-thread { min-height: 128px; max-height: 285px; display: grid; align-content: start; gap: 9px; overflow-y: auto; padding: 14px; border: 1px solid var(--line); border-radius: 16px; background: color-mix(in srgb, var(--paper) 66%, var(--surface)); scrollbar-width: thin; }
+.micro-dialogue-empty { align-self: center; display: flex; justify-content: center; align-items: center; gap: 10px; min-height: 98px; color: var(--muted); }
+.micro-dialogue-empty > p, .micro-dialogue-unavailable > p { display: grid; gap: 3px; margin: 0; }
+.micro-dialogue-empty strong, .micro-dialogue-unavailable strong { color: var(--ink); font-size: 10px; }
+.micro-dialogue-empty span, .micro-dialogue-unavailable span { font-size: 8px; }
+.micro-dialogue-message { width: min(86%, 540px); display: grid; grid-template-columns: 28px minmax(0, 1fr) auto; gap: 9px; align-items: start; padding: 11px 12px; border: 1px solid var(--line); border-radius: 14px 14px 14px 4px; background: var(--surface); animation: view-in .2s ease both; }
+.micro-dialogue-message.learner { justify-self: end; border-color: color-mix(in srgb, var(--violet) 48%, var(--line)); border-radius: 14px 14px 4px 14px; background: color-mix(in srgb, var(--violet) 12%, var(--surface)); }
+.micro-dialogue-message > div { width: 28px; height: 28px; display: grid; place-items: center; border-radius: 9px; color: var(--mint); background: color-mix(in srgb, var(--mint) 13%, var(--surface)); }
+.micro-dialogue-message.learner > div { color: var(--violet-dark); background: color-mix(in srgb, var(--violet) 16%, var(--surface)); }
+.micro-dialogue-message p { display: grid; gap: 3px; margin: 0; }
+.micro-dialogue-message p span { color: var(--muted); font-size: 7px; font-weight: 800; text-transform: uppercase; letter-spacing: .07em; }
+.micro-dialogue-message p strong { font-size: 11px; line-height: 1.48; overflow-wrap: anywhere; }
+.micro-dialogue-message small { align-self: center; padding: 4px 6px; border-radius: 999px; color: var(--muted); background: color-mix(in srgb, var(--paper) 75%, var(--surface)); font-size: 7px; white-space: nowrap; }
+.micro-dialogue-typing { display: flex; align-items: center; gap: 4px; padding: 8px 11px; color: var(--muted); font-size: 8px; }
+.micro-dialogue-typing i { width: 5px; height: 5px; border-radius: 50%; background: var(--mint); animation: dialogue-pulse .75s ease-in-out infinite alternate; }
+.micro-dialogue-typing i:nth-child(2) { animation-delay: .14s; }.micro-dialogue-typing i:nth-child(3) { animation-delay: .28s; }
+.micro-dialogue-typing span { margin-left: 4px; }
+@keyframes dialogue-pulse { to { opacity: .25; transform: translateY(-3px); } }
+.micro-dialogue-compose { display: grid; grid-template-columns: 1fr auto; gap: 9px; align-items: end; }
+.micro-dialogue-compose textarea { min-height: 84px; width: 100%; resize: vertical; padding: 13px 14px; border: 1.5px solid var(--line); border-radius: 13px; color: var(--ink); background: var(--surface); font: inherit; font-size: 12px; line-height: 1.5; }
+.micro-dialogue-compose textarea:focus { border-color: var(--violet); outline: 0; box-shadow: 0 0 0 3px color-mix(in srgb, var(--violet) 15%, transparent); }
+.micro-dialogue-compose button { min-height: 44px; display: flex; align-items: center; gap: 7px; padding: 0 14px; border: 0; border-radius: 11px; color: white; background: var(--violet); font-size: 9px; font-weight: 800; cursor: pointer; }
+.micro-dialogue-compose button:disabled { opacity: .4; cursor: default; }
+.micro-dialogue-progress { display: grid; grid-template-columns: auto 1fr auto; gap: 10px; align-items: center; color: var(--muted); font-size: 8px; }
+.micro-dialogue-progress > div { display: flex; gap: 5px; }
+.micro-dialogue-progress i { width: 24px; height: 4px; border-radius: 999px; background: color-mix(in srgb, var(--muted) 24%, transparent); }
+.micro-dialogue-progress i.complete { background: var(--mint); }
+.micro-dialogue-progress strong { color: #2c9b80; font-size: 8px; }
+.micro-dialogue-unavailable { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border: 1px solid color-mix(in srgb, var(--violet) 35%, var(--line)); border-radius: 12px; color: var(--violet-dark); background: color-mix(in srgb, var(--violet) 9%, var(--surface)); }
 .error-hunt-area { display: grid; gap: 16px; margin-top: 25px; }
 .error-token-row { display: flex; flex-wrap: wrap; gap: 8px; padding: 16px; border: 1px solid var(--line); border-radius: 14px; background: color-mix(in srgb, var(--violet) 5%, var(--surface)); }
 .error-token-row button { display: inline-flex; align-items: center; gap: 6px; padding: 9px 11px; border: 1px solid var(--line); border-bottom-width: 3px; border-radius: 9px; background: var(--surface); color: var(--ink); font-weight: 700; cursor: pointer; }
@@ -770,7 +806,7 @@ h1, h2, h3 { letter-spacing: -.035em; }
 .app-shell.dark .panel, .app-shell.dark .metric-card, .app-shell.dark .path-score, .app-shell.dark .mission-card, .app-shell.dark .focus-card, .app-shell.dark .secondary-button, .app-shell.dark select { background: var(--surface); }
 .app-shell.dark .nav-item:hover { background: #302c40; }
 .app-shell.dark .lesson-overlay { background: var(--paper); }
-.app-shell.dark .lesson-footer, .app-shell.dark .answer-option, .app-shell.dark .order-answer button, .app-shell.dark .token-bank button, .app-shell.dark .input-answer-wrap input, .app-shell.dark .input-answer-wrap textarea { background: var(--surface); }
+.app-shell.dark .lesson-footer, .app-shell.dark .answer-option, .app-shell.dark .order-answer button, .app-shell.dark .token-bank button, .app-shell.dark .input-answer-wrap input, .app-shell.dark .input-answer-wrap textarea, .app-shell.dark .micro-dialogue-compose textarea { background: var(--surface); }
 .app-shell.dark .mastery-ring::before { background: var(--surface); }
 .app-shell.dark .training-card.mint, .app-shell.dark .training-card.lavender, .app-shell.dark .training-card.peach, .app-shell.dark .training-card.blue { background: var(--surface); border-color: var(--line); }
 .app-shell.dark .mobile-nav { background: rgba(31,29,41,.96); }
@@ -871,6 +907,14 @@ h1, h2, h3 { letter-spacing: -.035em; }
   .register-pairs > label { grid-template-columns: minmax(84px,.65fr) 22px minmax(0,1.8fr); padding: 10px; }
   .transform-display { grid-template-columns: 1fr; }
   .transform-display > svg { transform: rotate(90deg); justify-self: center; }
+  .micro-dialogue-brief { grid-template-columns: 1fr; }
+  .micro-dialogue-brief > p { grid-column: auto; }
+  .micro-dialogue-message { width: 94%; grid-template-columns: 26px minmax(0, 1fr); }
+  .micro-dialogue-message small { grid-column: 2; justify-self: start; }
+  .micro-dialogue-compose { grid-template-columns: 1fr; }
+  .micro-dialogue-compose button { justify-content: center; }
+  .micro-dialogue-progress { grid-template-columns: auto 1fr; }
+  .micro-dialogue-progress strong { grid-column: 1 / -1; }
   .scenario-hub, .scenario-play-page { width: min(100% - 28px, 640px); padding: 27px 0 70px; }
   .scenario-hero { grid-template-columns: 1fr; padding: 30px 27px; }
   .scenario-hero-art { min-height: 180px; }
