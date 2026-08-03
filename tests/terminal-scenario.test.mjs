@@ -75,12 +75,59 @@ test("navigation, listing, help and man behave like the documented Linux subset"
 
   result = run(session, "man grep");
   assert.match(result.stdout, /grep \[-i\] \[-n\]/u);
+  assert.match(result.stdout, /\^tekst/u);
+  assert.match(result.stdout, /Ingen output og exitkode 1/u);
+  assert.match(result.stdout, /help shell/u);
   result = run(result.session, "help");
   assert.match(result.stdout, /sha256sum/u);
+  assert.match(result.stdout, /Begynderemner: shell, paths, patterns/u);
+
+  result = run(result.session, "help shell");
+  assert.match(result.stdout, />\s+opret en fil eller overskriv/u);
+  assert.match(result.stdout, /\|\s+pipe/u);
+  assert.match(result.stdout, /~\s+din hjemmemappe/u);
+  assert.match(result.stdout, /grep '\^id=' data\.txt > ~\/arbejde\/id-liste\.txt/u);
+
+  result = run(result.session, "help paths");
+  assert.match(result.stdout, /absolut sti/u);
+  assert.match(result.stdout, /\.\.\s+forældremappen/u);
+
+  result = run(result.session, "help patterns");
+  assert.match(result.stdout, /glob-mønstre og regulære udtryk/u);
+  assert.match(result.stdout, /find \. -type f -name '\*\.txt'/u);
 
   session = run(session, "cd /home/elev/arbejde").session;
   result = run(session, "ls -a");
   assert.equal(result.stdout, ".  ..\n", "ls -a should expose the two virtual directory entries even in an empty directory");
+});
+
+test("every supported command has substantial beginner help with runnable examples", () => {
+  const scenario = data.terminalScenarioCases[0];
+  const commands = ["help", "man", "clear", "pwd", "ls", "cd", "cat", "grep", "find", "sort", "uniq", "head", "tail", "wc", "cut", "file", "sha256sum"];
+  for (const command of commands) {
+    const result = run(engine.createTerminalSession(scenario), `help ${command}`);
+    assert.equal(result.exitCode, 0, command);
+    assert.ok(result.stdout.length >= 100, `${command}: help is too terse for a beginner`);
+    assert.match(result.stdout, /SYNTAX/u, `${command}: syntax is missing`);
+    assert.match(result.stdout, /EKSEMP/u, `${command}: examples are missing`);
+  }
+});
+
+test("the first terminal mission accepts meaningful exploration instead of hidden command rituals", () => {
+  const scenario = data.terminalScenarioCases[0];
+  let session = engine.createTerminalSession(scenario);
+  for (const command of [
+    "find /",
+    "cd /data/modtagelse",
+    "ls -a",
+    "head pakke-184/manifest.txt",
+    "head pakke-207/manifest.txt",
+    "head pakke-319/manifest.txt",
+    "head vagt-note.txt",
+  ]) session = run(session, command).session;
+  const progress = engine.evaluateTerminalCase(scenario, session);
+  assert.equal(progress.stages[0].complete, true, "pwd should not be a hidden gate after the learner has already navigated correctly");
+  assert.equal(progress.stages[1].complete, true, "reading the manifests directly should count as a valid alternative to grep");
 });
 
 test("clear wipes only the visible terminal while preserving mission history and state", () => {

@@ -35,6 +35,10 @@ test("the terminal UI executes only the in-memory engine and exposes staged prog
   assert.match(source, /correctedPrompt/u);
   assert.match(source, /reply\.inputLanguage === "other"/u);
   assert.match(source, /setAssistantNotice\(reply\.answer\)/u);
+  assert.match(source, /terminalHistoryRef/u);
+  assert.match(source, /scrollbar-gutter:stable/u);
+  assert.match(source, /overflow-y:scroll/u);
+  assert.doesNotMatch(source, /\.slice\(-14\)/u);
   assert.match(client, /\/api\/gemini\/terminal/u);
   assert.match(source, /kind: "terminal"/u);
   assert.doesNotMatch(source, /child_process|shell_command|execSync|spawn\(/u);

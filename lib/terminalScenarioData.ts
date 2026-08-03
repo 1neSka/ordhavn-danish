@@ -157,10 +157,9 @@ export const terminalScenarioCases: TerminalScenarioCase[] = [
       {
         id: "orienter",
         title: "Orientér dig",
-        instruction: "Find modtagelsesmappen, gå ind i den, og vis også eventuelle skjulte poster.",
+        instruction: "Find modtagelsesmappen, gå ind i den, og vis posterne med ls -a. Se help paths, hvis stierne er nye for dig.",
         englishSupport: "Locate the incoming directory, enter it, and include hidden entries in the listing.",
         requirements: [
-          { type: "command-used", command: "pwd" },
           { type: "command-used", command: "ls" },
           { type: "cwd-is", path: "/data/modtagelse" },
         ],
@@ -168,17 +167,17 @@ export const terminalScenarioCases: TerminalScenarioCase[] = [
       {
         id: "undersoeg",
         title: "Undersøg manifesterne",
-        instruction: "Søg i alle manifestfiler efter den præcise status, som kræver handling.",
+        instruction: "Læs vagt-note.txt, og find derefter den relevante status i manifesterne. Du kan læse med head/cat eller søge i flere filer med grep; se help grep.",
         englishSupport: "Search all manifest files for the exact status that requires action.",
         requirements: [
-          { type: "command-used", command: "grep" },
-          { type: "successful-output", command: "grep", includes: "pakke-207/manifest.txt" },
+          { type: "successful-output", includes: "status=tilbageholdt" },
+          { type: "successful-output", includes: "pakke=207" },
         ],
       },
       {
         id: "gem",
         title: "Gem fundet",
-        instruction: "Udtræk pakkelinjen fra det rigtige manifest, og skriv den til ~/arbejde/resultat.txt.",
+        instruction: "Udtræk pakkelinjen fra det rigtige manifest, og skriv den til ~/arbejde/resultat.txt. Se help shell for at lære, hvordan > opretter en fil fra en kommandos output.",
         englishSupport: "Extract the package line from the correct manifest and redirect it to the result file.",
         requirements: [
           { type: "file-exists", path: "/home/elev/arbejde/resultat.txt" },
@@ -188,7 +187,7 @@ export const terminalScenarioCases: TerminalScenarioCase[] = [
       {
         id: "bekraeft",
         title: "Bekræft afleveringen",
-        instruction: "Vis resultatfilen og kontrollér, at den kun indeholder det nødvendige pakkenummer.",
+        instruction: "Vis resultatfilen med cat, og kontrollér, at den kun indeholder det nødvendige pakkenummer.",
         englishSupport: "Display the result file and verify that it contains only the required package number.",
         requirements: [{ type: "successful-output", command: "cat", includes: "pakke=207" }],
       },
