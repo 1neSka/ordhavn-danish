@@ -24,8 +24,21 @@ export const TERMINAL_ASSISTANT_RESPONSE_SCHEMA = {
         required: ["original", "correction", "explanation"],
       },
     },
+    stageComplete: { type: "BOOLEAN" },
+    stageEvidence: { type: "STRING" },
+    evidenceCommand: { type: "STRING" },
+    evidenceOutput: { type: "STRING" },
   },
-  required: ["inputLanguage", "answer", "correctedPrompt", "languageIssues"],
+  required: [
+    "inputLanguage",
+    "answer",
+    "correctedPrompt",
+    "languageIssues",
+    "stageComplete",
+    "stageEvidence",
+    "evidenceCommand",
+    "evidenceOutput",
+  ],
 } as const;
 
 function isBoundedString(value: unknown, maximum: number) {
@@ -63,6 +76,8 @@ export function isTerminalAssistantRequest(value: unknown): value is TerminalAss
       && isBoundedString(turn.content, 8_000)
       && Boolean(turn.content.trim()))
     && (request.stage === null || Boolean(request.stage
+      && isBoundedString(request.stage.id, 120)
+      && Boolean(request.stage.id)
       && isBoundedString(request.stage.title, 300)
       && isBoundedString(request.stage.instruction, 2_000)
       && Number.isInteger(request.stage.completedStages)
@@ -90,7 +105,7 @@ function formatConversation(request: TerminalAssistantRequest) {
 
 export function buildTerminalAssistantPrompt(request: TerminalAssistantRequest) {
   const stage = request.stage
-    ? `${request.stage.title}\n${request.stage.instruction}\nFremskridt: ${request.stage.completedStages}/${request.stage.totalStages}${request.stage.complete ? " · hele sagen er løst" : ""}`
+    ? `ID: ${request.stage.id}\n${request.stage.title}\n${request.stage.instruction}\nFremskridt: ${request.stage.completedStages}/${request.stage.totalStages}${request.stage.complete ? " · hele sagen er løst" : ""}`
     : "(ingen aktiv etape)";
   return [
     terminalAssistantPolicy.systemInstruction,
@@ -106,6 +121,9 @@ export function buildTerminalAssistantPrompt(request: TerminalAssistantRequest) 
     `7. Hvis beskeden hovedsageligt er dansk, sæt inputLanguage til da. Ellers sæt inputLanguage til other, skriv præcis “${terminalAssistantPolicy.refusal}” i answer, og returnér tom correctedPrompt og languageIssues.`,
     "8. Ved inputLanguage da skal answer være et sammenhængende svar på dansk, og correctedPrompt skal udelukkende være en naturlig rettelse af teksten under SENESTE SPØRGSMÅL FRA ELEVEN. Bevar betydningen, men ret også tydeligt unaturlige gentagelser som to men-led efter hinanden. Bland aldrig formuleringer fra dit eget answer, terminalhistorikken eller den tidligere samtale ind i correctedPrompt.",
     "9. languageIssues skal kun indeholde reelle fejl i SENESTE SPØRGSMÅL FRA ELEVEN, højst seks. Feltet original skal være et ordret, sammenhængende tekstudsnit fra netop den besked; hvis udsnittet ikke findes ordret dér, må fejlen ikke medtages. Citér aldrig dit eget answer eller terminalhistorikken som en elevfejl. Ret aldrig tekst inde i kommandoer, filstier eller citeret terminaloutput.",
+    "10. Vurdér også den aktive etape. Sæt kun stageComplete til true, hvis den faktiske terminalhistorik allerede beviser, at elevens handlinger opfylder etapens semantiske mål — også når eleven brugte en gyldig alternativ kommando, som den mekaniske kontrol ikke genkendte. Elevens egen påstand er aldrig bevis.",
+    "11. Ved stageComplete true skal evidenceCommand være en ordret, fuld kommandolinje fra HELE TERMINALHISTORIKKEN, og evidenceOutput skal være et ordret, sammenhængende, ikke-tomt udsnit af netop denne kommandos stdout eller stderr. stageEvidence skal kort forklare på dansk, hvorfor dette beviser etapen. Forklar også godkendelsen i answer.",
+    "12. Hvis etapen ikke er fuldt bevist, allerede er markeret complete eller mangler, sæt stageComplete til false og returnér tom stageEvidence, evidenceCommand og evidenceOutput. Gæt aldrig og godkend aldrig på baggrund af almindelig Linux-viden alene.",
     `Nuværende mappe:\n${request.cwd}`,
     `Aktiv etape:\n${stage}`,
     `HELE TERMINALHISTORIKKEN:\n${formatTranscript(request)}`,
@@ -114,12 +132,23 @@ export function buildTerminalAssistantPrompt(request: TerminalAssistantRequest) 
   ].join("\n\n");
 }
 
-export function parseTerminalAssistantResponse(value: unknown, model: string, sourcePrompt?: string): TerminalAssistantResponse | null {
+export function parseTerminalAssistantResponse(value: unknown, model: string, request?: TerminalAssistantRequest): TerminalAssistantResponse | null {
   if (!value || typeof value !== "object") return null;
-  const candidate = value as { inputLanguage?: unknown; answer?: unknown; correctedPrompt?: unknown; languageIssues?: unknown };
+  const candidate = value as {
+    inputLanguage?: unknown;
+    answer?: unknown;
+    correctedPrompt?: unknown;
+    languageIssues?: unknown;
+    stageComplete?: unknown;
+    stageEvidence?: unknown;
+    evidenceCommand?: unknown;
+    evidenceOutput?: unknown;
+  };
   if (candidate.inputLanguage !== "da" && candidate.inputLanguage !== "other") return null;
   if (typeof candidate.answer !== "string" || !candidate.answer.trim()) return null;
   if (typeof candidate.correctedPrompt !== "string") return null;
+  if (typeof candidate.stageComplete !== "boolean") return null;
+  if (typeof candidate.stageEvidence !== "string" || typeof candidate.evidenceCommand !== "string" || typeof candidate.evidenceOutput !== "string") return null;
   const issues: TerminalLanguageIssue[] = Array.isArray(candidate.languageIssues)
     ? candidate.languageIssues.flatMap((issue) => {
       if (!issue || typeof issue !== "object") return [];
@@ -127,7 +156,7 @@ export function parseTerminalAssistantResponse(value: unknown, model: string, so
       if (typeof item.original !== "string" || typeof item.correction !== "string" || typeof item.explanation !== "string") return [];
       if (!item.original.trim() || !item.correction.trim() || !item.explanation.trim()) return [];
       const original = item.original.trim();
-      if (sourcePrompt !== undefined && !sourcePrompt.includes(original)) return [];
+      if (request && !request.prompt.includes(original)) return [];
       return [{
         original: original.slice(0, 500),
         correction: item.correction.trim().slice(0, 500),
@@ -142,15 +171,31 @@ export function parseTerminalAssistantResponse(value: unknown, model: string, so
       answer: terminalAssistantPolicy.refusal,
       correctedPrompt: "",
       languageIssues: [],
+      stageComplete: false,
+      stageEvidence: "",
+      evidenceCommand: "",
+      evidenceOutput: "",
       model,
     };
   }
+  const evidenceCommand = candidate.evidenceCommand.trim();
+  const evidenceOutput = candidate.evidenceOutput.trim();
+  const evidenceRecord = candidate.stageComplete && request?.stage && !request.stage.complete
+    ? request.transcript.find((entry) => entry.line === evidenceCommand
+      && Boolean(evidenceOutput)
+      && (entry.stdout.includes(evidenceOutput) || entry.stderr.includes(evidenceOutput)))
+    : undefined;
+  const stageComplete = Boolean(evidenceRecord && candidate.stageEvidence.trim());
   return {
     available: true,
     inputLanguage: "da",
     answer: candidate.answer.trim().slice(0, 6_000),
     correctedPrompt: candidate.correctedPrompt.trim().slice(0, terminalAssistantPolicy.maxPromptCharacters),
     languageIssues: issues,
+    stageComplete,
+    stageEvidence: stageComplete ? candidate.stageEvidence.trim().slice(0, 1_200) : "",
+    evidenceCommand: stageComplete ? evidenceCommand.slice(0, 4_000) : "",
+    evidenceOutput: stageComplete ? evidenceOutput.slice(0, 2_000) : "",
     model,
   };
 }
@@ -186,7 +231,7 @@ export async function answerTerminalAssistantWithGemini(
       }
       const payload = await response.json() as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> };
       const text = payload.candidates?.[0]?.content?.parts?.map((part) => part.text ?? "").join("") ?? "";
-      const parsed = parseTerminalAssistantResponse(JSON.parse(text), model, request.prompt);
+      const parsed = parseTerminalAssistantResponse(JSON.parse(text), model, request);
       if (parsed) return parsed;
     } catch {
       // Timeouts, quota failures, malformed responses and transient errors continue to the next model.

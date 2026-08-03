@@ -36,6 +36,7 @@ test("a terminal follow-up carries the full observable state without hidden answ
   assert.equal(request.transcript[1].exitCode, 0);
   assert.equal(request.conversation.length, 2);
   assert.ok(request.stage?.instruction);
+  assert.equal(request.stage?.id, terminalScenarioCases[0].stages[0].id);
   assert.equal("referenceCommands" in request, false);
   assert.equal("finalAnswer" in request, false);
 });
@@ -51,6 +52,9 @@ test("the dedicated prompt uses outputs and conversation before offering one non
   assert.match(prompt, /`find`, `ls -a` eller `\/home\/elev` skal klassificeres som da/u);
   assert.match(prompt, /original skal være et ordret, sammenhængende tekstudsnit/u);
   assert.match(prompt, /Citér aldrig dit eget answer/u);
+  assert.match(prompt, /stageComplete til true/u);
+  assert.match(prompt, /evidenceCommand være en ordret/u);
+  assert.match(prompt, /Elevens egen påstand er aldrig bevis/u);
   assert.doesNotMatch(prompt, /pakke=207|grep '\^pakke='/u);
 });
 
@@ -66,6 +70,10 @@ test("the client uses the dedicated endpoint and returns answer plus Danish corr
       answer: "Du har allerede kørt kommandoen korrekt.",
       correctedPrompt: "Jeg har allerede prøvet ls -a.",
       languageIssues: [{ original: "har prøvede", correction: "har prøvet", explanation: "Efter har bruges perfektum participium." }],
+      stageComplete: false,
+      stageEvidence: "",
+      evidenceCommand: "",
+      evidenceOutput: "",
       model: "test-model",
     });
   });
@@ -75,7 +83,7 @@ test("the client uses the dedicated endpoint and returns answer plus Danish corr
   assert.equal(result.languageIssues[0].correction, "har prøvet");
 
   const unavailable = await askTerminalAssistant(assistantRequest(), async () => Response.json({
-    available: false, inputLanguage: "da", answer: "offline", correctedPrompt: "", languageIssues: [], model: null,
+    available: false, inputLanguage: "da", answer: "offline", correctedPrompt: "", languageIssues: [], stageComplete: false, stageEvidence: "", evidenceCommand: "", evidenceOutput: "", model: null,
   }));
   assert.equal(unavailable, null);
 });
@@ -91,6 +99,10 @@ test("the terminal provider falls back and parses its structured coaching respon
         answer: "`ls -a` virkede. Mappen indeholder kun de virtuelle poster `.` og `..`.",
         correctedPrompt: "Hvorfor viser mappen ikke noget nyt?",
         languageIssues: [],
+        stageComplete: false,
+        stageEvidence: "",
+        evidenceCommand: "",
+        evidenceOutput: "",
       }) }] } }],
     });
   }, 100);
@@ -109,6 +121,10 @@ test("the model's semantic language decision becomes the exact Danish-only notic
       answer: "A model-specific refusal that should not leak into the UI.",
       correctedPrompt: "Should be removed",
       languageIssues: [{ original: "How", correction: "Hvordan", explanation: "Wrong language" }],
+      stageComplete: false,
+      stageEvidence: "",
+      evidenceCommand: "",
+      evidenceOutput: "",
     }) }] } }],
   }), 100);
   assert.equal(result.inputLanguage, "other");
@@ -137,7 +153,49 @@ test("language feedback cannot quote a phrase invented by the coach", async () =
           explanation: "Denne tekst kom fra coachens eget svar og findes ikke i elevens besked.",
         },
       ],
+      stageComplete: false,
+      stageEvidence: "",
+      evidenceCommand: "",
+      evidenceOutput: "",
     }) }] } }],
   }), 100);
   assert.deepEqual(result.languageIssues.map((issue) => issue.original), ["har allerede prøvede"]);
+});
+
+test("Gemini can verify the active stage only with an exact command and output from the transcript", async () => {
+  const request = assistantRequest();
+  const result = await answerTerminalAssistantWithGemini(request, "test-key", async () => Response.json({
+    candidates: [{ content: { parts: [{ text: JSON.stringify({
+      inputLanguage: "da",
+      answer: "Din udskrift dokumenterer allerede det, etapen bad om.",
+      correctedPrompt: request.prompt,
+      languageIssues: [],
+      stageComplete: true,
+      stageEvidence: "Kommandoen viste de skjulte mappeposter i den undersøgte mappe.",
+      evidenceCommand: "ls -a",
+      evidenceOutput: ".  ..",
+    }) }] } }],
+  }), 100);
+  assert.equal(result.stageComplete, true);
+  assert.equal(result.evidenceCommand, "ls -a");
+  assert.equal(result.evidenceOutput, ".  ..");
+});
+
+test("a fabricated Gemini completion is downgraded without affecting the coaching answer", async () => {
+  const request = assistantRequest();
+  const result = await answerTerminalAssistantWithGemini(request, "test-key", async () => Response.json({
+    candidates: [{ content: { parts: [{ text: JSON.stringify({
+      inputLanguage: "da",
+      answer: "Jeg kan stadig hjælpe dig med at undersøge outputtet.",
+      correctedPrompt: request.prompt,
+      languageIssues: [],
+      stageComplete: true,
+      stageEvidence: "En kommando skulle angiveligt bevise etapen.",
+      evidenceCommand: "cat /hemmeligt/facit.txt",
+      evidenceOutput: "opgaven er færdig",
+    }) }] } }],
+  }), 100);
+  assert.equal(result.stageComplete, false);
+  assert.equal(result.stageEvidence, "");
+  assert.equal(result.answer, "Jeg kan stadig hjælpe dig med at undersøge outputtet.");
 });

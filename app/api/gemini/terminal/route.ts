@@ -28,6 +28,10 @@ function unavailable(answer: string, status = 503) {
     answer,
     correctedPrompt: "",
     languageIssues: [],
+    stageComplete: false,
+    stageEvidence: "",
+    evidenceCommand: "",
+    evidenceOutput: "",
     model: null,
   };
   return Response.json(result, { status });

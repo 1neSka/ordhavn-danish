@@ -128,6 +128,31 @@ test("the first terminal mission accepts meaningful exploration instead of hidde
   const progress = engine.evaluateTerminalCase(scenario, session);
   assert.equal(progress.stages[0].complete, true, "pwd should not be a hidden gate after the learner has already navigated correctly");
   assert.equal(progress.stages[1].complete, true, "reading the manifests directly should count as a valid alternative to grep");
+
+  session = run(session, "cd pakke-207").session;
+  const afterLeavingParent = engine.evaluateTerminalCase(scenario, session);
+  assert.equal(afterLeavingParent.stages[0].complete, true, "a visited-directory requirement must not regress after entering a child directory");
+});
+
+test("a completed later terminal stage automatically closes every prerequisite stage", () => {
+  const scenario = data.terminalScenarioCases[0];
+  let session = engine.createTerminalSession(scenario);
+  session = run(session, "grep '^pakke=' /data/modtagelse/pakke-207/manifest.txt > ~/arbejde/resultat.txt").session;
+  session = run(session, "cat ~/arbejde/resultat.txt").session;
+  const progress = engine.evaluateTerminalCase(scenario, session);
+  assert.equal(progress.complete, true);
+  assert.deepEqual(progress.stages.map((stage) => stage.complete), [true, true, true, true]);
+  assert.deepEqual(progress.stages.map((stage) => stage.metRequirements), progress.stages.map((stage) => stage.totalRequirements));
+});
+
+test("an evidence-backed assistant override advances the current stage context", () => {
+  const scenario = data.terminalScenarioCases[0];
+  const session = engine.createTerminalSession(scenario);
+  const progress = engine.evaluateTerminalCase(scenario, session, ["orienter"]);
+  assert.equal(progress.stages[0].complete, true);
+  const prepared = engine.createTerminalAssistantRequest(session, "Hvad mangler jeg nu?", [], ["orienter"]);
+  assert.equal(prepared.accepted, true);
+  if (prepared.accepted) assert.equal(prepared.request.stage.id, "undersoeg");
 });
 
 test("clear wipes only the visible terminal while preserving mission history and state", () => {

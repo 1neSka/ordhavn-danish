@@ -45,10 +45,11 @@ function TerminalRunner({ scenario, onStartAttempt, onComplete, onAskAssistant, 
   const [assistantPrompt, setAssistantPrompt] = useState("");
   const [assistantConversation, setAssistantConversation] = useState<TerminalAssistantTurn[]>([]);
   const [assistantFeedback, setAssistantFeedback] = useState<TerminalAssistantResponse | null>(null);
+  const [assistantCompletedStageIds, setAssistantCompletedStageIds] = useState<string[]>([]);
   const [assistantNotice, setAssistantNotice] = useState("");
   const [assistantLoading, setAssistantLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
-  const progress = evaluateTerminalCase(scenario, session);
+  const progress = evaluateTerminalCase(scenario, session, assistantCompletedStageIds);
   useEffect(() => {
     const history = terminalHistoryRef.current;
     if (history) history.scrollTop = history.scrollHeight;
@@ -65,12 +66,12 @@ function TerminalRunner({ scenario, onStartAttempt, onComplete, onAskAssistant, 
   function finish() {
     if (!progress.complete || submitted) return;
     const endedAt = new Date().toISOString();
-    onComplete({ id: runId(), kind: "terminal", caseId: scenario.id, title: scenario.title, level: scenario.level === "A2+" ? "A2" : scenario.level, startedAt: startedAt.current, endedAt, success: true, score: 420, maxScore: 420, path: session.history.map((record) => record.line), decisions: [], metadata: { pathLevel: scenario.pathLevel, commands: session.history.length, kronerReward: scenario.rewardKroner } });
+    onComplete({ id: runId(), kind: "terminal", caseId: scenario.id, title: scenario.title, level: scenario.level === "A2+" ? "A2" : scenario.level, startedAt: startedAt.current, endedAt, success: true, score: 420, maxScore: 420, path: session.history.map((record) => record.line), decisions: [], metadata: { pathLevel: scenario.pathLevel, commands: session.history.length, kronerReward: scenario.rewardKroner, aiVerifiedStages: assistantCompletedStageIds } });
     setSubmitted(true);
   }
 
   async function askAssistant() {
-    const prepared = createTerminalAssistantRequest(session, assistantPrompt, assistantConversation);
+    const prepared = createTerminalAssistantRequest(session, assistantPrompt, assistantConversation, assistantCompletedStageIds);
     if (!prepared.accepted) {
       setAssistantNotice(prepared.reason);
       return;
@@ -93,7 +94,15 @@ function TerminalRunner({ scenario, onStartAttempt, onComplete, onAskAssistant, 
         setAssistantFeedback(null);
         return;
       }
-      setAssistantConversation((old) => [...old, learnerTurn, { role: "assistant", content: reply.answer }]);
+      const assistantContent = reply.stageComplete && reply.stageEvidence
+        ? `${reply.answer}\n\n✓ Etape godkendt: ${reply.stageEvidence}`
+        : reply.answer;
+      setAssistantConversation((old) => [...old, learnerTurn, { role: "assistant", content: assistantContent }]);
+      if (reply.stageComplete && prepared.request.stage) {
+        setAssistantCompletedStageIds((old) => old.includes(prepared.request.stage!.id)
+          ? old
+          : [...old, prepared.request.stage!.id]);
+      }
       setAssistantFeedback(reply);
       setAssistantPrompt("");
     } catch {
@@ -115,7 +124,8 @@ function TerminalRunner({ scenario, onStartAttempt, onComplete, onAskAssistant, 
           <section><span>MISSION</span><p>{scenario.openingMessage}</p></section>
           <ol>{scenario.stages.map((stage, index) => {
             const state = progress.stages[index];
-            return <li className={state.complete ? "done" : ""} key={stage.id}><b>{state.complete ? <Check size={14} /> : index + 1}</b><div><strong>{stage.title}</strong><p>{stage.instruction}</p><small>{state.metRequirements}/{state.totalRequirements} krav</small></div></li>;
+            const aiVerified = assistantCompletedStageIds.includes(stage.id);
+            return <li className={state.complete ? "done" : ""} key={stage.id}><b>{state.complete ? <Check size={14} /> : index + 1}</b><div><strong>{stage.title}</strong><p>{stage.instruction}</p><small>{state.metRequirements}/{state.totalRequirements} krav{aiVerified ? " · AI-verificeret" : ""}</small></div></li>;
           })}</ol>
         </aside>
         <section className="terminal-window">

@@ -16,9 +16,20 @@ function parseClientResponse(value: unknown): TerminalAssistantResponse | null {
       answer: payload.answer.trim(),
       correctedPrompt: "",
       languageIssues: [],
+      stageComplete: false,
+      stageEvidence: "",
+      evidenceCommand: "",
+      evidenceOutput: "",
       model: typeof payload.model === "string" ? payload.model : null,
     };
   }
+  const stageComplete = payload.stageComplete === true
+    && typeof payload.stageEvidence === "string"
+    && Boolean(payload.stageEvidence.trim())
+    && typeof payload.evidenceCommand === "string"
+    && Boolean(payload.evidenceCommand.trim())
+    && typeof payload.evidenceOutput === "string"
+    && Boolean(payload.evidenceOutput.trim());
   return {
     available: true,
     inputLanguage: "da",
@@ -30,6 +41,10 @@ function parseClientResponse(value: unknown): TerminalAssistantResponse | null {
         && typeof issue.correction === "string"
         && typeof issue.explanation === "string")
       : [],
+    stageComplete,
+    stageEvidence: stageComplete ? payload.stageEvidence!.trim() : "",
+    evidenceCommand: stageComplete ? payload.evidenceCommand!.trim() : "",
+    evidenceOutput: stageComplete ? payload.evidenceOutput!.trim() : "",
     model: typeof payload.model === "string" ? payload.model : null,
   };
 }

@@ -1106,7 +1106,13 @@ function requirementMet(session: TerminalSession, requirement: TerminalStageRequ
     const entry = session.entries[resolveTerminalPath(session, requirement.path)];
     return entry?.kind === "file" && requirement.includes.every((fragment) => entry.content.includes(fragment));
   }
-  return session.cwd === resolveTerminalPath(session, requirement.path);
+  const requiredPath = resolveTerminalPath(session, requirement.path);
+  if (session.cwd === requiredPath || session.history.some((record) => record.cwd === requiredPath)) return true;
+  return session.history.some((record) =>
+    record.command === "cd"
+    && record.exitCode === 0
+    && resolveTerminalPath({ cwd: record.cwd, home: session.home }, record.args[0] ?? "~") === requiredPath,
+  );
 }
 
 export function evaluateTerminalStage(session: TerminalSession, stage: TerminalScenarioStage): TerminalStageProgress {
@@ -1119,9 +1125,26 @@ export function evaluateTerminalStage(session: TerminalSession, stage: TerminalS
   };
 }
 
-export function evaluateTerminalCase(scenario: TerminalScenarioCase, session: TerminalSession): TerminalCaseProgress {
+export function evaluateTerminalCase(
+  scenario: TerminalScenarioCase,
+  session: TerminalSession,
+  assistantCompletedStageIds: readonly string[] = [],
+): TerminalCaseProgress {
   if (session.caseId !== scenario.id) throw new Error("Sessionen tilhører en anden terminalsag.");
-  const stages = scenario.stages.map((stage) => evaluateTerminalStage(session, stage));
+  const assistantCompleted = new Set(assistantCompletedStageIds);
+  const rawStages = scenario.stages.map((stage) => {
+    const progress = evaluateTerminalStage(session, stage);
+    return assistantCompleted.has(stage.id)
+      ? { ...progress, complete: true, metRequirements: progress.totalRequirements }
+      : progress;
+  });
+  const furthestCompletedStage = rawStages.reduce(
+    (furthest, stage, index) => stage.complete ? index : furthest,
+    -1,
+  );
+  const stages = rawStages.map((stage, index) => index < furthestCompletedStage && !stage.complete
+    ? { ...stage, complete: true, metRequirements: stage.totalRequirements }
+    : stage);
   const completedStages = stages.filter((stage) => stage.complete).length;
   return {
     complete: completedStages === stages.length,
@@ -1135,6 +1158,7 @@ export function createTerminalAssistantRequest(
   session: TerminalSession,
   prompt: string,
   conversation: readonly TerminalAssistantTurn[] = [],
+  assistantCompletedStageIds: readonly string[] = [],
 ): { accepted: true; request: TerminalAssistantRequest } | { accepted: false; reason: string } {
   const normalized = prompt.trim();
   if (!normalized || normalized.length > terminalAssistantPolicy.maxPromptCharacters) {
@@ -1147,7 +1171,7 @@ export function createTerminalAssistantRequest(
     return { accepted: false, reason: "Assistentsamtalen er blevet for lang. Start en ny sag for at fortsætte." };
   }
   const scenario = terminalScenarioCases.find((candidate) => candidate.id === session.caseId);
-  const progress = scenario ? evaluateTerminalCase(scenario, session) : null;
+  const progress = scenario ? evaluateTerminalCase(scenario, session, assistantCompletedStageIds) : null;
   const firstIncompleteStage = progress?.stages.findIndex((stage) => !stage.complete) ?? -1;
   const currentStageIndex = progress
     ? firstIncompleteStage >= 0 ? firstIncompleteStage : progress.stages.length - 1
@@ -1163,6 +1187,7 @@ export function createTerminalAssistantRequest(
       transcript: session.history.map((record) => ({ ...record, args: [...record.args] })),
       conversation: conversation.map((turn) => ({ role: turn.role, content: turn.content })),
       stage: currentStage && progress ? {
+        id: currentStage.id,
         title: currentStage.title,
         instruction: currentStage.instruction,
         completedStages: progress.completedStages,

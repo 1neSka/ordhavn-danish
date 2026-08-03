@@ -66,6 +66,7 @@ export interface TerminalAssistantTurn {
 }
 
 export interface TerminalAssistantStageContext {
+  id: string;
   title: string;
   instruction: string;
   completedStages: number;
@@ -85,6 +86,10 @@ export interface TerminalAssistantResponse {
   answer: string;
   correctedPrompt: string;
   languageIssues: TerminalLanguageIssue[];
+  stageComplete: boolean;
+  stageEvidence: string;
+  evidenceCommand: string;
+  evidenceOutput: string;
   model: string | null;
 }
 

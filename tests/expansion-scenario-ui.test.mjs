@@ -27,7 +27,7 @@ test("the terminal UI executes only the in-memory engine and exposes staged prog
   const source = await readFile(new URL("../app/terminal-scenario-game.tsx", import.meta.url), "utf8");
   const client = await readFile(new URL("../lib/terminalAiClient.ts", import.meta.url), "utf8");
   assert.match(source, /executeTerminalCommand\(session, command\)/u);
-  assert.match(source, /evaluateTerminalCase\(scenario, session\)/u);
+  assert.match(source, /evaluateTerminalCase\(scenario, session, assistantCompletedStageIds\)/u);
   assert.match(source, /createTerminalAssistantRequest/u);
   assert.match(source, /Terminalcoach/u);
   assert.match(source, /DANSK FEEDBACK/u);
@@ -39,6 +39,9 @@ test("the terminal UI executes only the in-memory engine and exposes staged prog
   assert.match(source, /scrollbar-gutter:stable/u);
   assert.match(source, /overflow-y:scroll/u);
   assert.doesNotMatch(source, /\.slice\(-14\)/u);
+  assert.match(source, /reply\.stageComplete/u);
+  assert.match(source, /AI-verificeret/u);
+  assert.match(source, /Etape godkendt/u);
   assert.match(client, /\/api\/gemini\/terminal/u);
   assert.match(source, /kind: "terminal"/u);
   assert.doesNotMatch(source, /child_process|shell_command|execSync|spawn\(/u);
