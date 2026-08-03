@@ -1,34 +1,40 @@
-import type { TerminalAssistantRequest } from "./terminalScenarioData.ts";
-import { terminalAssistantPolicy } from "./terminalScenarioData.ts";
-import { evaluateScenarioSubmission } from "./scenarioAiClient.ts";
 import type {
-  GeminiEvaluationRequest,
-  GeminiEvaluationResult,
-} from "./geminiEvaluation.ts";
+  TerminalAssistantRequest,
+  TerminalAssistantResponse,
+} from "./terminalScenarioData.ts";
 
-type TerminalEvaluator = (request: GeminiEvaluationRequest) => Promise<GeminiEvaluationResult>;
+type TerminalAssistantFetch = (input: string, init?: RequestInit) => Promise<Response>;
 
-export function terminalAssistantEvaluationRequest(
-  request: TerminalAssistantRequest,
-): GeminiEvaluationRequest {
+function parseClientResponse(value: unknown): TerminalAssistantResponse | null {
+  if (!value || typeof value !== "object") return null;
+  const payload = value as Partial<TerminalAssistantResponse>;
+  if (payload.available !== true || typeof payload.answer !== "string" || !payload.answer.trim()) return null;
   return {
-    scenarioId: request.caseId,
-    task: "terminal-assistant",
-    submission: request.prompt,
-    level: "B1",
-    requiredFacts: [
-      terminalAssistantPolicy.systemInstruction,
-      `Nuværende mappe: ${request.cwd}`,
-      `Seneste kommandoer: ${request.recentCommands.join(" | ") || "ingen"}`.slice(0, 300),
-    ],
+    available: true,
+    answer: payload.answer.trim(),
+    correctedPrompt: typeof payload.correctedPrompt === "string" ? payload.correctedPrompt.trim() : "",
+    languageIssues: Array.isArray(payload.languageIssues)
+      ? payload.languageIssues.filter((issue) => issue
+        && typeof issue.original === "string"
+        && typeof issue.correction === "string"
+        && typeof issue.explanation === "string")
+      : [],
+    model: typeof payload.model === "string" ? payload.model : null,
   };
 }
 
-/** Returns one Danish hint, or null when the provider is absent or exhausted. */
 export async function askTerminalAssistant(
   request: TerminalAssistantRequest,
-  evaluator: TerminalEvaluator = evaluateScenarioSubmission,
+  fetcher: TerminalAssistantFetch = fetch,
 ) {
-  const result = await evaluator(terminalAssistantEvaluationRequest(request));
-  return result.available ? result.feedback : null;
+  try {
+    const response = await fetcher("/api/gemini/terminal", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(request),
+    });
+    return parseClientResponse(await response.json());
+  } catch {
+    return null;
+  }
 }

@@ -1,10 +1,11 @@
 import type {
   TerminalAssistantRequest,
+  TerminalAssistantTurn,
   TerminalScenarioCase,
   TerminalScenarioStage,
   TerminalStageRequirement,
 } from "./terminalScenarioData.ts";
-import { terminalAssistantPolicy } from "./terminalScenarioData.ts";
+import { terminalAssistantPolicy, terminalScenarioCases } from "./terminalScenarioData.ts";
 
 export interface TerminalFsEntry {
   kind: "file" | "directory";
@@ -388,6 +389,11 @@ function commandLs(context: CommandContext, args: string[]): CommandResult {
       const marker = child.kind === "directory" ? "d" : "-";
       return `${marker}${child.content.length.toString().padStart(7)} ${name}`;
     });
+    if (showAll) {
+      displayed.unshift(
+        ...(long ? ["d      0 .", "d      0 .."] : [".", ".."]),
+      );
+    }
     if (targets.length > 1) blocks.push(`${rawTarget}:\n${one || long ? displayed.join("\n") : displayed.join("  ")}`);
     else blocks.push(one || long ? displayed.join("\n") : displayed.join("  "));
   }
@@ -888,12 +894,26 @@ export function isDanishAssistantPrompt(prompt: string): boolean {
 export function createTerminalAssistantRequest(
   session: TerminalSession,
   prompt: string,
+  conversation: readonly TerminalAssistantTurn[] = [],
 ): { accepted: true; request: TerminalAssistantRequest } | { accepted: false; reason: string } {
   const normalized = prompt.trim();
   if (!normalized || normalized.length > terminalAssistantPolicy.maxPromptCharacters) {
-    return { accepted: false, reason: "Spørgsmålet skal være mellem 1 og 600 tegn." };
+    return { accepted: false, reason: `Spørgsmålet skal være mellem 1 og ${terminalAssistantPolicy.maxPromptCharacters} tegn.` };
   }
   if (!isDanishAssistantPrompt(normalized)) return { accepted: false, reason: terminalAssistantPolicy.refusal };
+  if (session.history.length > terminalAssistantPolicy.maxTranscriptEntries) {
+    return { accepted: false, reason: "Terminalhistorikken er for lang til én assistentsamtale. Start en ny sag for at fortsætte." };
+  }
+  if (conversation.length > terminalAssistantPolicy.maxConversationTurns) {
+    return { accepted: false, reason: "Assistentsamtalen er blevet for lang. Start en ny sag for at fortsætte." };
+  }
+  const scenario = terminalScenarioCases.find((candidate) => candidate.id === session.caseId);
+  const progress = scenario ? evaluateTerminalCase(scenario, session) : null;
+  const firstIncompleteStage = progress?.stages.findIndex((stage) => !stage.complete) ?? -1;
+  const currentStageIndex = progress
+    ? firstIncompleteStage >= 0 ? firstIncompleteStage : progress.stages.length - 1
+    : -1;
+  const currentStage = scenario && currentStageIndex >= 0 ? scenario.stages[currentStageIndex] : null;
   return {
     accepted: true,
     request: {
@@ -901,7 +921,15 @@ export function createTerminalAssistantRequest(
       language: "da",
       prompt: normalized,
       cwd: session.cwd,
-      recentCommands: session.history.slice(-terminalAssistantPolicy.maxRecentCommands).map((record) => record.line),
+      transcript: session.history.map((record) => ({ ...record, args: [...record.args] })),
+      conversation: conversation.map((turn) => ({ role: turn.role, content: turn.content })),
+      stage: currentStage && progress ? {
+        title: currentStage.title,
+        instruction: currentStage.instruction,
+        completedStages: progress.completedStages,
+        totalStages: progress.totalStages,
+        complete: progress.complete,
+      } : null,
     },
   };
 }

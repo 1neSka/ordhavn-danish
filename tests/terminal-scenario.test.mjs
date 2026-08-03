@@ -77,6 +77,10 @@ test("navigation, listing, help and man behave like the documented Linux subset"
   assert.match(result.stdout, /grep \[-i\] \[-n\]/u);
   result = run(result.session, "help");
   assert.match(result.stdout, /sha256sum/u);
+
+  session = run(session, "cd /home/elev/arbejde").session;
+  result = run(session, "ls -a");
+  assert.equal(result.stdout, ".  ..\n", "ls -a should expose the two virtual directory entries even in an empty directory");
 });
 
 test("clear wipes only the visible terminal while preserving mission history and state", () => {
@@ -175,16 +179,25 @@ test("the parser rejects destructive commands, shell chaining, substitution and 
 });
 
 test("AI assistant contract accepts Danish only and exposes no network behavior", () => {
-  const session = engine.createTerminalSession(data.terminalScenarioCases[1]);
+  let session = engine.createTerminalSession(data.terminalScenarioCases[1]);
   assert.equal(data.terminalAssistantPolicy.language, "da");
   assert.match(data.terminalAssistantPolicy.systemInstruction, /Svar kun på dansk/u);
 
-  const accepted = engine.createTerminalAssistantRequest(session, "Hvordan kan jeg tælle de samme adresser?");
+  for (let index = 0; index < 12; index += 1) session = run(session, index % 2 === 0 ? "pwd" : "ls -a").session;
+  const conversation = [
+    { role: "learner", content: "Hvad gør -a?" },
+    { role: "assistant", content: "Flaget viser også skjulte poster." },
+  ];
+
+  const accepted = engine.createTerminalAssistantRequest(session, "Hvorfor viser kommandoen stadig det samme?", conversation);
   assert.equal(accepted.accepted, true);
   if (accepted.accepted) {
     assert.equal(accepted.request.language, "da");
     assert.equal(accepted.request.caseId, session.caseId);
-    assert.deepEqual(accepted.request.recentCommands, []);
+    assert.equal(accepted.request.transcript.length, 12, "the complete command history should be retained, not the latest eight commands");
+    assert.match(accepted.request.transcript.at(-1).stdout, /\.\s+\.\./u);
+    assert.deepEqual(accepted.request.conversation, conversation);
+    assert.equal(accepted.request.stage.title, data.terminalScenarioCases[1].stages[0].title);
   }
 
   const rejectedEnglish = engine.createTerminalAssistantRequest(session, "How do I count repeated addresses?");

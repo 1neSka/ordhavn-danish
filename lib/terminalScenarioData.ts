@@ -45,13 +45,53 @@ export interface TerminalAssistantRequest {
   language: "da";
   prompt: string;
   cwd: string;
-  recentCommands: string[];
+  transcript: TerminalAssistantTranscriptEntry[];
+  conversation: TerminalAssistantTurn[];
+  stage: TerminalAssistantStageContext | null;
+}
+
+export interface TerminalAssistantTranscriptEntry {
+  line: string;
+  command: string;
+  args: string[];
+  cwd: string;
+  stdout: string;
+  stderr: string;
+  exitCode: number;
+}
+
+export interface TerminalAssistantTurn {
+  role: "learner" | "assistant";
+  content: string;
+}
+
+export interface TerminalAssistantStageContext {
+  title: string;
+  instruction: string;
+  completedStages: number;
+  totalStages: number;
+  complete: boolean;
+}
+
+export interface TerminalLanguageIssue {
+  original: string;
+  correction: string;
+  explanation: string;
+}
+
+export interface TerminalAssistantResponse {
+  available: boolean;
+  answer: string;
+  correctedPrompt: string;
+  languageIssues: TerminalLanguageIssue[];
+  model: string | null;
 }
 
 export interface TerminalAssistantPolicy {
   language: "da";
   maxPromptCharacters: number;
-  maxRecentCommands: number;
+  maxTranscriptEntries: number;
+  maxConversationTurns: number;
   systemInstruction: string;
   refusal: string;
   suggestedPrompts: string[];
@@ -59,10 +99,11 @@ export interface TerminalAssistantPolicy {
 
 export const terminalAssistantPolicy: TerminalAssistantPolicy = {
   language: "da",
-  maxPromptCharacters: 600,
-  maxRecentCommands: 8,
+  maxPromptCharacters: 4_000,
+  maxTranscriptEntries: 200,
+  maxConversationTurns: 100,
   systemInstruction:
-    "Du er terminalassistent i en lukket simulation. Svar kun på dansk. Forklar kommandoens princip og foreslå højst ét næste eksperiment; giv ikke hele sagens facit eller en komplet kommandorække.",
+    "Du er en kontekstbevidst Linux- og dansklærer i en lukket simulation. Svar kun på dansk. Læs hele terminaludskriften og samtalen, anerkend det brugeren allerede har prøvet, og besvar det konkrete spørgsmål før du foreslår højst ét lille næste eksperiment. Gentag aldrig blindt en allerede afprøvet kommando. Skeln tydeligt mellem rigtig Linux-adfærd og en begrænsning eller fejl i simulationen. Giv ikke hele sagens facit, skjulte filstier eller en komplet kommandorække. Ret brugerens seneste danske besked separat og lad kommandoer, filstier og citeret terminaloutput stå urørt.",
   refusal: "Assistenten svarer kun på spørgsmål skrevet på dansk.",
   suggestedPrompts: [
     "Hvordan kan jeg søge efter en tekst i flere filer?",

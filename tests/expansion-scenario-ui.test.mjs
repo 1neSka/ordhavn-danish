@@ -25,9 +25,15 @@ test("the authority and detective systems are integrated into the shared catalog
 
 test("the terminal UI executes only the in-memory engine and exposes staged progress", async () => {
   const source = await readFile(new URL("../app/terminal-scenario-game.tsx", import.meta.url), "utf8");
+  const client = await readFile(new URL("../lib/terminalAiClient.ts", import.meta.url), "utf8");
   assert.match(source, /executeTerminalCommand\(session, command\)/u);
   assert.match(source, /evaluateTerminalCase\(scenario, session\)/u);
   assert.match(source, /createTerminalAssistantRequest/u);
+  assert.match(source, /Terminalcoach/u);
+  assert.match(source, /DANSK FEEDBACK/u);
+  assert.match(source, /assistantConversation/u);
+  assert.match(source, /correctedPrompt/u);
+  assert.match(client, /\/api\/gemini\/terminal/u);
   assert.match(source, /kind: "terminal"/u);
   assert.doesNotMatch(source, /child_process|shell_command|execSync|spawn\(/u);
 });
