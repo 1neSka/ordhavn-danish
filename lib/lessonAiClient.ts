@@ -9,6 +9,8 @@ const unavailable: GeminiEvaluationResult = {
   feedback: "AI-vurderingen er ikke tilgængelig. Opgaven springes over uden straf.",
   strengths: [],
   improvements: [],
+  correctedSubmission: "",
+  languageIssues: [],
   model: null,
 };
 

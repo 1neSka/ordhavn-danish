@@ -72,10 +72,11 @@ test("final lesson evaluation separates creative tone from strategic outcome", (
   assert.match(prompt, /unstated moral or personality ideal/u);
 });
 
-test("lesson UI uses a dedicated three-turn renderer and never displays a fake canonical AI answer", async () => {
-  const [renderer, styles, registry, page, client] = await Promise.all([
+test("lesson UI uses a dedicated three-turn renderer and separate language feedback", async () => {
+  const [renderer, styles, feedbackStyles, registry, page, client] = await Promise.all([
     readFile(new URL("../lib/itemRenderers.tsx", import.meta.url), "utf8"),
     readFile(new URL("../lib/micro-dialogue.module.css", import.meta.url), "utf8"),
+    readFile(new URL("../app/lesson-ai-feedback.module.css", import.meta.url), "utf8"),
     readFile(new URL("../lib/itemRegistry.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../lib/lessonAiClient.ts", import.meta.url), "utf8"),
@@ -90,6 +91,10 @@ test("lesson UI uses a dedicated three-turn renderer and never displays a fake c
   assert.match(registry, /Samtalen er klar til vurdering|Før en samtale over tre levende replikker/u);
   assert.match(page, /question\.aiPolicy \? aiResultLabel/u);
   assert.match(page, /Vurdér samtalen/u);
+  assert.match(page, /DANSK FEEDBACK/u);
+  assert.match(page, /evaluation\.languageIssues/u);
+  assert.match(feedbackStyles, /\.natural[\s\S]*white-space: pre-wrap/u);
+  assert.match(feedbackStyles, /\.issues[\s\S]*overflow-y: auto/u);
   assert.match(client, /Conversational objective/u);
   assert.match(client, /Only LEARNER lines belong to the learner/u);
 });

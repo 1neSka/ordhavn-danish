@@ -99,6 +99,8 @@ import { filterResponseTimeOutliers } from "../lib/responseTimeStats";
 import { getItemModule } from "../lib/itemRegistry";
 import { EMPTY_ITEM_RESPONSE, type ItemResponseState } from "../lib/itemRuntime";
 import { evaluateLessonItem } from "../lib/lessonAiClient";
+import type { GeminiEvaluationResult } from "../lib/geminiEvaluation";
+import lessonAiStyles from "./lesson-ai-feedback.module.css";
 
 type View = "home" | "path" | "practice" | "wordle" | "scenarios" | "stats" | "profile" | "gender-bank";
 
@@ -912,6 +914,29 @@ function EmptyState({ icon: Icon, title, copy }: { icon: React.ComponentType<{ s
   return <div className="empty-state"><span><Icon size={24} /></span><div><strong>{title}</strong><p>{copy}</p></div></div>;
 }
 
+function LessonAiLanguageFeedback({ evaluation, dialogue }: { evaluation: GeminiEvaluationResult; dialogue: boolean }) {
+  return (
+    <aside className={lessonAiStyles.panel} aria-label="Dansk feedback">
+      <header><span><Languages size={19} /></span><div><small>DANSK FEEDBACK</small><strong>{dialogue ? "Dine tre replikker" : "Dit svar"}</strong></div></header>
+      <p className={lessonAiStyles.separation}>Strategien vurderes i resultatet nedenfor. Her ser du kun sproget — uden at din tone bliver gjort pænere.</p>
+      <section className={lessonAiStyles.natural}>
+        <small>NATURLIG VERSION</small>
+        <p>{evaluation.correctedSubmission || "Din formulering krævede ingen tydelig rettelse."}</p>
+      </section>
+      <div className={lessonAiStyles.issues}>
+        {evaluation.languageIssues.length === 0 && <p className={lessonAiStyles.ok}><Check size={15} /> Ingen tydelige sproglige fejl.</p>}
+        {evaluation.languageIssues.map((issue, issueIndex) => <article key={`${issue.original}-${issueIndex}`}>
+          <span>RETTELSE {issueIndex + 1}</span>
+          <del>{issue.original}</del>
+          <strong>{issue.correction}</strong>
+          <p>{issue.explanation}</p>
+        </article>)}
+      </div>
+      {evaluation.model && <small className={lessonAiStyles.model}>Vurderet med {evaluation.model}</small>}
+    </aside>
+  );
+}
+
 function LessonPlayer({
   mission,
   levelId,
@@ -947,7 +972,7 @@ function LessonPlayer({
   const [correct, setCorrect] = useState(false);
   const [checkingAi, setCheckingAi] = useState(false);
   const [aiSkipped, setAiSkipped] = useState(false);
-  const [aiFeedback, setAiFeedback] = useState("");
+  const [aiEvaluation, setAiEvaluation] = useState<GeminiEvaluationResult | null>(null);
   const [hintsUsed, setHintsUsed] = useState(0);
   const [combo, setCombo] = useState(0);
   const [earnedXp, setEarnedXp] = useState(0);
@@ -1017,7 +1042,7 @@ function LessonPlayer({
       setCheckingAi(true);
       const evaluation = await evaluateLessonItem(question, answer);
       setCheckingAi(false);
-      setAiFeedback(evaluation.feedback);
+      setAiEvaluation(evaluation);
       if (!evaluation.available) {
         setAiSkipped(true);
         setChecked(true);
@@ -1093,7 +1118,7 @@ function LessonPlayer({
     setCorrect(false);
     setCheckingAi(false);
     setAiSkipped(false);
-    setAiFeedback("");
+    setAiEvaluation(null);
     setHintsUsed(0);
     questionStartedAt.current = Date.now();
   }
@@ -1153,6 +1178,7 @@ function LessonPlayer({
   const aiResultLabel = question.type === "micro-dialogue"
     ? `Samtalen fik dette udfald — ${Math.round((latestAttempt?.score ?? 0) * 100)}%`
     : `AI-vurderet — ${Math.round((latestAttempt?.score ?? 0) * 100)}%`;
+  const showsAiLanguageFeedback = Boolean(checked && !aiSkipped && question.aiPolicy && aiEvaluation?.available);
 
   return (
     <div className="lesson-overlay">
@@ -1161,18 +1187,21 @@ function LessonPlayer({
         <div className="lesson-progress"><span style={{ width: `${progressPercent}%` }} /></div>
         <div className="lesson-hearts"><Anchor size={20} /><span>Havnepas</span></div>
       </header>
-      <main className="lesson-main">
-        <div className="question-meta"><span>{question.skill}</span><span>Opgave {index + 1} af {mission.questions.length}</span></div>
-        <p className="question-instruction">{itemModule.instruction}</p>
-        <h1 className="question-prompt">{question.prompt}</h1>
-        {question.translation && <p className="question-translation">{question.translation}</p>}
-        <ItemRenderer question={question} response={response} setResponse={setResponse} checked={checked} correct={correct} sessionId={sessionId} displayOptions={displayOptions} displayTokens={displayTokens} onSubmit={checkAnswer} />
+      <main className={`lesson-main ${showsAiLanguageFeedback ? lessonAiStyles.withFeedback : ""}`}>
+        <section className={lessonAiStyles.exercise}>
+          <div className="question-meta"><span>{question.skill}</span><span>Opgave {index + 1} af {mission.questions.length}</span></div>
+          <p className="question-instruction">{itemModule.instruction}</p>
+          <h1 className="question-prompt">{question.prompt}</h1>
+          {question.translation && <p className="question-translation">{question.translation}</p>}
+          <ItemRenderer question={question} response={response} setResponse={setResponse} checked={checked} correct={correct} sessionId={sessionId} displayOptions={displayOptions} displayTokens={displayTokens} onSubmit={checkAnswer} />
 
-        {!checked && (
-          <button className="hint-button" disabled={!hintsUsed && hintTokens <= 0} onClick={() => {
-            if (!hintsUsed && onUseHint()) setHintsUsed(1);
-          }}><CircleHelp size={17} /> {hintsUsed ? question.hint : hintTokens > 0 ? `Brug 1 hint-token · ${hintTokens} tilbage` : "Ingen hint-tokens"}</button>
-        )}
+          {!checked && (
+            <button className="hint-button" disabled={!hintsUsed && hintTokens <= 0} onClick={() => {
+              if (!hintsUsed && onUseHint()) setHintsUsed(1);
+            }}><CircleHelp size={17} /> {hintsUsed ? question.hint : hintTokens > 0 ? `Brug 1 hint-token · ${hintTokens} tilbage` : "Ingen hint-tokens"}</button>
+          )}
+        </section>
+        {showsAiLanguageFeedback && aiEvaluation && <LessonAiLanguageFeedback evaluation={aiEvaluation} dialogue={question.type === "micro-dialogue"} />}
       </main>
       <footer className={`lesson-footer ${checked ? (aiSkipped ? "skipped" : correct ? "correct" : latestAttempt?.result === "partial" ? "partial" : "wrong") : ""}`}>
         {checked ? (
@@ -1181,7 +1210,7 @@ function LessonPlayer({
             <div className="feedback-copy">
               <strong>{aiSkipped ? "AI-opgaven er sprunget over" : correct ? "Præcis!" : question.aiPolicy ? aiResultLabel : latestAttempt?.result === "partial" ? partialFeedback : showsSentenceCorrection ? "Ikke helt endnu" : `Det rigtige svar er “${expectedAnswerLabel}”`}</strong>
               {!aiSkipped && showsSentenceCorrection && <div className="correct-sentence" role="status"><span>Korrekt sætning</span><b lang="da">{expectedAnswerLabel}</b></div>}
-              <p>{aiFeedback || question.explanation}</p>
+              <p>{aiEvaluation?.feedback || question.explanation}</p>
             </div>
             <div className="confidence-picker">{question.type === "gender-bet" ? <><span>Kalibrering</span><strong>Brier {Math.round(Math.pow(response.confidence / 100 - (correct ? 1 : 0), 2) * 100) / 100}</strong></> : <><span>Hukommelsesspor</span><strong>{question.modality === "produce" ? "Produktion" : question.modality === "listen" ? "Lytning" : "Læsning"}</strong></>}</div>
             <button className="primary-button next" onClick={nextQuestion}>Fortsæt <ArrowRight size={18} /></button>

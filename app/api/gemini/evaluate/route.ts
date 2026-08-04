@@ -29,6 +29,8 @@ function unavailable(feedback: string, status = 503) {
     feedback,
     strengths: [],
     improvements: [],
+    correctedSubmission: "",
+    languageIssues: [],
     model: null,
   };
   return Response.json(result, { status });

@@ -38,10 +38,13 @@ test("structured Gemini output is clamped and sanitized", () => {
     feedback: "  God kronologi.  ",
     strengths: ["Præcis tid", 42, "Formelt register"],
     improvements: ["Mere forsigtig evidentialitet"],
+    correctedSubmission: "Anlægget standsede klokken 06.42.",
+    languageIssues: [{ original: "klokken 6.42", correction: "klokken 06.42", explanation: "Brug samme tidsformat konsekvent." }],
   }, "gemini-test");
   assert.equal(parsed?.score, 1);
   assert.equal(parsed?.feedback, "God kronologi.");
   assert.deepEqual(parsed?.strengths, ["Præcis tid", "Formelt register"]);
+  assert.equal(parsed?.languageIssues[0].correction, "klokken 06.42");
   assert.equal(gemini.parseGeminiEvaluation({ score: "1" }, "gemini-test"), null);
 });
 
@@ -63,6 +66,8 @@ test("a quota failure falls through to the next model", async () => {
       feedback: "Klar rapport.",
       strengths: ["Kronologi"],
       improvements: [],
+      correctedSubmission: "Anlægget standsede klokken 06.42.",
+      languageIssues: [],
     }) }] } }] });
   };
   const result = await gemini.evaluateWithGeminiFallback(request, "hidden-test-key", fetcher, 100);
@@ -70,4 +75,32 @@ test("a quota failure falls through to the next model", async () => {
   assert.match(calls[0], /gemini-3\.6-flash/u);
   assert.match(calls[1], /gemini-3\.5-flash/u);
   assert.equal(result?.model, "gemini-3.5-flash");
+});
+
+test("dialogue language feedback can quote only learner turns", () => {
+  const request = {
+    scenarioId: "dialogue-language",
+    task: "micro-dialogue",
+    submission: [
+      "LEARNER: Jeg vil bare sende besked anonymt.",
+      "CHARACTER: Hvis du lover, kan jeg måske hjælpe.",
+      "LEARNER: Det betyder at chefen kan ikke se mig.",
+    ].join("\n"),
+    requiredFacts: ["Only LEARNER lines belong to the learner."],
+    level: "B2",
+  };
+  const parsed = gemini.parseGeminiEvaluation({
+    score: 0.75,
+    verdict: "revise",
+    feedback: "Strategien lykkes.",
+    strengths: ["Målet nås"],
+    improvements: ["Ret ledsætningsordstillingen"],
+    correctedSubmission: "1. Jeg vil bare sende en besked anonymt.\n2. Det betyder, at chefen ikke kan se mig.",
+    languageIssues: [
+      { original: "sende besked", correction: "sende en besked", explanation: "Det tællelige substantiv kræver en artikel." },
+      { original: "kan jeg måske hjælpe", correction: "jeg måske kan hjælpe", explanation: "Denne tekst tilhører karakteren." },
+    ],
+  }, "gemini-test", request);
+  assert.equal(parsed?.languageIssues.length, 1);
+  assert.equal(parsed?.languageIssues[0].original, "sende besked");
 });
