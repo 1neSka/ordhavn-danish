@@ -1,5 +1,7 @@
 # Ordhavn
 
+> **Development note:** The app is almost entirely vibe coded by GPT-5.6 Sol.
+
 Ordhavn er et local-first læringsspil til dansk. Den nuværende udgave indeholder
 20 niveauer, 74 missioner, 592 unikke opgaver og 402 minutters aktivt
 kursusindhold fra A0 til B2. Brugerfladen og hjælpesproget er kun dansk og
@@ -60,10 +62,39 @@ npm run dev
 
 Åbn `http://localhost:3000`.
 
+### Gemini API-nøgle (valgfri)
+
 De avancerede scenarier og fire frie kursusmekanikker kan vurdere dansk
-produktion via Gemini. Sæt
-`GEMINI_API_KEY` som en server-side miljøvariabel (se `.env.example`). Nøglen må
-aldrig hedde `NEXT_PUBLIC_GEMINI_API_KEY`. Hvis alle modeller er utilgængelige,
+produktion via Gemini. Opret en nøgle på
+[Google AI Studio](https://aistudio.google.com/app/apikey), og gem den som den
+server-side miljøvariabel `GEMINI_API_KEY`.
+
+Til den aktuelle PowerShell-session på Windows:
+
+```powershell
+$env:GEMINI_API_KEY = "indsæt-din-nøgle-her"
+npm run dev
+```
+
+Hvis `start-ordhavn.bat` og den automatiske Windows-start også skal kunne læse
+nøglen, kan den gemmes som en permanent brugervariabel:
+
+```powershell
+[Environment]::SetEnvironmentVariable("GEMINI_API_KEY", "indsæt-din-nøgle-her", "User")
+```
+
+Luk derefter den gamle terminal, og start Ordhavn igen. På Linux eller macOS:
+
+```bash
+export GEMINI_API_KEY="indsæt-din-nøgle-her"
+npm run dev
+```
+
+Gem aldrig den rigtige nøgle i `.env.example`, Git eller klientkode, og kald den
+aldrig `NEXT_PUBLIC_GEMINI_API_KEY`. Google AI Studio tilbyder et begrænset
+gratis Gemini API-forbrug, som normalt er mere end tilstrækkeligt til stabilt,
+personligt spil. Kvoter og modeltilgængelighed kan dog ændres hos Google. Hvis
+gratis-kvoten eller alle fallback-modeller midlertidigt er utilgængelige,
 springes den aktuelle AI-opgave over uden straf og uden en skjult lokal
 erstatningsbedømmelse; scenariernes deterministiske puslespil virker stadig.
 
