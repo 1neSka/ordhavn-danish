@@ -1,6 +1,6 @@
 # Ordhavn
 
-> **Development note:** The app is almost entirely vibe coded by GPT-5.6 Sol.
+> **Just a sidenote:** The app is almost entirely vibe coded by GPT-5.6 Sol.
 
 Ordhavn er et local-first læringsspil til dansk. Den nuværende udgave indeholder
 20 niveauer, 74 missioner, 592 unikke opgaver og 402 minutters aktivt
