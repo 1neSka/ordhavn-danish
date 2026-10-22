@@ -663,7 +663,7 @@ export function TheoryView({ lessonId, card, progress, onCard, onStart, onExit }
       </div>}
     </article>
 
-    <footer className={styles.actionBar}>
+    <footer className={`${styles.actionBar} ${styles.theoryBar}`}>
       <button className={styles.secondaryAction} disabled={card === 0} onClick={() => onCard(card - 1)}><ChevronLeft size={17} /> Forrige</button>
       <span>{completed ? "Du har klaret lektionen før — øvelserne blandes på ny." : `Kort ${card + 1} af ${cards.length}`}</span>
       <button onClick={last ? onStart : () => onCard(card + 1)}>{last ? <>Start øvelserne <ArrowRight size={17} /></> : <>Næste kort <ChevronRight size={17} /></>}</button>

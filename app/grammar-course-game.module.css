@@ -261,7 +261,7 @@
 
 /* ---------- Session ---------- */
 
-.activeView { padding-bottom: 116px; }
+.activeView { padding-bottom: 24px; }
 .sessionHeader { display: grid; grid-template-columns: 140px 1fr 160px; gap: 22px; align-items: center; margin-bottom: 18px; }
 .backButton { display: inline-flex; align-items: center; gap: 6px; width: fit-content; padding: 9px 11px; border: 1px solid var(--line); border-radius: 10px; color: var(--muted); background: var(--surface); font-size: 11px; font-weight: 780; cursor: pointer; }
 .track { display: grid; gap: 6px; }
@@ -426,16 +426,20 @@
   justify-content: space-between;
   align-items: center;
   gap: 18px;
-  position: fixed;
+  /* Sticky inside the view, so it is always centred on the content whatever
+     the sidebar width (a fixed bar was positioned against the animated view). */
+  position: sticky;
   z-index: 38;
-  right: 0;
-  bottom: 0;
-  left: 236px;
-  padding: 13px max(32px, calc((100vw - 236px - 1180px) / 2));
-  border-top: 1px solid var(--line);
+  bottom: 14px;
+  margin-top: 22px;
+  padding: 13px 22px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
   background: color-mix(in srgb, var(--surface) 92%, transparent);
+  box-shadow: 0 14px 36px rgba(20, 24, 40, .14);
   backdrop-filter: blur(18px);
 }
+.theoryBar { max-width: 860px; margin-left: auto; margin-right: auto; }
 .actionBar > span { display: inline-flex; align-items: center; gap: 7px; color: var(--muted); font-size: 12px; }
 .actionBar > button:last-child { display: inline-flex; align-items: center; gap: 8px; padding: 12px 18px; border: 0; border-radius: 12px; color: white; background: var(--gk-teal); box-shadow: 0 9px 23px color-mix(in srgb, var(--gk-teal) 28%, transparent); font-weight: 800; cursor: pointer; }
 .actionBar > button:last-child:disabled { opacity: .38; cursor: default; box-shadow: none; }
@@ -508,7 +512,7 @@
 /* ---------- Responsive ---------- */
 
 @media (max-width: 1060px) {
-  .actionBar { left: 82px; }
+
   .examGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
@@ -524,10 +528,10 @@
 }
 
 @media (max-width: 760px) {
-  .actionBar { left: 0; bottom: 64px; padding: 10px 14px; }
+  .actionBar { bottom: 74px; padding: 10px 12px; }
   .actionBar > span { display: none; }
   .actionBar > button:last-child { flex: 1; justify-content: center; }
-  .activeView { padding-bottom: 150px; }
+  .activeView { padding-bottom: 80px; }
   .taskCard { min-height: 0; padding: 22px 16px; border-radius: 20px; }
   .taskCard > h1 { font-size: 24px; }
   .theoryCard { padding: 26px 18px; border-radius: 20px; }
