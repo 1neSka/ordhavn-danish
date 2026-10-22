@@ -217,3 +217,27 @@ test("progress from older saves is normalised safely", () => {
   assert.equal(normalised.unlockAll, false);
   assert.deepEqual(progressApi.normalizeGrammarProgress(null), progressApi.EMPTY_GRAMMAR_PROGRESS);
 });
+
+test("the attempt log records what was answered, how fast, and stays capped", () => {
+  const judge = compile.compileItem({ id: "t-06", kind: "judge", rules: ["v2", "subject"], level: 2, prompt: "Korrekt?", explain: "Inversion after a fronted adverbial.", text: "I dag [jeg arbejder]{arbejder jeg} hjemme." }, origin);
+  const response = { kind: "judge", verdict: "error", indices: [3] };
+  assert.equal(compile.describeResponse(judge, response), "fejl: arbejder");
+  const build = compile.compileItem({ id: "t-07", kind: "build", rules: ["v2"], level: 1, prompt: "Byg.", explain: "Fronted time phrase, then the verb.", answer: "I dag | arbejder | jeg | hjemme." }, origin, "log");
+  const order = ["i dag", "jeg", "arbejder", "hjemme"].map((text) => build.chunks.indexOf(text));
+  assert.equal(compile.describeResponse(build, { kind: "build", order }), "i dag jeg arbejder hjemme");
+
+  const details = { kind: "judge", level: 2, mode: "lesson", role: "new", sessionId: "s1", score: 0, ms: 4200, answer: "fejl: arbejder" };
+  const logged = progressApi.recordGrammarAttempt(progressApi.EMPTY_GRAMMAR_PROGRESS, judge, false, new Date("2026-10-23T10:00:00Z"), details);
+  assert.deepEqual(logged.attemptLog, [{ at: "2026-10-23T10:00:00.000Z", uid: judge.uid, rules: ["v2", "subject"], correct: false, ...details }]);
+  assert.deepEqual(progressApi.recordGrammarAttempt(progressApi.EMPTY_GRAMMAR_PROGRESS, judge, true).attemptLog, [], "no details, no log line");
+
+  const full = { ...progressApi.EMPTY_GRAMMAR_PROGRESS, attemptLog: Array.from({ length: progressApi.MAX_ATTEMPT_LOG }, (_, index) => ({ ...details, at: String(index), uid: `u${index}`, rules: [], correct: true })) };
+  const capped = progressApi.recordGrammarAttempt(full, judge, true, new Date(), details);
+  assert.equal(capped.attemptLog.length, progressApi.MAX_ATTEMPT_LOG);
+  assert.equal(capped.attemptLog[0].uid, "u1", "the oldest line is dropped");
+  assert.equal(capped.attemptLog.at(-1).uid, judge.uid);
+
+  const session = progressApi.logGrammarSession(progressApi.EMPTY_GRAMMAR_PROGRESS, { id: "s1", mode: "lesson", lessonId: "m2-v2", moduleId: null, startedAt: "a", endedAt: "b", finished: false, total: 3, correct: 2, score: 0.7 });
+  assert.equal(session.sessionLog.length, 1);
+  assert.deepEqual(progressApi.normalizeGrammarProgress({ totalAttempts: 1 }).attemptLog, []);
+});

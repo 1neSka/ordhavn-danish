@@ -107,6 +107,7 @@ import {
   normalizeGrammarProgress,
   type GrammarCourseProgress,
 } from "../lib/grammarCourse/progress";
+import { GRAMMAR_RULES } from "../lib/grammarCourse/curriculum";
 import lessonAiStyles from "./lesson-ai-feedback.module.css";
 
 type View = "home" | "path" | "practice" | "grammar" | "wordle" | "scenarios" | "stats" | "profile" | "gender-bank";
@@ -1452,6 +1453,22 @@ export default function HomePage() {
       "weekly-storms.json": JSON.stringify(state.weeklyStorms, null, 2),
       "gender-bank-runs.json": JSON.stringify(state.genderBankRuns, null, 2),
       "grammar-course.json": JSON.stringify(state.grammarCourse, null, 2),
+      "grammar-attempts.csv": toCsv((state.grammarCourse.attemptLog ?? []).map((entry) => ({ ...entry, rules: entry.rules.join(" ") }))),
+      "grammar-sessions.csv": toCsv((state.grammarCourse.sessionLog ?? []).map((entry) => ({ ...entry }))),
+      "grammar-rules.csv": toCsv(GRAMMAR_RULES.map((rule) => {
+        const ruleState = state.grammarCourse.rules[rule.id];
+        const attempts = (ruleState?.correct ?? 0) + (ruleState?.incorrect ?? 0);
+        return {
+          rule: rule.id,
+          title: rule.title,
+          box: ruleState?.box ?? "",
+          correct: ruleState?.correct ?? 0,
+          incorrect: ruleState?.incorrect ?? 0,
+          accuracyPercent: attempts ? Math.round(((ruleState?.correct ?? 0) / attempts) * 100) : "",
+          due: ruleState?.due ?? "",
+          lastAt: ruleState?.lastAt ?? "",
+        };
+      })),
     };
     const summary = {
       exportedAt: new Date().toISOString(),

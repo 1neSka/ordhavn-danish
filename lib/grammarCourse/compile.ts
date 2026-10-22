@@ -389,6 +389,35 @@ export function canonicalResponse(item: CompiledItem): GrammarResponse {
   }
 }
 
+const MAX_ANSWER_LENGTH = 180;
+
+/** A short, readable record of what the learner answered, for the attempt log. */
+export function describeResponse(item: CompiledItem, response: GrammarResponse): string {
+  const pickTokens = (tokens: string[], indices: number[]) => [...indices].sort((left, right) => left - right).map((index) => tokens[index] ?? "?").join(" ");
+  let text = "";
+  switch (item.kind) {
+    case "choice": text = response.kind === "choice" ? response.option ?? "" : ""; break;
+    case "multi": text = response.kind === "multi" ? response.options.join(" | ") : ""; break;
+    case "tap": text = response.kind === "tap" ? pickTokens(item.tokens, response.indices) : ""; break;
+    case "build": text = response.kind === "build" ? normalizeSpacing(response.order.map((index) => item.chunks[index] ?? "?").join(" ")) : ""; break;
+    case "slot": {
+      if (response.kind !== "slot" || response.gap === null) break;
+      const words = [...item.tokens];
+      words.splice(response.gap, 0, `[${item.word}]`);
+      text = words.join(" ");
+      break;
+    }
+    case "type": text = response.kind === "type" ? response.text.trim() : ""; break;
+    case "sort": text = response.kind === "sort" ? item.chunks.map((chunk, index) => `${chunk}=${response.fields[index] ?? "?"}`).join("; ") : ""; break;
+    case "judge":
+      if (response.kind !== "judge") break;
+      text = response.verdict === "ok" ? "korrekt" : `fejl: ${pickTokens(item.tokens, response.indices)}`;
+      break;
+    case "proof": text = response.kind === "proof" ? pickTokens(item.tokens, response.indices) : ""; break;
+  }
+  return text.length > MAX_ANSWER_LENGTH ? `${text.slice(0, MAX_ANSWER_LENGTH - 1)}…` : text;
+}
+
 /** The sentence (or text) to show as the model answer after checking. */
 export function modelAnswer(item: CompiledItem) {
   switch (item.kind) {

@@ -44,6 +44,41 @@ export interface GrammarCheckpointState {
   passedAt: string | null;
 }
 
+export type GrammarSessionMode = "lesson" | "review" | "mistakes" | "boss";
+
+/** One answered item — the raw material for progress charts and error analysis. */
+export interface GrammarAttemptLogEntry {
+  at: string;
+  uid: string;
+  kind: string;
+  rules: string[];
+  level: number;
+  mode: GrammarSessionMode;
+  /** Whether the item was new in its lesson session or a mixed-in review. */
+  role: string;
+  sessionId: string;
+  correct: boolean;
+  score: number;
+  /** Milliseconds from showing the item to checking it. */
+  ms: number;
+  /** Short readable form of what the learner answered. */
+  answer: string;
+}
+
+export interface GrammarSessionLogEntry {
+  id: string;
+  mode: GrammarSessionMode;
+  lessonId: string | null;
+  moduleId: string | null;
+  startedAt: string;
+  endedAt: string;
+  /** false when the learner left the session before the last item. */
+  finished: boolean;
+  total: number;
+  correct: number;
+  score: number;
+}
+
 export interface GrammarCourseProgress {
   version: 1;
   totalAttempts: number;
@@ -56,7 +91,14 @@ export interface GrammarCourseProgress {
   items: Record<string, GrammarItemState>;
   seenTheory: string[];
   unlockAll: boolean;
+  attemptLog: GrammarAttemptLogEntry[];
+  sessionLog: GrammarSessionLogEntry[];
 }
+
+// About 150 bytes per attempt: the newest 5000 attempts stay well below the
+// browser storage limit, which the rest of Ordhavn's progress shares.
+export const MAX_ATTEMPT_LOG = 5000;
+export const MAX_SESSION_LOG = 600;
 
 export const EMPTY_GRAMMAR_PROGRESS: GrammarCourseProgress = {
   version: 1,
@@ -70,6 +112,8 @@ export const EMPTY_GRAMMAR_PROGRESS: GrammarCourseProgress = {
   items: {},
   seenTheory: [],
   unlockAll: false,
+  attemptLog: [],
+  sessionLog: [],
 };
 
 export function normalizeGrammarProgress(value?: Partial<GrammarCourseProgress> | null): GrammarCourseProgress {
@@ -83,7 +127,14 @@ export function normalizeGrammarProgress(value?: Partial<GrammarCourseProgress> 
     items: value?.items ?? {},
     seenTheory: Array.isArray(value?.seenTheory) ? value.seenTheory : [],
     unlockAll: Boolean(value?.unlockAll),
+    attemptLog: Array.isArray(value?.attemptLog) ? value.attemptLog : [],
+    sessionLog: Array.isArray(value?.sessionLog) ? value.sessionLog : [],
   };
+}
+
+function appendCapped<T>(list: T[], entry: T, max: number) {
+  const next = [...list, entry];
+  return next.length > max ? next.slice(next.length - max) : next;
 }
 
 export function dueAfterBox(box: number, now: Date) {
@@ -108,11 +159,14 @@ function updateRule(previous: GrammarRuleState | undefined, correct: boolean, pr
   return { ...state, box, due: nowIso, incorrect: state.incorrect + 1, lastAt: nowIso };
 }
 
+export type GrammarAttemptDetails = Omit<GrammarAttemptLogEntry, "at" | "uid" | "rules" | "correct">;
+
 export function recordGrammarAttempt(
   progress: GrammarCourseProgress,
   item: { uid: string; rules: string[] },
   correct: boolean,
   now = new Date(),
+  details?: GrammarAttemptDetails,
 ): GrammarCourseProgress {
   const nowIso = now.toISOString();
   const previousItem = progress.items[item.uid];
@@ -138,7 +192,14 @@ export function recordGrammarAttempt(
         lastAt: nowIso,
       },
     },
+    attemptLog: details
+      ? appendCapped(progress.attemptLog ?? [], { at: nowIso, uid: item.uid, rules: item.rules, correct, ...details }, MAX_ATTEMPT_LOG)
+      : progress.attemptLog ?? [],
   };
+}
+
+export function logGrammarSession(progress: GrammarCourseProgress, entry: GrammarSessionLogEntry): GrammarCourseProgress {
+  return { ...progress, sessionLog: appendCapped(progress.sessionLog ?? [], entry, MAX_SESSION_LOG) };
 }
 
 export function starsForAccuracy(accuracy: number) {

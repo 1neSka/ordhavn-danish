@@ -24,6 +24,10 @@ Eksporten består af separate filer:
 - `economy.json` — XP, kroner, rav, rang, bygninger og oplåste kontrakter
 - `weekly-storms.json` — den ene gemte selvkonkurrence pr. uge
 - `gender-bank-runs.json` — indsatser, udbetalinger og runder fra Kønsbanken
+- `grammar-course.json` — Grammatikskolens fulde fremgang (lektioner, bosser, regler, opgaver og logs)
+- `grammar-attempts.csv` — ét svar pr. række: tid, opgave, regler, mekanik, tilstand, rigtigt/forkert, score, svartid og hvad der blev svaret
+- `grammar-sessions.csv` — Grammatikskolens sessioner med start, slut, antal svar og score (også afbrudte)
+- `grammar-rules.csv` — status pr. grammatisk regel: Leitner-boks, rigtige, forkerte, præcision og næste gentagelse
 - `summary.json` — versions- og eksportoversigt
 
 Filer med personlige svar ignoreres af Git som standard. Behold kun README og

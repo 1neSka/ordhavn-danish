@@ -47,6 +47,7 @@ import {
   buildMistakeSession,
   buildReviewSession,
   checkResponse,
+  describeResponse,
   completeGrammarCheckpoint,
   completeGrammarLesson,
   countWeakItems,
@@ -62,6 +63,7 @@ import {
   modelAnswer,
   nextLessonId,
   parseInline,
+  logGrammarSession,
   recordGrammarAttempt,
   rememberedRuleIds,
   setGrammarUnlockAll,
@@ -87,6 +89,8 @@ interface Outcome {
 }
 
 interface ActiveSession {
+  id: string;
+  startedAt: string;
   mode: SessionMode;
   lessonId?: string;
   moduleId?: string;
@@ -481,13 +485,14 @@ export function ItemRunner({ entry, position, total, mode, sessionCorrect, sessi
   sessionCorrect: number;
   sessionAnswered: number;
   streak: number;
-  onChecked: (item: CompiledItem, check: GrammarCheck) => void;
+  onChecked: (entry: SessionEntry, check: GrammarCheck, response: GrammarResponse, ms: number) => void;
   onNext: () => void;
   onExit: () => void;
 }) {
   const { item, role } = entry;
   const [response, setResponse] = useState<GrammarResponse>(() => emptyResponse(item));
   const [check, setCheck] = useState<GrammarCheck | null>(null);
+  const [shownAt] = useState(() => Date.now());
   const ready = isResponseReady(item, response);
   const lesson = GRAMMAR_LESSON_BY_ID.get(item.lessonId);
 
@@ -495,8 +500,8 @@ export function ItemRunner({ entry, position, total, mode, sessionCorrect, sessi
     if (check || !isResponseReady(item, response)) return;
     const verdict = checkResponse(item, response);
     setCheck(verdict);
-    onChecked(item, verdict);
-  }, [check, item, onChecked, response]);
+    onChecked(entry, verdict, response, Date.now() - shownAt);
+  }, [check, entry, item, onChecked, response, shownAt]);
 
   const advance = useCallback(() => {
     if (check) onNext(); else submit();
@@ -893,7 +898,8 @@ export default function GrammarCourseGame({ progress, onUpdate }: GrammarCourseG
       return;
     }
     setNotice("");
-    setScreen({ kind: "session", session: { mode, entries, position: 0, outcomes: [], ...extra } });
+    const startedAt = new Date().toISOString();
+    setScreen({ kind: "session", session: { id: `${mode}-${startedAt}`, startedAt, mode, entries, position: 0, outcomes: [], ...extra } });
   }, []);
 
   const startLessonPractice = useCallback((lessonId: string) => {
@@ -916,12 +922,47 @@ export default function GrammarCourseGame({ progress, onUpdate }: GrammarCourseG
 
   const session = screen.kind === "session" ? screen.session : null;
 
-  const onChecked = useCallback((item: CompiledItem, verdict: GrammarCheck) => {
-    onUpdate((current) => recordGrammarAttempt(current, item, verdict.correct));
+  const sessionId = session?.id ?? "";
+  const sessionMode = session?.mode ?? "lesson";
+  const onChecked = useCallback((entry: SessionEntry, verdict: GrammarCheck, response: GrammarResponse, ms: number) => {
+    const { item } = entry;
+    const details = {
+      kind: item.kind,
+      level: item.level,
+      mode: sessionMode,
+      role: entry.role,
+      sessionId,
+      score: Math.round(verdict.score * 100) / 100,
+      ms,
+      answer: describeResponse(item, response),
+    };
+    onUpdate((current) => recordGrammarAttempt(current, item, verdict.correct, new Date(), details));
     setScreen((value) => value.kind === "session"
       ? { kind: "session", session: { ...value.session, outcomes: [...value.session.outcomes, { uid: item.uid, correct: verdict.correct, score: verdict.score }] } }
       : value);
+  }, [onUpdate, sessionId, sessionMode]);
+
+  const logSession = useCallback((active: ActiveSession, finished: boolean) => {
+    const total = active.outcomes.length;
+    if (!total) return;
+    onUpdate((current) => logGrammarSession(current, {
+      id: active.id,
+      mode: active.mode,
+      lessonId: active.lessonId ?? null,
+      moduleId: active.moduleId ?? null,
+      startedAt: active.startedAt,
+      endedAt: new Date().toISOString(),
+      finished,
+      total,
+      correct: active.outcomes.filter((outcome) => outcome.correct).length,
+      score: Math.round((active.outcomes.reduce((sum, outcome) => sum + outcome.score, 0) / total) * 100) / 100,
+    }));
   }, [onUpdate]);
+
+  const exitSession = useCallback(() => {
+    if (session) logSession(session, false);
+    goHub();
+  }, [goHub, logSession, session]);
 
   const onNext = useCallback(() => {
     if (!session) return;
@@ -951,8 +992,9 @@ export default function GrammarCourseGame({ progress, onUpdate }: GrammarCourseG
       const moduleId = session.moduleId;
       onUpdate((current) => completeGrammarCheckpoint(current, moduleId, score));
     }
+    logSession(session, true);
     setScreen({ kind: "results", summary });
-  }, [onUpdate, session]);
+  }, [logSession, onUpdate, session]);
 
   const retry = useCallback((summary: SessionSummary) => {
     if (summary.mode === "lesson" && summary.lessonId) startLessonPractice(summary.lessonId);
@@ -984,7 +1026,7 @@ export default function GrammarCourseGame({ progress, onUpdate }: GrammarCourseG
       key={`${session.position}:${entry.item.uid}`}
       mode={session.mode}
       onChecked={onChecked}
-      onExit={goHub}
+      onExit={exitSession}
       onNext={onNext}
       position={session.position}
       sessionAnswered={sessionStats.answered}
