@@ -33,6 +33,13 @@ engelsk.
 - **Ordle** som dagligt fem-bogstavsspil, fri træning og fire valgfrie
   checkpoints på læringsstien. Svarbanken har 500 hyppige ord, mens 6.071
   danske gæt accepteres;
+- **Grammatikskolen** (fanen *Grammatik*): 31 korte lektioner i seks moduler
+  — fra »hvad er et verbum?« over sætningsskemaet, V2, ledsætninger og der/det
+  til hvis/om, hvilket, *til at*, præpositioner og bestemthed. Kurset er bygget
+  på konkrete fejl fra en Paper 1-prøve, har ni opgavemekanikker (bl.a.
+  feltsortering, dommer-opgaver hvor halvdelen er korrekte, og korrektur af
+  eksamenstekster), blander tidligere regler ind i nye lektioner og planlægger
+  repetition pr. grammatisk regel med Leitner-intervaller (1, 2, 4, 8 … dage);
 - en lokal Developer mode med testkroner og direkte adgang til senere stiniveauer;
 - tre originale animefigurer med forskellige samtaleregler og ni spilbare episoder;
 - en levende havn med købte bygninger, karakterkontrakter, relationer og tidevand;
@@ -117,6 +124,11 @@ deterministiske holdout-gruppe, alle 592 kursusitems, item-registry, de fire nye
 scenariemotorer, AI-skip-politikken, bossporte, ordbogsdækning og Ordles to
 ordlister.
 
+Grammatikskolens indhold kan valideres fil for fil, mens man skriver nye opgaver:
+`node --import tsx scripts/validate-grammar-content.mjs lib/grammarCourse/content/m2-v2.ts`.
+Validatoren afviser bl.a. regler, der bruges før deres lektion, ubalancerede
+dommer-opgaver og for få kumulative opgaver.
+
 Ordles datakilder, filtrering og licenser er dokumenteret i
 [WORDLE_SOURCES.md](WORDLE_SOURCES.md).
 
@@ -154,6 +166,10 @@ rækkefølge af svarknapper.
 - `app/instruction-puzzle-games.tsx` — manual- og ruteopgaver med beregninger
 - `app/selection-dictionary.tsx` — miniordbog for markerede danske enkeltord
 - `app/wordle-game.tsx` — daglig Ordle, træningsrunder og sti-checkpoints
+- `app/grammar-course-game.tsx` — Grammatikskolen: sti, teorikort, ni opgavetyper og resultater
+- `lib/grammarCourse/curriculum.ts` — regler, moduler, lektioner og eksamensfejlene, kurset bygger på
+- `lib/grammarCourse/content/` — én fil pr. lektion og pr. modul-boss, skrevet i en lille inline-markup
+- `lib/grammarCourse/compile.ts`, `progress.ts`, `sessions.ts` — markup → opgaver, Leitner-repetition og sessionsblanding
 - `app/harbor-game.tsx` — havnen, karakterkontrakter og Kønsbanken
 - `lib/courseData.ts` — stabil kompatibilitets-barrel for hele kurset
 - `lib/course/levels/level-15.ts` … `level-20.ts` — modulære expansionsniveauer

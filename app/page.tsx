@@ -21,6 +21,7 @@ import {
   Gamepad2,
   Gauge,
   Gem,
+  GraduationCap,
   Hammer,
   Heart,
   Home,
@@ -51,6 +52,7 @@ import { courseLevels, type Challenge, type Mission } from "../lib/courseData";
 import ScenarioHub from "./scenario-games";
 import SelectionDictionary from "./selection-dictionary";
 import WordleGame from "./wordle-game";
+import GrammarCourseGame from "./grammar-course-game";
 import { GenderBankView, HarborHome, type GenderBankOutcome } from "./harbor-game";
 import type { ScenarioRun } from "../lib/scenarioData";
 import { harborCharacters, scenarioBossGates, type ScenarioBossGate } from "../lib/harborData";
@@ -100,9 +102,14 @@ import { getItemModule } from "../lib/itemRegistry";
 import { EMPTY_ITEM_RESPONSE, type ItemResponseState } from "../lib/itemRuntime";
 import { evaluateLessonItem } from "../lib/lessonAiClient";
 import type { GeminiEvaluationResult } from "../lib/geminiEvaluation";
+import {
+  EMPTY_GRAMMAR_PROGRESS,
+  normalizeGrammarProgress,
+  type GrammarCourseProgress,
+} from "../lib/grammarCourse/progress";
 import lessonAiStyles from "./lesson-ai-feedback.module.css";
 
-type View = "home" | "path" | "practice" | "wordle" | "scenarios" | "stats" | "profile" | "gender-bank";
+type View = "home" | "path" | "practice" | "grammar" | "wordle" | "scenarios" | "stats" | "profile" | "gender-bank";
 
 type Attempt = {
   id: string;
@@ -175,6 +182,7 @@ type ProgressState = {
   wordleGames: Record<string, WordleGameSnapshot>;
   wordleRuns: WordleRun[];
   completedWordleCheckpoints: string[];
+  grammarCourse: GrammarCourseProgress;
 };
 
 type DirectoryHandleLike = {
@@ -223,6 +231,7 @@ const initialProgress: ProgressState = {
   wordleGames: {},
   wordleRuns: [],
   completedWordleCheckpoints: [],
+  grammarCourse: EMPTY_GRAMMAR_PROGRESS,
 };
 
 const iconMap: Record<string, React.ComponentType<{ size?: number; strokeWidth?: number }>> = {
@@ -338,6 +347,7 @@ function Navigation({ view, setView }: { view: View; setView: (view: View) => vo
     { id: "home" as View, label: "Hjem", icon: Home },
     { id: "path" as View, label: "Læringssti", icon: MapIcon },
     { id: "practice" as View, label: "Træning", icon: BrainCircuit },
+    { id: "grammar" as View, label: "Grammatik", icon: GraduationCap },
     { id: "wordle" as View, label: "Ordle", icon: Keyboard },
     { id: "scenarios" as View, label: "Scenarier", icon: Gamepad2 },
     { id: "stats" as View, label: "Statistik", icon: BarChart3 },
@@ -1261,6 +1271,7 @@ export default function HomePage() {
             wordleGames: parsed.wordleGames ?? {},
             wordleRuns: parsed.wordleRuns ?? [],
             completedWordleCheckpoints: parsed.completedWordleCheckpoints ?? [],
+            grammarCourse: normalizeGrammarProgress(parsed.grammarCourse),
           };
           if (migrated.lastActiveDate && calendarDaysBetween(migrated.lastActiveDate, today) > 1) migrated.streak = 0;
           if (migrated.lastWeakRerollDate !== today) migrated.rerolledWeakItemIds = [];
@@ -1440,6 +1451,7 @@ export default function HomePage() {
       }, null, 2),
       "weekly-storms.json": JSON.stringify(state.weeklyStorms, null, 2),
       "gender-bank-runs.json": JSON.stringify(state.genderBankRuns, null, 2),
+      "grammar-course.json": JSON.stringify(state.grammarCourse, null, 2),
     };
     const summary = {
       exportedAt: new Date().toISOString(),
@@ -1456,6 +1468,8 @@ export default function HomePage() {
         attempts: state.attempts.length,
         sessions: state.sessions.length,
         scenarioRuns: state.scenarioRuns.length,
+        grammarCourseAttempts: state.grammarCourse.totalAttempts,
+        grammarLessonsCompleted: Object.keys(state.grammarCourse.lessons).length,
       },
       privacy: "Generated locally. Contains learning responses; handle as personal data.",
       scheduler: { operational: "FSRS-5 via ts-fsrs 4.7.1", holdout: "fixed 1/3/7/14 days", holdoutPercent: 8 },
@@ -1827,6 +1841,10 @@ export default function HomePage() {
       : "Ordle-runden er gemt — næste ord venter.");
   };
 
+  const updateGrammarCourse = (updater: (course: GrammarCourseProgress) => GrammarCourseProgress) => {
+    setProgress((old) => ({ ...old, grammarCourse: updater(old.grammarCourse) }));
+  };
+
   const nextHarborMission = courseLevels.flatMap((level) => level.missions).find((mission) => !progress.completedMissions.includes(mission.id)) ?? null;
   const reviewRecords = progress.mastery?.records ?? {};
   const dueNowIds = new Set([
@@ -1874,6 +1892,7 @@ export default function HomePage() {
         />}
         {view === "path" && <PathView progress={progress} onStart={startLesson} onOpenScenarios={openBossScenario} onOpenWordleCheckpoint={openWordleCheckpoint} onDeveloperUnlockLevel={developerUnlockLevel} />}
         {view === "practice" && <PracticeView progress={progress} onStart={startLesson} onRerollWeakItem={rerollWeakItem} />}
+        {view === "grammar" && <GrammarCourseGame progress={progress.grammarCourse} onUpdate={updateGrammarCourse} />}
         {view === "wordle" && <WordleGame
           launch={wordleCheckpoint ? { kind: "path", checkpoint: wordleCheckpoint } : { kind: "daily" }}
           savedGames={progress.wordleGames}
