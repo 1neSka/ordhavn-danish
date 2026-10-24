@@ -3,7 +3,7 @@
 > **Just a sidenote:** The app is almost entirely vibe coded by GPT-5.6 Sol.
 
 Ordhavn er et local-first læringsspil til dansk. Den nuværende udgave indeholder
-20 niveauer, 74 missioner, 592 unikke opgaver og 402 minutters aktivt
+25 niveauer, 94 missioner, 888 unikke opgaver og 542 minutters aktivt
 kursusindhold fra A0 til B2. Brugerfladen og hjælpesproget er kun dansk og
 engelsk.
 
@@ -16,6 +16,11 @@ engelsk.
   evidentialitet, kontrafaktiske kæder og fri produktion;
 - seks nye niveauer fører fra rum og gengivelse gennem kollokationer og
   orddannelse til kontrafaktisk argumentation og B2-formulering;
+- fem hverdagstemaer på niveau 21–25 tilføjer 20 missioner og 200 opgaver:
+  bolig og naboskab, arbejdsliv, tidsbestilling i en fiktiv klinik, kritisk
+  nyhedslæsning og en samlet planlægning af havnens åbningsdag. De 195 lokale
+  opgaver kan spilles uden AI; hvert tema slutter med én valgfri AI-opgave,
+  som springes over uden straf, hvis Gemini ikke er tilgængelig;
 - 14 udvidelige scenariesystemer: danske telefonindstillinger, forgrenede
   psykologiske dialoger, mail-efterforskning, trafik-dispatch, A1–A2-havnecases,
   en B1–B2-manualkonsol, tidevandsbaseret last-routing og Sagslaboratoriets tre
@@ -29,7 +34,7 @@ engelsk.
 - `Havnefogedens sag` kombinerer V2-afhøring, evidentialitet, en entydig tidslinje
   og et formelt rapportskift. `Stormvagten` og `Færgens reserveplan` kombinerer
   dansk manualforståelse, beregninger og en kodevalideret kontrolsekvens;
-- et lokalt miniordbogskort med 1.948 artikler, 8.581 indeksformer, bøjninger og alternative betydninger ved markering af præcis ét dansk ord;
+- et lokalt miniordbogskort med 2.076 artikler, 9.368 indeksformer, bøjninger og alternative betydninger ved markering af præcis ét dansk ord;
 - **Ordle** som dagligt fem-bogstavsspil, fri træning og fire valgfrie
   checkpoints på læringsstien. Svarbanken har 500 hyppige ord, mens 6.071
   danske gæt accepteres;
@@ -105,7 +110,8 @@ gratis-kvoten eller alle fallback-modeller midlertidigt er utilgængelige,
 springes den aktuelle AI-opgave over uden straf og uden en skjult lokal
 erstatningsbedømmelse; scenariernes deterministiske puslespil virker stadig.
 
-På Windows kan `start-ordhavn.bat` bruges til en synlig, manuel start. Kør
+På Windows kan `start-ordhavn.bat` bruges til en skjult manuel start: dobbeltklik
+én gang, så lukker kommandovinduet straks, mens localhost fortsætter i baggrunden. Kør
 `install-ordhavn-autostart.ps1` én gang for at registrere den skjulte opgave
 **Ordhavn Localhost**, som starter den lokale server efter Windows-login uden
 at åbne browseren. Den skjulte lokale server bruger den interaktive dev-runtime,
@@ -120,9 +126,14 @@ npm run check
 
 Kontrollen bygger produktionsversionen, typechecker hele projektet, kører ESLint,
 verificerer server-rendering, indholdsinvarianter, FSRS-adskillelsen og den
-deterministiske holdout-gruppe, alle 592 kursusitems, item-registry, de fire nye
+deterministiske holdout-gruppe, alle 888 kursusitems, item-registry, de fire nye
 scenariemotorer, AI-skip-politikken, bossporte, ordbogsdækning og Ordles to
 ordlister.
+
+De fem nye hverdagstemaer kan også kontrolleres separat med
+`npm run test:situations`. Kontrollen afprøver alle lokale svar, afviser forkerte
+svarmuligheder, renderer samtlige 200 opgaver og efterprøver beregninger samt
+ordbogsdækning. Den fulde `npm run check` omfatter også disse tests.
 
 Grammatikskolens indhold kan valideres fil for fil, mens man skriver nye opgaver:
 `node --import tsx scripts/validate-grammar-content.mjs lib/grammarCourse/content/m2-v2.ts`.
@@ -173,6 +184,9 @@ rækkefølge af svarknapper.
 - `app/harbor-game.tsx` — havnen, karakterkontrakter og Kønsbanken
 - `lib/courseData.ts` — stabil kompatibilitets-barrel for hele kurset
 - `lib/course/levels/level-15.ts` … `level-20.ts` — modulære expansionsniveauer
+- `lib/course/levels/level-21.ts` … `level-25.ts` — fem situerede hverdagstemaer
+- `lib/course/situationalBuilders.ts` — typed opgavebygning med stabile missions-ID'er
+- `lib/course/situationalDictionary.ts` — håndskrevet ordforråd til hverdagstemaerne
 - `lib/course/builders.ts` — typed builders for alle item-varianter
 - `lib/itemRegistry.ts` — rendering, keyboard, serialization og scoring pr. item-type
 - `lib/lexicalBanks.ts` — delte synonym-, nuance-, kollokations- og morfologibanker

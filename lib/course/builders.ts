@@ -51,6 +51,11 @@ export const buildChoice = (item: Omit<ChoiceItem, "type" | "difficulty" | "asse
   withDefaults<ChoiceItem>({ ...item, type: "choice" });
 export const buildOrder = (item: Omit<OrderItem, "type" | "difficulty" | "assets"> & Partial<Pick<OrderItem, "difficulty" | "assets">>) =>
   withDefaults<OrderItem>({ ...item, type: "order" });
+export const buildWordOrder = (item: Parameters<typeof buildOrder>[0]) =>
+  buildOrder({
+    ...item,
+    tokens: item.tokens.flatMap((token) => token.trim().split(/\s+/u).filter(Boolean)),
+  });
 export const buildInput = (item: Omit<InputItem, "type" | "difficulty" | "assets"> & Partial<Pick<InputItem, "difficulty" | "assets">>) =>
   withDefaults<InputItem>({ ...item, type: "input" });
 export const buildGenderBet = (item: Omit<GenderBetItem, "type" | "difficulty" | "assets"> & Partial<Pick<GenderBetItem, "difficulty" | "assets">>) =>

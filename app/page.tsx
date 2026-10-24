@@ -37,6 +37,7 @@ import {
   MoreHorizontal,
   PartyPopper,
   Play,
+  Repeat2,
   RotateCcw,
   Settings,
   ShieldCheck,
@@ -52,6 +53,7 @@ import { courseLevels, type Challenge, type Mission } from "../lib/courseData";
 import ScenarioHub from "./scenario-games";
 import SelectionDictionary from "./selection-dictionary";
 import WordleGame from "./wordle-game";
+import V2DrillGame from "./v2-drill-game";
 import GrammarCourseGame from "./grammar-course-game";
 import { GenderBankView, HarborHome, type GenderBankOutcome } from "./harbor-game";
 import type { ScenarioRun } from "../lib/scenarioData";
@@ -103,6 +105,12 @@ import { EMPTY_ITEM_RESPONSE, type ItemResponseState } from "../lib/itemRuntime"
 import { evaluateLessonItem } from "../lib/lessonAiClient";
 import type { GeminiEvaluationResult } from "../lib/geminiEvaluation";
 import {
+  EMPTY_V2_PROGRESS,
+  normalizeV2Progress,
+  recordV2Attempt,
+  type V2DrillProgress,
+} from "../lib/v2Drill";
+import {
   EMPTY_GRAMMAR_PROGRESS,
   normalizeGrammarProgress,
   type GrammarCourseProgress,
@@ -110,7 +118,7 @@ import {
 import { GRAMMAR_RULES } from "../lib/grammarCourse/curriculum";
 import lessonAiStyles from "./lesson-ai-feedback.module.css";
 
-type View = "home" | "path" | "practice" | "grammar" | "wordle" | "scenarios" | "stats" | "profile" | "gender-bank";
+type View = "home" | "path" | "practice" | "v2" | "grammar" | "wordle" | "scenarios" | "stats" | "profile" | "gender-bank";
 
 type Attempt = {
   id: string;
@@ -183,6 +191,7 @@ type ProgressState = {
   wordleGames: Record<string, WordleGameSnapshot>;
   wordleRuns: WordleRun[];
   completedWordleCheckpoints: string[];
+  v2Drill: V2DrillProgress;
   grammarCourse: GrammarCourseProgress;
 };
 
@@ -232,6 +241,7 @@ const initialProgress: ProgressState = {
   wordleGames: {},
   wordleRuns: [],
   completedWordleCheckpoints: [],
+  v2Drill: EMPTY_V2_PROGRESS,
   grammarCourse: EMPTY_GRAMMAR_PROGRESS,
 };
 
@@ -348,6 +358,7 @@ function Navigation({ view, setView }: { view: View; setView: (view: View) => vo
     { id: "home" as View, label: "Hjem", icon: Home },
     { id: "path" as View, label: "Læringssti", icon: MapIcon },
     { id: "practice" as View, label: "Træning", icon: BrainCircuit },
+    { id: "v2" as View, label: "V2-drill", icon: Repeat2 },
     { id: "grammar" as View, label: "Grammatik", icon: GraduationCap },
     { id: "wordle" as View, label: "Ordle", icon: Keyboard },
     { id: "scenarios" as View, label: "Scenarier", icon: Gamepad2 },
@@ -1272,6 +1283,7 @@ export default function HomePage() {
             wordleGames: parsed.wordleGames ?? {},
             wordleRuns: parsed.wordleRuns ?? [],
             completedWordleCheckpoints: parsed.completedWordleCheckpoints ?? [],
+            v2Drill: normalizeV2Progress(parsed.v2Drill),
             grammarCourse: normalizeGrammarProgress(parsed.grammarCourse),
           };
           if (migrated.lastActiveDate && calendarDaysBetween(migrated.lastActiveDate, today) > 1) migrated.streak = 0;
@@ -1452,6 +1464,7 @@ export default function HomePage() {
       }, null, 2),
       "weekly-storms.json": JSON.stringify(state.weeklyStorms, null, 2),
       "gender-bank-runs.json": JSON.stringify(state.genderBankRuns, null, 2),
+      "v2-drill.json": JSON.stringify(state.v2Drill, null, 2),
       "grammar-course.json": JSON.stringify(state.grammarCourse, null, 2),
       "grammar-attempts.csv": toCsv((state.grammarCourse.attemptLog ?? []).map((entry) => ({ ...entry, rules: entry.rules.join(" ") }))),
       "grammar-sessions.csv": toCsv((state.grammarCourse.sessionLog ?? []).map((entry) => ({ ...entry }))),
@@ -1485,6 +1498,7 @@ export default function HomePage() {
         attempts: state.attempts.length,
         sessions: state.sessions.length,
         scenarioRuns: state.scenarioRuns.length,
+        v2DrillAttempts: state.v2Drill.totalAttempts,
         grammarCourseAttempts: state.grammarCourse.totalAttempts,
         grammarLessonsCompleted: Object.keys(state.grammarCourse.lessons).length,
       },
@@ -1858,6 +1872,20 @@ export default function HomePage() {
       : "Ordle-runden er gemt — næste ord venter.");
   };
 
+  const recordV2DrillAttempt = (itemId: string, correct: boolean) => {
+    setProgress((old) => ({
+      ...old,
+      v2Drill: recordV2Attempt(old.v2Drill, itemId, correct),
+    }));
+  };
+
+  const completeV2DrillRound = () => {
+    setProgress((old) => ({
+      ...old,
+      v2Drill: { ...old.v2Drill, roundsCompleted: old.v2Drill.roundsCompleted + 1 },
+    }));
+  };
+
   const updateGrammarCourse = (updater: (course: GrammarCourseProgress) => GrammarCourseProgress) => {
     setProgress((old) => ({ ...old, grammarCourse: updater(old.grammarCourse) }));
   };
@@ -1909,6 +1937,7 @@ export default function HomePage() {
         />}
         {view === "path" && <PathView progress={progress} onStart={startLesson} onOpenScenarios={openBossScenario} onOpenWordleCheckpoint={openWordleCheckpoint} onDeveloperUnlockLevel={developerUnlockLevel} />}
         {view === "practice" && <PracticeView progress={progress} onStart={startLesson} onRerollWeakItem={rerollWeakItem} />}
+        {view === "v2" && <V2DrillGame progress={progress.v2Drill} onAttempt={recordV2DrillAttempt} onRoundComplete={completeV2DrillRound} />}
         {view === "grammar" && <GrammarCourseGame progress={progress.grammarCourse} onUpdate={updateGrammarCourse} />}
         {view === "wordle" && <WordleGame
           launch={wordleCheckpoint ? { kind: "path", checkpoint: wordleCheckpoint } : { kind: "daily" }}

@@ -1,3 +1,5 @@
+import { situationalDictionaryCandidates } from "./course/situationalDictionary.ts";
+
 export type DanishPartOfSpeech =
   | "noun"
   | "verb"
@@ -1076,7 +1078,7 @@ export const dialogueCampaignDictionaryEntries: readonly DictionaryEntry[] = [
   verb("smile", "to smile", "smiler · smilede · har smilet", ["smiler", "smilede", "smilet"]),
   verb("splitte", "to split", "splitter · splittede · har splittet", ["splitter", "splittes", "splittet", "splittende"]),
   verb("stabilisere", "to stabilise", "stabiliserer · stabiliserede · har stabiliseret", ["stabiliserer", "stabiliseres", "stabiliseret"]),
-  verb("stamme", "to originate", "stammer · stammede · har stammet", ["stammer", "stammede", "stammet"]),
+  verb("stamme", "to originate", "stammer · stammede · har stammet", ["stammer", "stammede", "stammet", "stammen"]),
   verb("stole", "to trust", "stoler · stolede · har stolet", ["stoler", "stolede", "stolet"]),
   verb("styre", "to control; steer", "styrer · styrede · har styret", ["styrer", "styres", "styrede", "styret"]),
   verb("suspendere", "to suspend", "suspenderer · suspenderede · har suspenderet", ["suspenderer", "suspenderes", "suspenderet"]),
@@ -1557,6 +1559,42 @@ export const expansionCourseDictionaryEntries: readonly DictionaryEntry[] = [
   adjective("observeret", "observed", "observeret · observerede", ["observerede"], "Source-status label: directly observed."),
   adjective("udledt", "inferred; derived", "udledt · udledte", ["udledte"], "Source-status label: inferred from evidence."),
   noun("førdatid", "past perfect; pluperfect", "en", "førdatiden", ["førdatiden"], "A tense for an event that happened before another past event."),
+  noun("hjemmel", "warrant; legal basis", "en", "hjemlen · hjemler", ["hjemlen", "hjemler", "hjemlerne"]),
+  noun("kløvning", "cleft sentence; splitting", "en", "kløvningen · kløvninger", ["kløvningen", "kløvninger", "kløvningerne"]),
+  noun("belæg", "grounds; evidence backing a claim", "et", "belægget · belæg", ["belægget", "belægene"]),
+  noun("fuge", "linking element in a compound word; joint", "en", "fugen · fuger", ["fugen", "fuger", "fugerne"]),
+  noun("mistanke", "suspicion", "en", "mistanken · mistanker", ["mistanken", "mistanker", "mistankerne"]),
+  noun("forlig", "settlement", "et", "forliget · forlig", ["forliget", "forligene"]),
+  adjective("bekendt", "familiar; acquainted", "bekendt · bekendt · bekendte", ["bekendte"]),
+  noun("landsby", "village", "en", "landsbyen · landsbyer", ["landsbyen", "landsbyer", "landsbyerne"]),
+  noun("dagbog", "diary", "en", "dagbogen · dagbøger", ["dagbogen", "dagbøger", "dagbøgerne"]),
+  noun("vinterjakke", "winter jacket", "en", "vinterjakken · vinterjakker", ["vinterjakken", "vinterjakker", "vinterjakkerne"]),
+  noun("arbejdsplads", "workplace", "en", "arbejdspladsen · arbejdspladser", ["arbejdspladsen", "arbejdspladser", "arbejdspladserne"]),
+  noun("nyhedsbrev", "newsletter", "et", "nyhedsbrevet · nyhedsbreve", ["nyhedsbrevet", "nyhedsbreve", "nyhedsbrevene"]),
+  noun("brandslukker", "fire extinguisher", "en", "brandslukkeren · brandslukkere", ["brandslukkeren", "brandslukkere", "brandslukkerne"]),
+  noun("rimelighed", "reasonableness", "en", "rimeligheden", ["rimeligheden"]),
+  noun("sammensætning", "compound; composition", "en", "sammensætningen · sammensætninger", ["sammensætningen", "sammensætninger", "sammensætningerne"]),
+  noun("orddannelse", "word formation", "en", "orddannelsen", ["orddannelsen"]),
+  noun("ilt", "oxygen", "en", "ilten", ["ilten"]),
+  noun("brændstof", "fuel", "et", "brændstoffet · brændstoffer", ["brændstoffet", "brændstoffer"]),
+  noun("umulighed", "impossibility", "en", "umuligheden", ["umuligheden"]),
+  noun("læsevenlighed", "readability", "en", "læsevenligheden", ["læsevenligheden"]),
+  noun("modargument", "counterargument", "et", "modargumentet · modargumenter", ["modargumentet", "modargumenter", "modargumenterne"]),
+  noun("trappe", "staircase", "en", "trappen · trapper", ["trappen", "trapper", "trapperne"]),
+  adjective("uforsvarlig", "indefensible; irresponsible", "uforsvarlig · uforsvarligt · uforsvarlige", ["uforsvarligt", "uforsvarlige"]),
+  adjective("tilstrækkelig", "sufficient", "tilstrækkelig · tilstrækkeligt · tilstrækkelige", ["tilstrækkeligt", "tilstrækkelige"]),
+  adjective("brugbar", "usable", "brugbar · brugbart · brugbare", ["brugbart", "brugbare"]),
+  adjective("meningsløs", "meaningless", "meningsløs · meningsløst · meningsløse", ["meningsløst", "meningsløse"]),
+  adjective("lang", "long", "lang · langt · lange", ["langt", "lange"]),
+  verb("nære", "to harbour (a feeling)", "nærer · nærede · næret", ["nærer", "nærede", "næret"]),
+  verb("rygtes", "to be rumoured", "rygtes · rygtedes · er rygtedes", ["rygtedes"]),
+  verb("indgå", "to enter into (an agreement)", "indgår · indgik · indgået", ["indgår", "indgik", "indgået"]),
+  verb("konkludere", "to conclude", "konkluderer · konkluderede · konkluderet", ["konkluderer", "konkluderede", "konkluderet"]),
+  verb("påpege", "to point out", "påpeger · påpegede · påpeget", ["påpeger", "påpegede", "påpeget"]),
+  verb("kalibrere", "to calibrate", "kalibrerer · kalibrerede · kalibreret", ["kalibrerer", "kalibrerede", "kalibreret"]),
+  word("ligesom", "just like; as", "conjunction", "Compares two things or actions as similar."),
+  word("ad", "along; via", "preposition", "Used with movement along a surface, e.g. op ad trappen."),
+  word("langs", "along", "preposition", "Marks movement parallel to something, such as a canal or road."),
 ];
 
 /** A compact offline lexicon covering the common vocabulary used from A0 to B2. */
@@ -1937,9 +1975,19 @@ export const lexicalBankDictionaryEntries: readonly DictionaryEntry[] = lexicalB
   return true;
 });
 
-export const dictionaryEntries: readonly DictionaryEntry[] = [
+const existingDictionaryEntries = [
   ...baseDictionaryEntries,
   ...lexicalBankDictionaryEntries,
+];
+const existingHeadwords = new Set(existingDictionaryEntries.map((entry) => entry.headword));
+const situationalByHeadword = new Map(situationalDictionaryCandidates.map((entry) => [entry.headword, entry]));
+export const situationalDictionaryEntries = situationalDictionaryCandidates.filter((entry) => !existingHeadwords.has(entry.headword));
+export const dictionaryEntries: readonly DictionaryEntry[] = [
+  ...existingDictionaryEntries.map((entry) => {
+    const supplement = situationalByHeadword.get(entry.headword);
+    return supplement ? { ...entry, aliases: [...new Set([...(entry.aliases ?? []), ...(supplement.aliases ?? [])])] } : entry;
+  }),
+  ...situationalDictionaryEntries,
 ];
 
 const EDGE_PUNCTUATION = /^[\p{P}\p{S}]+|[\p{P}\p{S}]+$/gu;

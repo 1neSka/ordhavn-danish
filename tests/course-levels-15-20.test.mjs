@@ -18,7 +18,7 @@ test("levels 15-20 keep the four-by-eight path cadence and stable ids", () => {
   ]);
   assert.deepEqual(levels.map((level) => level.unlockXp), [14500, 16800, 19400, 22300, 25500, 29000]);
   assert.equal(missions.length, 24);
-  assert.equal(items.length, 192);
+  assert.equal(items.length, 288);
   assert.equal(new Set(levels.map((level) => level.color)).size, 6);
 
   levels.forEach((level, levelIndex) => {
@@ -26,7 +26,7 @@ test("levels 15-20 keep the four-by-eight path cadence and stable ids", () => {
     level.missions.forEach((mission, missionIndex) => {
       const prefix = `l${levelIndex + 15}-m${String(missionIndex + 1).padStart(2, "0")}`;
       assert.equal(mission.id, prefix);
-      assert.equal(mission.questions.length, 8, `${mission.id}: question count`);
+      assert.equal(mission.questions.length, 12, `${mission.id}: question count`);
       assert.ok(mission.estimatedMinutes >= 7, `${mission.id}: later missions should be substantial`);
       assert.ok(mission.xp >= 650, `${mission.id}: expansion xp`);
       mission.questions.forEach((item, itemIndex) => {
@@ -93,6 +93,10 @@ test("all deterministic registry exercise types and every AI task are mixed into
 });
 
 test("new complex exercise payloads are internally playable", () => {
+  for (const item of items.filter((candidate) => candidate.type === "order")) {
+    assert.deepEqual(item.tokens, item.answer.trim().split(/\s+/u), `${item.id}: split every word into its own tile`);
+    assert.ok(item.tokens.length >= 6, `${item.id}: sentence order should not collapse into a trivial tile puzzle`);
+  }
   for (const item of items.filter((candidate) => candidate.type === "error-hunt")) {
     assert.ok(item.errorIndex >= 0 && item.errorIndex < item.sentenceTokens.length, `${item.id}: error index`);
     assert.equal(item.answer, item.correction, `${item.id}: correction is the canonical answer`);
