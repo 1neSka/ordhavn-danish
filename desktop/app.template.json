@@ -1,0 +1,13 @@
+{
+  "name": "Ordhavn",
+  "background": "#191821",
+  "server": {
+    "command": "{node}",
+    "args": "desktop/start-server.mjs",
+    "cwd": "{project}",
+    "port": 3000,
+    "health": "/",
+    "timeoutSeconds": 300,
+    "env": { "HOST": "127.0.0.1" }
+  }
+}

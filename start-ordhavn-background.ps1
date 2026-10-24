@@ -1,6 +1,11 @@
 $ErrorActionPreference = "Stop"
 $PSDefaultParameterValues["Out-File:Encoding"] = "utf8"
 
+$serverMutex = [Threading.Mutex]::new($false, "Local\OrdhavnLocalhostServer")
+if (-not $serverMutex.WaitOne(0)) {
+  exit 0
+}
+
 $projectDirectory = $PSScriptRoot
 $runtimeDirectory = Join-Path $env:USERPROFILE ".cache\codex-runtimes\codex-primary-runtime\dependencies\node\bin"
 $nodeExecutable = Join-Path $runtimeDirectory "node.exe"
@@ -16,7 +21,7 @@ New-Item -ItemType Directory -Path $logDirectory -Force | Out-Null
 
 try {
   $connection = [Net.Sockets.TcpClient]::new()
-  $connection.Connect("127.0.0.1", 3000)
+  $connection.Connect("localhost", 3000)
   $connection.Dispose()
   exit 0
 } catch {
@@ -44,5 +49,10 @@ $env:PATH = "$runtimeDirectory;$env:PATH"
 Set-Location -LiteralPath $projectDirectory
 
 "[$(Get-Date -Format o)] Starting the interactive Ordhavn local server with Node.js $nodeVersion" | Set-Content -LiteralPath $logFile
-& $nodeExecutable $npmCli run dev *>> $logFile
-exit $LASTEXITCODE
+try {
+  & $nodeExecutable $npmCli run dev *>> $logFile
+  exit $LASTEXITCODE
+} finally {
+  $serverMutex.ReleaseMutex()
+  $serverMutex.Dispose()
+}

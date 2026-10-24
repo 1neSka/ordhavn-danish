@@ -1,0 +1,4 @@
+node_modules/
+_electron-old/node_modules/
+_electron-old/app-config.json
+out/

@@ -1,0 +1,17 @@
+{
+  "name": "ordhavn-desktop",
+  "productName": "Ordhavn",
+  "version": "0.1.0",
+  "description": "Ordhavn som selvstændig Windows-app",
+  "private": true,
+  "main": "main.cjs",
+  "scripts": {
+    "start": "electron .",
+    "icon": "node scripts/build-icon.mjs",
+    "package": "node scripts/package.mjs"
+  },
+  "devDependencies": {
+    "@electron/packager": "20.3.0",
+    "electron": "44.9.1"
+  }
+}

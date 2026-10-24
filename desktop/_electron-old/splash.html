@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="da">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src file:; style-src 'unsafe-inline'; script-src 'unsafe-inline'">
+  <title>Ordhavn</title>
+  <style>
+    :root { color-scheme: dark; }
+    html, body { height: 100%; margin: 0; }
+    body {
+      display: grid;
+      place-items: center;
+      background: radial-gradient(circle at 50% 35%, #2a2540 0%, #191821 60%);
+      color: #f2f0f6;
+      font-family: "Segoe UI", system-ui, sans-serif;
+      user-select: none;
+    }
+    main { display: grid; justify-items: center; gap: 14px; max-width: 520px; padding: 24px; text-align: center; }
+    img { width: 112px; height: 112px; filter: drop-shadow(0 18px 30px rgba(0, 0, 0, .35)); }
+    h1 { margin: 6px 0 0; font-size: 30px; font-weight: 650; letter-spacing: .01em; }
+    p { margin: 0; color: #aaa6b7; font-size: 15px; line-height: 1.5; }
+    .bar { width: 220px; height: 4px; border-radius: 4px; background: #342d50; overflow: hidden; margin-top: 8px; }
+    .bar::after {
+      content: ""; display: block; width: 40%; height: 100%; border-radius: 4px; background: #b9aaff;
+      animation: slide 1.3s ease-in-out infinite;
+    }
+    @keyframes slide { from { transform: translateX(-100%); } to { transform: translateX(250%); } }
+    .error { display: none; }
+    body[data-state="error"] .loading { display: none; }
+    body[data-state="error"] .error { display: grid; gap: 14px; justify-items: center; }
+    code { font-size: 12px; color: #aaa6b7; word-break: break-all; }
+    button {
+      margin-top: 4px; padding: 10px 22px; border: 0; border-radius: 10px; cursor: pointer;
+      background: #7657e6; color: #fff; font: inherit; font-weight: 600;
+    }
+    button:hover { background: #8a6cf0; }
+  </style>
+</head>
+<body data-state="loading">
+  <main>
+    <img src="assets/icon.png" alt="">
+    <h1>Ordhavn</h1>
+    <div class="loading">
+      <p id="status">Starter havnen …</p>
+      <div class="bar"></div>
+    </div>
+    <div class="error">
+      <p id="message"></p>
+      <code id="log"></code>
+      <button id="retry" type="button">Prøv igen</button>
+    </div>
+  </main>
+  <script>
+    const params = new URLSearchParams(location.search);
+    document.body.dataset.state = params.get("state") === "error" ? "error" : "loading";
+    document.getElementById("message").textContent = params.get("message") ?? "";
+    document.getElementById("log").textContent = params.get("log") ? `Log: ${params.get("log")}` : "";
+    document.getElementById("retry").addEventListener("click", () => window.ordhavnDesktop?.restart());
+
+    const steps = ["Starter havnen …", "Tænder fyret …", "Sorterer ordene …", "Gør skibene klar …"];
+    let step = 0;
+    const rotation = setInterval(() => {
+      step = (step + 1) % steps.length;
+      document.getElementById("status").textContent = steps[step];
+    }, 3500);
+
+    // Called by the app while it rebuilds Ordhavn after code changes.
+    window.setStatus = (text) => {
+      clearInterval(rotation);
+      document.getElementById("status").textContent = text;
+    };
+  </script>
+</body>
+</html>
