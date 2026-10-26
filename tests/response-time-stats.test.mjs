@@ -81,8 +81,8 @@ test("the statistics view filters only time aggregates and labels excluded pause
 
   assert.match(pageSource, /filterResponseTimeOutliers\(progress\.attempts/u);
   assert.match(pageSource, /recordedSessionMs - excludedPauseMs/u);
-  assert.match(pageSource, /Sessionstid uden lange pauser/u);
+  assert.match(pageSource, /grammarActiveSeconds\(course\)/u, "Grammatik session time also drops long pauses");
   assert.match(pageSource, /lange pauser filtreret/u);
-  assert.match(pageSource, /excludedResponseIds\.has\(attempt\.id\) \? "lang pause"/u);
-  assert.match(pageSource, /const accuracy = progress\.attempts\.length/u, "accuracy should still use every raw attempt");
+  assert.match(pageSource, /excludedResponseIds\.has\(error\.id\) \? "lang pause"/u);
+  assert.match(pageSource, /const correct = progress\.attempts\.filter\(\(attempt\) => attempt\.correct\)\.length \+ course\.correctAttempts/u, "accuracy should still use every raw attempt");
 });

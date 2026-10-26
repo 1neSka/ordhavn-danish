@@ -111,11 +111,31 @@ import {
   type V2DrillProgress,
 } from "../lib/v2Drill";
 import {
+  BOX_INTERVAL_DAYS,
+  dueRuleIds,
   EMPTY_GRAMMAR_PROGRESS,
+  grammarAccuracy,
   normalizeGrammarProgress,
+  REMEMBERED_BOX,
+  rememberedRuleIds,
   type GrammarCourseProgress,
 } from "../lib/grammarCourse/progress";
-import { GRAMMAR_RULES } from "../lib/grammarCourse/curriculum";
+import { GRAMMAR_LESSONS, GRAMMAR_RULES } from "../lib/grammarCourse/curriculum";
+import {
+  activityHeatmap,
+  dailySeries,
+  grammarActiveSeconds,
+  grammarBoxDistribution,
+  grammarEvents,
+  grammarModuleRows,
+  grammarRuleTitle,
+  hourOfDayCounts,
+  lessonEvents,
+  skillRows,
+  STAT_SOURCE_LABEL,
+  STAT_SOURCES,
+} from "../lib/learningStats";
+import { AccuracyTrend, ActivityHeatmap, BoxLadder, ChartLegend, DonutChart, HourBars, SOURCE_COLOR, StackedDailyBars } from "./stats-charts";
 import lessonAiStyles from "./lesson-ai-feedback.module.css";
 
 type View = "home" | "path" | "practice" | "v2" | "grammar" | "wordle" | "scenarios" | "stats" | "profile" | "gender-bank";
@@ -328,10 +348,6 @@ function formatDuration(seconds: number) {
   if (seconds < 60) return `${seconds} sek.`;
   const minutes = Math.round(seconds / 60);
   return `${minutes} min.`;
-}
-
-function formatDayLabel(date: Date) {
-  return new Intl.DateTimeFormat("da-DK", { weekday: "short" }).format(date).replace(".", "");
 }
 
 function retentionMeasurements(mastery: MasteryState | null): RankRetentionMeasurements {
@@ -757,46 +773,40 @@ function StatsView({
   onConnectDirectory: () => void;
   onExport: (mode: "download" | "folder") => void;
 }) {
-  const correct = progress.attempts.filter((attempt) => attempt.correct).length;
-  const accuracy = progress.attempts.length ? Math.round((correct / progress.attempts.length) * 100) : 0;
-  const responseTimeSample = filterResponseTimeOutliers(progress.attempts, (attempt) => attempt.responseMs);
-  const responseAttempts = responseTimeSample.included;
+  const course = progress.grammarCourse;
+  const events = [...lessonEvents(progress.attempts), ...grammarEvents(course)];
+  // Grammatik attempts answered before the attempt log existed only live in the
+  // course totals, so headline numbers use those totals rather than the log.
+  const totalAnswers = progress.attempts.length + course.totalAttempts;
+  const correct = progress.attempts.filter((attempt) => attempt.correct).length + course.correctAttempts;
+  const accuracy = totalAnswers ? Math.round((correct / totalAnswers) * 100) : 0;
+  const responseTimeSample = filterResponseTimeOutliers(events, (event) => event.ms);
+  const responseEvents = responseTimeSample.included;
   const excludedResponseIds = new Set(responseTimeSample.excluded.map(({ sample }) => sample.id));
+  const lessonPauses = filterResponseTimeOutliers(progress.attempts, (attempt) => attempt.responseMs).excluded;
   const recordedSessionMs = progress.sessions.reduce((sum, session) => sum + session.durationSeconds * 1000, 0);
-  const excludedPauseMs = responseTimeSample.excluded.reduce((sum, item) => sum + Math.max(0, item.responseMs), 0);
-  const totalSeconds = Math.round(Math.max(0, recordedSessionMs - excludedPauseMs) / 1000);
-  const avgResponse = responseAttempts.length
-    ? Math.round(responseAttempts.reduce((sum, attempt) => sum + attempt.responseMs, 0) / responseAttempts.length / 100) / 10
+  const excludedPauseMs = lessonPauses.reduce((sum, item) => sum + Math.max(0, item.responseMs), 0);
+  const lessonSeconds = Math.round(Math.max(0, recordedSessionMs - excludedPauseMs) / 1000);
+  const grammarSeconds = grammarActiveSeconds(course);
+  const avgResponse = responseEvents.length
+    ? Math.round(responseEvents.reduce((sum, event) => sum + event.ms, 0) / responseEvents.length / 100) / 10
     : 0;
-  const skillMap = new Map<string, { correct: number; total: number; attempts: Attempt[] }>();
-  progress.attempts.forEach((attempt) => {
-    const current = skillMap.get(attempt.skill) ?? { correct: 0, total: 0, attempts: [] };
-    current.total += 1;
-    current.correct += attempt.correct ? 1 : 0;
-    current.attempts.push(attempt);
-    skillMap.set(attempt.skill, current);
-  });
-  const skills = [...skillMap.entries()].map(([name, value]) => {
-    const timingSample = filterResponseTimeOutliers(value.attempts, (attempt) => attempt.responseMs).included;
-    return {
-      name,
-      accuracy: Math.round((value.correct / value.total) * 100),
-      attempts: value.total,
-      speed: timingSample.length
-        ? Math.round(timingSample.reduce((sum, attempt) => sum + attempt.responseMs, 0) / timingSample.length / 100) / 10
-        : null,
-    };
-  }).sort((a, b) => b.attempts - a.attempts);
+  const skills = skillRows(events);
 
-  const lastSeven = Array.from({ length: 7 }, (_, index) => {
-    const date = new Date();
-    date.setDate(date.getDate() - (6 - index));
-    const key = dayKey(date);
-    const attempts = progress.attempts.filter((attempt) => attempt.timestamp.startsWith(key));
-    return { label: formatDayLabel(date), count: attempts.length, correct: attempts.filter((attempt) => attempt.correct).length };
-  });
-  const maxDaily = Math.max(5, ...lastSeven.map((day) => day.count));
-  const recentErrors = [...progress.attempts].filter((attempt) => !attempt.correct).reverse().slice(0, 5);
+  const lastFourteen = dailySeries(events, 14);
+  const heatmap = activityHeatmap(events, 18);
+  const hours = hourOfDayCounts(events);
+  const peakHour = hours.some(Boolean) ? hours.indexOf(Math.max(...hours)) : null;
+  const activeDays = new Set(events.map((event) => dayKey(new Date(event.at)))).size;
+
+  const lessonErrors = progress.attempts.filter((attempt) => !attempt.correct).map((attempt) => ({
+    id: attempt.id, at: attempt.timestamp, type: attempt.questionType, title: attempt.prompt, answer: attempt.givenAnswer, ms: attempt.responseMs,
+  }));
+  const grammarErrors = (course.attemptLog ?? []).flatMap((entry, index) => entry.correct ? [] : [{
+    id: `grammar-${entry.at}-${index}`, at: entry.at, type: "grammatik", title: grammarRuleTitle(entry.rules[0] ?? ""), answer: entry.answer, ms: entry.ms,
+  }]);
+  const recentErrors = [...lessonErrors, ...grammarErrors].sort((a, b) => Date.parse(b.at) - Date.parse(a.at)).slice(0, 6);
+
   const masteryRecords = Object.values(progress.mastery?.records ?? {}).filter(Boolean);
   const operationalRecords = masteryRecords.filter((record): record is OperationalMasteryRecord => record?.cohort === "operational");
   const operationalRecall = operationalRecords.length
@@ -819,31 +829,53 @@ function StatsView({
   const brierAttempts = progress.attempts.filter((attempt) => attempt.brierScore !== null);
   const meanBrier = brierAttempts.length ? Math.round(brierAttempts.reduce((sum, item) => sum + (item.brierScore ?? 0), 0) / brierAttempts.length * 100) / 100 : null;
 
+  const grammarModules = grammarModuleRows(course);
+  const grammarBoxes = grammarBoxDistribution(course);
+  const lessonsDone = Object.keys(course.lessons).length;
+  const rememberedRules = rememberedRuleIds(course).length;
+  const dueRules = dueRuleIds(course).length;
+  const checkpointsPassed = grammarModules.filter((row) => row.checkpointPassed).length;
+
+  const trainingSlices = [
+    { label: "Lektioner", value: progress.attempts.length, color: "var(--chart-1)" },
+    { label: "Grammatik", value: course.totalAttempts, color: "var(--chart-2)" },
+    { label: "V2-drill", value: progress.v2Drill.totalAttempts, color: "var(--chart-3)" },
+    { label: "Scenarier", value: progress.scenarioRuns.length, color: "var(--chart-4)" },
+    { label: "Ordle", value: progress.wordleRuns.length, color: "var(--chart-5)" },
+  ];
+
   return (
     <div className="view stats-view">
       <section className="page-intro stats-intro">
-        <div><p className="eyebrow">DIT LÆRINGSKOMPAS</p><h1>Statistik</h1><p>Se ikke bare hvor meget du træner — se præcis hvordan du lærer.</p></div>
+        <div><p className="eyebrow">DIT LÆRINGSKOMPAS</p><h1>Statistik</h1><p>Se ikke bare hvor meget du træner — se præcis hvordan du lærer. Lektioner og Grammatik tæller nu sammen.</p></div>
         <button className="secondary-button" onClick={() => onExport("download")}><Download size={18} /> Hent alle data</button>
       </section>
 
       <div className="metric-grid">
-        <article className="metric-card"><span className="icon-box violet"><Target size={20} /></span><div><p>Præcision</p><strong>{accuracy}%</strong><small>{correct} af {progress.attempts.length} svar</small></div></article>
-        <article className="metric-card"><span className="icon-box mint"><Clock3 size={20} /></span><div><p>Aktiv tid</p><strong>{formatDuration(totalSeconds)}</strong><small>Sessionstid uden lange pauser</small></div></article>
-        <article className="metric-card"><span className="icon-box amber"><Flame size={20} /></span><div><p>Nuværende stime</p><strong>{progress.streak} dage</strong><small>Bedste vane lige nu</small></div></article>
-        <article className="metric-card"><span className="icon-box blue"><Gauge size={20} /></span><div><p>Svartid</p><strong>{avgResponse} sek.</strong><small>{responseTimeSample.excluded.length ? `${responseTimeSample.excluded.length} lange pauser filtreret` : "Gennemsnit pr. opgave"}</small></div></article>
-        <article className="metric-card"><span className="icon-box violet"><Gamepad2 size={20} /></span><div><p>Scenarier</p><strong>{new Set(progress.scenarioRuns.filter((run) => run.success).map((run) => run.caseId)).size}</strong><small>{progress.scenarioRuns.length} gennemførte forsøg</small></div></article>
+        <article className="metric-card"><span className="icon-box violet"><Target size={22} /></span><div><p>Præcision</p><strong>{accuracy}%</strong><small>{correct} af {totalAnswers} svar</small></div></article>
+        <article className="metric-card"><span className="icon-box mint"><Clock3 size={22} /></span><div><p>Aktiv tid</p><strong>{formatDuration(lessonSeconds + grammarSeconds)}</strong><small>Lektioner {formatDuration(lessonSeconds)} · Grammatik {formatDuration(grammarSeconds)}</small></div></article>
+        <article className="metric-card"><span className="icon-box amber"><Flame size={22} /></span><div><p>Nuværende stime</p><strong>{progress.streak} dage</strong><small>{activeDays} aktive dage i alt</small></div></article>
+        <article className="metric-card"><span className="icon-box blue"><Gauge size={22} /></span><div><p>Svartid</p><strong>{avgResponse} sek.</strong><small>{responseTimeSample.excluded.length ? `${responseTimeSample.excluded.length} lange pauser filtreret` : "Gennemsnit pr. opgave"}</small></div></article>
+        <article className="metric-card"><span className="icon-box rose"><GraduationCap size={22} /></span><div><p>Grammatik</p><strong>{lessonsDone}/{GRAMMAR_LESSONS.length}</strong><small>lektioner · {rememberedRules} regler husket</small></div></article>
+        <article className="metric-card"><span className="icon-box violet"><Gamepad2 size={22} /></span><div><p>Scenarier</p><strong>{new Set(progress.scenarioRuns.filter((run) => run.success).map((run) => run.caseId)).size}</strong><small>{progress.scenarioRuns.length} gennemførte forsøg</small></div></article>
       </div>
 
       <div className="stats-main-grid">
         <section className="panel activity-chart">
-          <div className="panel-heading"><div><p className="eyebrow">SENESTE 7 DAGE</p><h3>Aktivitet</h3></div><span className="chart-legend"><i /> Opgaver</span></div>
-          <div className="bar-chart" aria-label="Opgaver per dag">
-            {lastSeven.map((day) => (
-              <div className="bar-column" key={day.label}>
-                <span>{day.count || ""}</span><div className="bar-shell"><i style={{ height: `${Math.max(day.count ? 12 : 2, (day.count / maxDaily) * 100)}%` }} /></div><small>{day.label}</small>
-              </div>
-            ))}
-          </div>
+          <div className="panel-heading"><div><p className="eyebrow">SENESTE 14 DAGE</p><h3>Aktivitet</h3></div><ChartLegend items={STAT_SOURCES.map((source) => ({ label: STAT_SOURCE_LABEL[source], color: SOURCE_COLOR[source] }))} /></div>
+          <StackedDailyBars days={lastFourteen} />
+        </section>
+
+        <section className="panel source-panel">
+          <div className="panel-heading"><div><p className="eyebrow">FORDELING</p><h3>Hvor du træner</h3></div><Layers3 size={21} /></div>
+          <DonutChart slices={trainingSlices} centerLabel="svar og runder" />
+        </section>
+      </div>
+
+      <div className="stats-main-grid">
+        <section className="panel trend-panel">
+          <div className="panel-heading"><div><p className="eyebrow">PRÆCISION OVER TID</p><h3>Bliver du skarpere?</h3></div><ChartLegend items={STAT_SOURCES.map((source) => ({ label: STAT_SOURCE_LABEL[source], color: SOURCE_COLOR[source] }))} /></div>
+          <AccuracyTrend days={lastFourteen} />
         </section>
 
         <section className="panel mastery-card">
@@ -854,6 +886,48 @@ function StatsView({
           <p>{operationalRecords.length ? `${operationalRecords.length} kort i arbejdsbunken · estimeret med FSRS-5.` : "Tag din første mission for at tegne din profil."}</p>
         </section>
       </div>
+
+      <div className="stats-split-grid">
+        <section className="panel heatmap-panel">
+          <div className="panel-heading"><div><p className="eyebrow">VANE</p><h3>Dine træningsdage</h3></div><span className="muted">Seneste 18 uger</span></div>
+          <ActivityHeatmap weeks={heatmap} />
+        </section>
+        <section className="panel hour-panel">
+          <div className="panel-heading"><div><p className="eyebrow">RYTME</p><h3>Hvornår på dagen</h3></div><span className="muted">{peakHour === null ? "Ingen data endnu" : `Flest svar kl. ${String(peakHour).padStart(2, "0")}–${String((peakHour + 1) % 24).padStart(2, "0")}`}</span></div>
+          <HourBars hours={hours} />
+        </section>
+      </div>
+
+      <section className="panel grammar-stats-panel">
+        <div className="panel-heading"><div><p className="eyebrow">GRAMMATIKSKOLEN</p><h3>Regler, moduler og gentagelse</h3></div><span className="muted">{course.totalAttempts} svar · {grammarAccuracy(course)}% rigtige · bedste stime {course.bestStreak}</span></div>
+        <div className="grammar-stat-strip">
+          <div><span>Lektioner</span><strong>{lessonsDone}/{GRAMMAR_LESSONS.length}</strong></div>
+          <div><span>Regler husket</span><strong>{rememberedRules}</strong><small>boks {REMEMBERED_BOX}+</small></div>
+          <div><span>Klar til repetition</span><strong>{dueRules}</strong></div>
+          <div><span>Bosser besejret</span><strong>{checkpointsPassed}/{grammarModules.length}</strong></div>
+        </div>
+        <div className="grammar-stats-grid">
+          <div>
+            <h4>Moduler</h4>
+            <div className="module-bars">
+              {grammarModules.map((row, index) => (
+                <div className="module-row" key={row.id}>
+                  <strong>{row.title}{row.checkpointPassed && <Trophy size={14} aria-label="boss besejret" />}</strong>
+                  <div className="module-track" title={`${row.lessonsDone} af ${row.lessonsTotal} lektioner`}><i style={{ width: `${(row.lessonsDone / row.lessonsTotal) * 100}%`, background: `var(--chart-${(index % 6) + 1})` }} /></div>
+                  <span>{row.lessonsDone}/{row.lessonsTotal}</span>
+                  <span>{row.accuracy === null ? "—" : `${row.accuracy}%`}</span>
+                </div>
+              ))}
+            </div>
+            <small className="chart-footnote">Bjælke: gennemførte lektioner · tal til højre: præcision i modulet</small>
+          </div>
+          <div>
+            <h4>Gentagelseskasser</h4>
+            <BoxLadder boxes={grammarBoxes} labels={BOX_INTERVAL_DAYS.map((days) => (days ? `${days} d` : "ny"))} />
+            <small className="chart-footnote">En regel rykker en kasse op, når du husker den på dagen den er klar.</small>
+          </div>
+        </div>
+      </section>
 
       <section className="panel retention-panel">
         <div className="panel-heading"><div><p className="eyebrow">UVILDIG RETENTION</p><h3>Husker du det efter 1, 3, 7 og 14 dage?</h3></div><span className="holdout-badge">8% holdout · fast plan</span></div>
@@ -872,9 +946,11 @@ function StatsView({
         {skills.length ? (
           <div className="skill-table">
             <div className="skill-row table-head"><span>Færdighed</span><span>Mestring</span><span>Forsøg</span><span>Tempo</span></div>
-            {skills.slice(0, 8).map((skill) => (
-              <div className="skill-row" key={skill.name}>
-                <strong>{skill.name}</strong><div className="skill-meter"><i style={{ width: `${skill.accuracy}%` }} /><span>{skill.accuracy}%</span></div><span>{skill.attempts}</span><span>{skill.speed === null ? "—" : `${skill.speed} sek.`}</span>
+            {skills.slice(0, 12).map((skill) => (
+              <div className="skill-row" key={`${skill.source}-${skill.name}`}>
+                <strong><em className={`source-chip ${skill.source}`}>{STAT_SOURCE_LABEL[skill.source]}</em>{skill.name}</strong>
+                <div className="skill-meter"><i className={skill.accuracy >= 85 ? "strong" : skill.accuracy >= 65 ? "mid" : "weak"} style={{ width: `${skill.accuracy}%` }} /><span>{skill.accuracy}%</span></div>
+                <span>{skill.attempts}</span><span>{skill.speed === null ? "—" : `${skill.speed} sek.`}</span>
               </div>
             ))}
           </div>
@@ -883,15 +959,15 @@ function StatsView({
 
       <div className="stats-bottom-grid">
         <section className="panel error-panel">
-          <div className="panel-heading"><div><p className="eyebrow">FEJLMØNSTRE</p><h3>Ord der fortjener et comeback</h3></div><RotateCcw size={20} /></div>
-          {recentErrors.length ? recentErrors.map((attempt) => (
-            <div className="error-row" key={attempt.id}><span className="error-type">{attempt.questionType}</span><div><strong>{attempt.prompt}</strong><span>Du skrev: {attempt.givenAnswer || "—"}</span></div><small>{excludedResponseIds.has(attempt.id) ? "lang pause" : `${Math.round(attempt.responseMs / 1000)} sek.`}</small></div>
+          <div className="panel-heading"><div><p className="eyebrow">FEJLMØNSTRE</p><h3>Det der fortjener et comeback</h3></div><RotateCcw size={20} /></div>
+          {recentErrors.length ? recentErrors.map((error) => (
+            <div className="error-row" key={error.id}><span className={`error-type ${error.type === "grammatik" ? "grammar" : ""}`}>{error.type}</span><div><strong>{error.title}</strong><span>Du svarede: {error.answer || "—"}</span></div><small>{excludedResponseIds.has(error.id) ? "lang pause" : `${Math.round(error.ms / 1000)} sek.`}</small></div>
           )) : <EmptyState icon={ShieldCheck} title="Ingen fejl endnu" copy="Når et svar driller, gemmer vi mønsteret her — uden at dømme." />}
         </section>
 
         <section className="panel export-panel">
           <div className="panel-heading"><div><p className="eyebrow">DATAKONTROL</p><h3>Dit læringsarkiv</h3></div><Code2 size={20} /></div>
-          <p>Få den dybe data opdelt i separate filer: forsøg, sessioner, dage, færdigheder, fejl og et læsbart resumé.</p>
+          <p>Få den dybe data opdelt i separate filer: forsøg, sessioner, dage, færdigheder, fejl, grammatik og et læsbart resumé.</p>
           <div className={`folder-status ${directoryHandle ? "connected" : ""}`}>
             {directoryHandle ? <FolderCheck size={20} /> : <CloudDownload size={20} />}
             <div><strong>{directoryHandle ? directoryHandle.name : "Ingen projektmappe valgt"}</strong><span>{directoryHandle ? "Klar til direkte eksport" : "Vælg projektets data-exports-mappe én gang"}</span></div>
